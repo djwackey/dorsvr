@@ -53,7 +53,7 @@ func PrintCommandArgs() bool {
 	//daemons := false
 	flag.Parse()
 	if flag.NArg() >= 1 {
-		switch os.Args[0] {
+		switch os.Args[1] {
 		case "/h", "/help":
 			fmt.Println(HELP_MESSAGE + "\n" + HELP_DAEMON)
 			break
