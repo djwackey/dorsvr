@@ -4,7 +4,6 @@ import (
 	"fmt"
 	. "groupsock"
 	"net"
-	//env "UsageEnvironment"
 )
 
 type RTSPServer struct {
@@ -24,11 +23,11 @@ func NewRTSPServer(portNum int) *RTSPServer {
 }
 
 func (this *RTSPServer) Start() {
-	go this.IncomingConnectionHandler(0)
+	go this.IncomingConnectionHandler()
 }
 
 func (this *RTSPServer) SetupOurSocket() error {
-	tcpAddr := fmt.Sprintf(":%d", this.rtspPort)
+	tcpAddr := fmt.Sprintf("0.0.0.0:%d", this.rtspPort)
 	var err error
 	this.listen, err = net.Listen("tcp", tcpAddr)
 	if err != nil {
@@ -38,12 +37,17 @@ func (this *RTSPServer) SetupOurSocket() error {
 	return nil
 }
 
+func (this *RTSPServer) RtspURL(streamName string) string {
+	urlPrefix := this.RtspURLPrefix()
+	return fmt.Sprintf("%s%s", urlPrefix, streamName)
+}
+
 func (this *RTSPServer) RtspURLPrefix() string {
 	this.urlPrefix, _ = OurIPAddress()
 	return fmt.Sprintf("rtsp://%s:%d/", this.urlPrefix, this.rtspPort)
 }
 
-func (this *RTSPServer) IncomingConnectionHandler(serverSocket int) {
+func (this *RTSPServer) IncomingConnectionHandler() {
 	for {
 		tcpConn, err := this.listen.Accept()
 		if err != nil {
@@ -63,4 +67,27 @@ func (this *RTSPServer) NewClientConnection(conn net.Conn) {
 	if rtspClientConnection != nil {
 		rtspClientConnection.IncomingRequestHandler()
 	}
+}
+
+func (this *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
+	return nil
+}
+
+func (this *RTSPServer) AddServerMediaSession(mediaSession *ServerMediaSession) {
+	return
+}
+
+func (this *RTSPServer) RemoveServerMediaSession(mediaSession *ServerMediaSession) {
+	return
+}
+
+func (this *RTSPServer) CreateNewSMS(streamName string) *ServerMediaSession {
+	var serverMediaSession *ServerMediaSession
+	switch streamName {
+	case ".264":
+		serverMediaSession = NewServerMediaSession()
+		serverMediaSession.AddSubSession(NewH264FileMediaSubSession())
+	default:
+	}
+	return serverMediaSession
 }

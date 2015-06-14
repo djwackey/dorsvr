@@ -2,25 +2,26 @@ package main
 
 import (
 	"fmt"
+	. "groupsock"
 	"net"
-    	//. "groupsock"
 )
 
 type RTSPClientConnection struct {
-	mClientOutputSocket net.Conn
-	mCurrentCSeq        string
-	mResponseBuffer     string
+	clientOutputSocket net.Conn
+	currentCSeq        string
+	responseBuffer     string
+	rtspServer         *RTSPServer
 }
 
 func NewRTSPClientConnection(socket net.Conn) *RTSPClientConnection {
-	return &RTSPClientConnection{mClientOutputSocket: socket}
+	return &RTSPClientConnection{clientOutputSocket: socket}
 }
 
 func (this *RTSPClientConnection) IncomingRequestHandler() {
 	buffer := make([]byte, 1024)
 	isclose := false
 	for {
-		length, err := this.mClientOutputSocket.Read(buffer[0:1024])
+		length, err := this.clientOutputSocket.Read(buffer[:1024])
 
 		switch err {
 		case nil:
@@ -33,12 +34,12 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 			}
 		}
 
-		sendBytes, err := this.mClientOutputSocket.Write([]byte(this.mResponseBuffer))
+		fmt.Println(this.responseBuffer)
+
+		sendBytes, err := this.clientOutputSocket.Write([]byte(this.responseBuffer))
 		if err != nil {
 			fmt.Println("failed to send response buffer.", sendBytes)
 		}
-
-		fmt.Println(this.mResponseBuffer)
 
 		if isclose {
 			break
@@ -46,23 +47,24 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 	}
 
 	fmt.Println("end connection.")
+	this.clientOutputSocket.Close()
 }
 
 func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
-	fmt.Println(string(buf[0:len]))
+	fmt.Println("HandleRequestBytes", string(buf[:len]))
 	requestString, parseSucceeded := ParseRTSPRequestString(buf, len)
 	if parseSucceeded {
-		this.mCurrentCSeq = "2"
+		this.currentCSeq = "2"
 		switch requestString.cmdName {
 		case "OPTIONS":
 			this.handleCommandOptions()
 		case "DESCRIBE":
-			this.handleCommandDescribe()
+			this.handleCommandDescribe(string(buf))
 		case "SETUP":
 			{
-				//sessionId := OurRandom32()
-				//clientSession := this.NewClientSession(sessionId)
-				//clientSession.HandleCommandSetup()
+				sessionId := OurRandom32()
+				clientSession := this.NewClientSession(sessionId)
+				clientSession.HandleCommandSetup()
 			}
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
 			{
@@ -75,25 +77,65 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 }
 
 func (this *RTSPClientConnection) handleCommandOptions() {
-	this.mResponseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\nCSeq: %s\r\n%sPublic: %s\r\n\r\n", this.mCurrentCSeq, DateHeader(), allowedCommandNames)
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\nCSeq: %s\r\n%sPublic: %s\r\n\r\n", this.currentCSeq, DateHeader(), allowedCommandNames)
 }
 
-func (this *RTSPClientConnection) handleCommandDescribe() {
-	var rtspURL, sdpDescription string
+func (this *RTSPClientConnection) handleCommandNotFound() {
+	this.setRTSPResponse("404 Stream Not Found")
+}
+
+func (this *RTSPClientConnection) handleCommandSessionNotFound() {
+	this.setRTSPResponse("454 Session Not Found")
+}
+
+func (this *RTSPClientConnection) handleCommandUnsupportedTransport() {
+	this.setRTSPResponse("461 Unsupported Transport")
+}
+
+func (this *RTSPClientConnection) handleCommandDescribe(fullRequestStr string) {
+	var urlTotalSuffix string
+
+	this.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
+
+	var session *ServerMediaSession
+	session = this.rtspServer.LookupServerMediaSession(urlTotalSuffix)
+	if session == nil {
+		this.handleCommandNotFound()
+		return
+	}
+	sdpDescription := session.GenerateSDPDescription()
+	if len(sdpDescription) <= 0 {
+		this.setRTSPResponse("404 File Not Found, Or In Incorrect Format")
+		return
+	}
+
+	streamName := session.StreamName()
+	rtspURL := this.rtspServer.RtspURL(streamName)
 	var sdpDescriptionSize int
-	this.mResponseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\nCSeq: %s\r\n"+
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\nCSeq: %s\r\n"+
 		"%s"+
 		"Content-Base: %s/\r\n"+
 		"Content-Type: application/sdp\r\n"+
 		"Content-Length: %d\r\n\r\n"+
 		"%s",
-		this.mCurrentCSeq, DateHeader(), rtspURL, sdpDescriptionSize, sdpDescription)
+		this.currentCSeq, DateHeader(), rtspURL, sdpDescriptionSize, sdpDescription)
 }
 
 func (this *RTSPClientConnection) handleCommandNotSupported() {
-	this.mResponseBuffer = fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n%sAllow: %s\r\n\r\n", this.mCurrentCSeq, DateHeader(), allowedCommandNames)
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n%sAllow: %s\r\n\r\n", this.currentCSeq, DateHeader(), allowedCommandNames)
 }
 
-func (this *RTSPClientConnection) NewClientSession(sessionId int32) *RTSPClientSession {
-    	return NewRTSPClientSession()
+func (this *RTSPClientConnection) setRTSPResponse(responseStr string) {
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 %s\r\n"+
+		"CSeq: %s\r\n"+
+		"%s\r\n",
+		responseStr, this.currentCSeq, DateHeader())
+}
+
+func (this *RTSPClientConnection) AuthenticationOK(cmdName string, urlSuffix string, fullRequestStr string) bool {
+	return true
+}
+
+func (this *RTSPClientConnection) NewClientSession(sessionId uint32) *RTSPClientSession {
+	return NewRTSPClientSession()
 }

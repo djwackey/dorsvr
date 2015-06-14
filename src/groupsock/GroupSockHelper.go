@@ -1,9 +1,9 @@
 package groupsock
 
 import (
-    "fmt"
-    "net"
-    "strings"
+	"fmt"
+	"net"
+	"strings"
 )
 
 func InitWinSocket() {
@@ -22,12 +22,12 @@ func writeSocket() {
 }
 
 func OurIPAddress() (string, error) {
-    conn, err := net.Dial("udp", "www.baidu.com:80")
-    if err != nil {
-        fmt.Println("[ourIPAddress]", err.Error())
-        return "", err
-    }
-    defer conn.Close()
+	conn, err := net.Dial("udp", "www.baidu.com:80")
+	if err != nil {
+		fmt.Println("[ourIPAddress]", err.Error())
+		return "", err
+	}
+	defer conn.Close()
 
-    return strings.Split(conn.LocalAddr().String(), ":")[0], nil
+	return strings.Split(conn.LocalAddr().String(), ":")[0], nil
 }

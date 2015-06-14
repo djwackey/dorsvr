@@ -6,39 +6,73 @@ import (
 	"time"
 )
 
+const MAX_COMMAND_NUM = 9
+
 // Handler routines for specific RTSP commands:
-var allowedCommandNames [9]string = [9]string{"OPTIONS", "DESCRIBE", "SETUP", "TEARDOWN", "PLAY", "PAUSE", "RECORD", "GET_PARAMETER", "SET_PARAMETER"}
+var allowedCommandNames [MAX_COMMAND_NUM]string = [MAX_COMMAND_NUM]string{"OPTIONS", "DESCRIBE", "SETUP", "TEARDOWN", "PLAY", "PAUSE", "RECORD", "GET_PARAMETER", "SET_PARAMETER"}
 
 type RTSPRequestInfo struct {
-	cmdName string
+	cseq         string
+	cmdName      string
+	sessionIdStr string
 }
 
-func ParseRTSPRequestString(buf []byte, len int) (*RTSPRequestInfo, bool) {
-	result := true
-	var cmdIndex int
-	switch {
-	case strings.HasPrefix(string(buf), allowedCommandNames[0]):
-		cmdIndex = 0
-	case strings.HasPrefix(string(buf), allowedCommandNames[1]):
-		cmdIndex = 1
-	case strings.HasPrefix(string(buf), allowedCommandNames[2]):
-		cmdIndex = 2
-	case strings.HasPrefix(string(buf), allowedCommandNames[3]):
-		cmdIndex = 3
-	case strings.HasPrefix(string(buf), allowedCommandNames[4]):
-		cmdIndex = 4
-	case strings.HasPrefix(string(buf), allowedCommandNames[5]):
-		cmdIndex = 5
-	case strings.HasPrefix(string(buf), allowedCommandNames[6]):
-		cmdIndex = 6
-	case strings.HasPrefix(string(buf), allowedCommandNames[7]):
-		cmdIndex = 7
-	case strings.HasPrefix(string(buf), allowedCommandNames[8]):
-		cmdIndex = 8
-	default:
+func ParseRTSPRequestString(buf []byte, length int) (*RTSPRequestInfo, bool) {
+	reqStr := string(buf)
+
+	var result bool
+	reqInfo := &RTSPRequestInfo{}
+	reqInfo.cmdName, result = parseCommandName(reqStr)
+	if !result {
+		return nil, false
+	}
+/*
+	reqInfo.cseq, result = parseRequestCSeq(reqStr[len(reqInfo.cmdName):])
+	if !result {
+		return nil, false
+	}
+*/
+	return reqInfo, result
+}
+
+func parseCommandName(reqStr string) (string, bool) {
+	var result bool
+	var cmdName string
+	for _, value := range allowedCommandNames {
+		if strings.HasPrefix(string(reqStr), value) {
+			cmdName, result = value, true
+			break
+		}
 	}
 
-	return &RTSPRequestInfo{cmdName: allowedCommandNames[cmdIndex]}, result
+	return cmdName, result
+}
+
+func parseRequestCSeq(reqStr string) (string, bool) {
+	cseqIndex := strings.Index(reqStr, "CSeq:")
+
+	ok := false
+	index := 0
+	for {
+		if cseqIndex+1 >= len(reqStr) {
+			break
+		}
+
+		if reqStr[cseqIndex] == '\r' && reqStr[cseqIndex+1] == '\n' {
+			ok = true
+			break
+		}
+
+		index += 1
+		cseqIndex += 1
+	}
+
+	var cseq string
+	if ok {
+		cseq = strings.Trim(reqStr[cseqIndex-index+5:cseqIndex], " ")
+	}
+
+	return cseq, true
 }
 
 // A "Date:" header that can be used in a RTSP (or HTTP) response

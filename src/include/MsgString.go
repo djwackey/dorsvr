@@ -25,6 +25,7 @@ const (
 	DORPS_CONFIG_FILE = "dorps.conf"
 	DORRS_CONFIG_FILE = "dorrs.conf"
 
-	HELP_MESSAGE = ""
-	HELP_DAEMON  = ""
+	HELP_MESSAGE = "/h /help\tPrint this message and quit.\n/v /version\tPrint the version of the server and quit.\n" +
+                   "/i /install\n/u /uninstall"
+	HELP_DAEMON  = "/d /daemon\tStart Server as a daemon"
 )

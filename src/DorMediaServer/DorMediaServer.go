@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	. "include"
 	. "DorDatabase"
 	env "UsageEnvironment"
+	. "include"
 )
 
 func main() {
