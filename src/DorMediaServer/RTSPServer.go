@@ -9,7 +9,7 @@ import (
 type RTSPServer struct {
 	urlPrefix string
 	rtspPort  int
-	listen    net.Listener
+	listen    *net.TCPListener
 }
 
 func NewRTSPServer(portNum int) *RTSPServer {
@@ -28,8 +28,10 @@ func (this *RTSPServer) Start() {
 
 func (this *RTSPServer) SetupOurSocket() error {
 	tcpAddr := fmt.Sprintf("0.0.0.0:%d", this.rtspPort)
+    addr, _ := net.ResolveTCPAddr("tcp", tcpAddr)
+
 	var err error
-	this.listen, err = net.Listen("tcp", tcpAddr)
+	this.listen, err = net.ListenTCP("tcp", addr)
 	if err != nil {
 		return err
 	}
@@ -49,13 +51,13 @@ func (this *RTSPServer) RtspURLPrefix() string {
 
 func (this *RTSPServer) IncomingConnectionHandler() {
 	for {
-		tcpConn, err := this.listen.Accept()
+		tcpConn, err := this.listen.AcceptTCP()
 		if err != nil {
 			fmt.Println("failed to accept client.")
 			continue
 		}
 
-		//tcpConn.SetReadBuffer(50*1024)
+		tcpConn.SetReadBuffer(50*1024)
 
 		// Create a new object for handling this RTSP connection:
 		go this.NewClientConnection(tcpConn)

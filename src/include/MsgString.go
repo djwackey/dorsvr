@@ -20,6 +20,7 @@ const (
 	SUCCESS_READ_DATABASE = "Success for reading database information."
 
 	FAILED_READ_CONFIG = "Failed to read configure file."
+    FAILED_CREATE_SERVER = "Failed to create RTSP server."
 
 	DORMS_CONFIG_FILE = "dorms.conf"
 	DORPS_CONFIG_FILE = "dorps.conf"

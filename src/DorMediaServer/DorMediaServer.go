@@ -35,7 +35,7 @@ func main() {
 	}
 
 	if rtspServer == nil {
-		fmt.Println("Failed to create RTSP server.")
+		fmt.Println(FAILED_CREATE_SERVER)
 		return
 	}
 	rtspServer.Start()
