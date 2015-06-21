@@ -3,7 +3,7 @@ package liveMedia
 type RTPInterface struct {
 }
 
-func (this *RTPInterface) startNetworkReading(/*handlerProc interface*/) {
+func (this *RTPInterface) startNetworkReading( /*handlerProc interface*/ ) {
 }
 
 func (this *RTPInterface) stopNetworkReading() {

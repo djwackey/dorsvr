@@ -4,5 +4,5 @@ type FileSink struct {
 }
 
 func NewFileSink() *FileSink {
-    return &FileSink{}
+	return &FileSink{}
 }

@@ -19,14 +19,14 @@ const (
 	SUCCESS_READ_CONFIG   = "Success for reading config information."
 	SUCCESS_READ_DATABASE = "Success for reading database information."
 
-	FAILED_READ_CONFIG = "Failed to read configure file."
-    FAILED_CREATE_SERVER = "Failed to create RTSP server."
+	FAILED_READ_CONFIG   = "Failed to read configure file."
+	FAILED_CREATE_SERVER = "Failed to create RTSP server."
 
 	DORMS_CONFIG_FILE = "dorms.conf"
 	DORPS_CONFIG_FILE = "dorps.conf"
 	DORRS_CONFIG_FILE = "dorrs.conf"
 
 	HELP_MESSAGE = "/h /help\tPrint this message and quit.\n/v /version\tPrint the version of the server and quit.\n" +
-                   "/i /install\n/u /uninstall"
-	HELP_DAEMON  = "/d /daemon\tStart Server as a daemon"
+		"/i /install\n/u /uninstall"
+	HELP_DAEMON = "/d /daemon\tStart Server as a daemon"
 )
