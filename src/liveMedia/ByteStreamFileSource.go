@@ -12,7 +12,7 @@ type ByteStreamFileSource struct {
 }
 
 func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
-	fid, err := os.Open("test.264")
+	fid, err := os.Open(fileName)
 	if err != nil {
 		return nil
 	}

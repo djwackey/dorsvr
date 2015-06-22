@@ -24,5 +24,5 @@ func (this *H264FileMediaSubSession) CreateNewStreamSource(estBitrate uint) *H26
 }
 
 func (this *H264FileMediaSubSession) CreateNewRTPSink() {
-	//return NewH264VideoRTPSink()
+	//return NewH264VideoRTPSink(this.mFileName)
 }

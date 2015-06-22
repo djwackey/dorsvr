@@ -13,5 +13,5 @@ if [ "$1" = "fmt" ]; then
 fi
 
 if [ "$1" = "test" ]; then
-    go test main/object
+    go test src/tests
 fi
