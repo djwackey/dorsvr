@@ -9,8 +9,8 @@
 * UsageEnvironment - usage environment
 </pre>
 ### Compile And Build ###
-> make
+\> make
 ### Format ###
-> make fmt
+\> make fmt
 ### Testing ###
-> make test
+\> make test
