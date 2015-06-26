@@ -4,12 +4,15 @@ import (
 	"fmt"
 	. "groupsock"
 	"net"
+    "strings"
 )
 
 type RTSPServer struct {
 	urlPrefix string
 	rtspPort  int
 	listen    *net.TCPListener
+    clientSessions map[string]*RTSPClientSession
+    serverMediaSessions map[string]*ServerMediaSession
 }
 
 func NewRTSPServer(portNum int) *RTSPServer {
@@ -19,6 +22,8 @@ func NewRTSPServer(portNum int) *RTSPServer {
 		return nil
 	}
 
+    rtspServer.clientSessions = make(map[string]*RTSPClientSession)
+    rtspServer.serverMediaSessions = make(map[string]*ServerMediaSession)
 	return rtspServer
 }
 
@@ -65,30 +70,43 @@ func (this *RTSPServer) IncomingConnectionHandler() {
 }
 
 func (this *RTSPServer) NewClientConnection(conn net.Conn) {
-	rtspClientConnection := NewRTSPClientConnection(conn)
+	rtspClientConnection := NewRTSPClientConnection(this, conn)
 	if rtspClientConnection != nil {
 		rtspClientConnection.IncomingRequestHandler()
 	}
 }
 
 func (this *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
-	return nil
+    serverMediaSession, _ = this.serverMediaSessions[streamName]
+	return serverMediaSession
 }
 
-func (this *RTSPServer) AddServerMediaSession(mediaSession *ServerMediaSession) {
-	return
+func (this *RTSPServer) AddServerMediaSession(serverMediaSession *ServerMediaSession) {
+    sessionName := serverMediaSession->streamName()
+    RemoveServerMediaSession(sessionName); // in case an existing "ServerMediaSession" with this name already exists
+
+    this.serverMediaSessions[sessionName] = serverMediaSession
 }
 
-func (this *RTSPServer) RemoveServerMediaSession(mediaSession *ServerMediaSession) {
-	return
+func (this *RTSPServer) RemoveServerMediaSession(serverMediaSession *ServerMediaSession) {
+	delete(this.serverMediaSessions, serverMediaSession)
 }
 
-func (this *RTSPServer) CreateNewSMS(streamName string) *ServerMediaSession {
-	var serverMediaSession *ServerMediaSession
-	switch streamName {
-	case ".264":
-		serverMediaSession = NewServerMediaSession()
-		//serverMediaSession.AddSubSession(NewH264FileMediaSubSession())
+func (this *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
+    var serverMediaSession *ServerMediaSession
+
+    array := strings.Split(fileName, ".")
+    if len(array) < 2:
+        return nil
+
+    extension := array[1]
+
+	switch extension {
+	case "264":
+        // Assumed to be a H.264 Video Elementary Stream file:
+        serverMediaSession = NewServerMediaSession("H.264 Video")
+        //OutPacketBuffer::maxSize = 100000; // allow for some possibly large H.264 frames
+		serverMediaSession.AddSubSession(NewH264FileMediaSubSession())
 	default:
 	}
 	return serverMediaSession
