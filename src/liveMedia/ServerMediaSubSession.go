@@ -6,14 +6,14 @@ type ServerMediaSubSession interface {
 }
 
 //
-func rangeSDPLine() {
-    return "a=range:npt=0-\r\n"
+func rangeSDPLine() string {
+	return "a=range:npt=0-\r\n"
 }
 
 func getAuxSDPLine(rtpSink *RTPSink) interface{} {
-    if rtpSink == nil {
-        return nil
-    }
+	if rtpSink == nil {
+		return nil
+	}
 
-    return rtpSink.auxSDPLine()
+	return rtpSink.AuxSDPLine()
 }

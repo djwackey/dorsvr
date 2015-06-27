@@ -1,7 +1,7 @@
 package liveMedia
 
 type FileServerMediaSubSession struct {
-    OnDemandServerMediaSubSession
+	OnDemandServerMediaSubSession
 	fileName string
 	fileSize int64
 }

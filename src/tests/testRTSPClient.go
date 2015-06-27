@@ -1,11 +1,11 @@
 package main
 
 import (
+	env "UsageEnvironment"
 	"flag"
 	"fmt"
 	. "liveMedia"
 	"os"
-	//env "UsageEnvironment"
 )
 
 type OurRTSPClient struct {
@@ -29,8 +29,7 @@ func main() {
 
 	openURL(os.Args[1])
 
-	//env.TaskScheduler().DoEventLoop()
-	select {}
+	env.TaskScheduler().DoEventLoop()
 }
 
 func usage(progName string) {
@@ -42,6 +41,7 @@ func openURL(rtspURL string) {
 	rtspClient := NewOurRTSPClient(rtspURL)
 	if rtspClient == nil {
 		fmt.Println("Failed to create a RTSP client URL", rtspURL)
+		return
 	}
 
 	rtspClientCount++

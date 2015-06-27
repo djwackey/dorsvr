@@ -1,54 +1,64 @@
 package liveMedia
 
 import (
-    "fmt"
-    . "groupsock"
-}
+	"fmt"
+	. "groupsock"
+)
 
 type OnDemandServerMediaSubSession struct {
-    SDPLines string
-    trackId string
-    trackNumber int
-    portNumForSDP int
+	SDPLines      string
+	trackId       string
+	trackNumber   int
+	portNumForSDP int
 }
 
 func (this *OnDemandServerMediaSubSession) sdpLines() {
-    if !this.SDPLines {
-        setSDPLinesFromRTPSink()
-    }
+	if this.SDPLines != "" {
+		//this.setSDPLinesFromRTPSink()
+	}
 }
 
 func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId uint) {
 }
 
-func (this *OnDemandServerMediaSubSession) trackId() string {
-    if this.trackId == "" {
-        this.trackId = fmt.Sprintf("track%d", this.trackNumber)
-    }
-    return this.trackId
+func (this *OnDemandServerMediaSubSession) TrackId() string {
+	if this.trackId == "" {
+		this.trackId = fmt.Sprintf("track%d", this.trackNumber)
+	}
+	return this.trackId
 }
 
 func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink *RTPSink, estBitrate uint) {
-    if rtpSink == nil {
-        return
-    }
+	if rtpSink == nil {
+		return
+	}
 
-    rtpPayloadType := rtpSink->rtpPayloadType()
-    mediaType := rtpSink.sdpMediaType()
-    rangeLine := rangeSDPLine()
+	rtpPayloadType := rtpSink.RtpPayloadType()
+	mediaType := rtpSink.SdpMediaType()
+	rangeLine := this.rangeSDPLine()
 
-    auxSDPLine := getAuxSDPLine()
-    if auxSDPLine == nil {
-        auxSDPLine = ""
-    }
+	auxSDPLine := this.getAuxSDPLine()
+	if auxSDPLine == "" {
+		auxSDPLine = ""
+	}
 
-    sdpFmt := "m=%s %u RTP/AVP %d\r\n" +
-              "c=IN IP4 %s\r\n" +
-              "b=AS:%u\r\n" +
-              "%s" +
-              "%s" +
-              "%s" +
-              "a=control:%s\r\n"
+	ipAddr, _ := OurIPAddress()
 
-    this.SDPLines = fmt.Sprintf(sdpFmt, mediaType, this.portNumForSDP, rtpPayloadType, OurIPAddress(), estBitrate, rangeLine, auxSDPLine, trackId())
+	sdpFmt := "m=%s %u RTP/AVP %d\r\n" +
+		"c=IN IP4 %s\r\n" +
+		"b=AS:%u\r\n" +
+		"%s" +
+		"%s" +
+		"%s" +
+		"a=control:%s\r\n"
+
+	this.SDPLines = fmt.Sprintf(sdpFmt, mediaType, this.portNumForSDP, rtpPayloadType, ipAddr, estBitrate, rangeLine, auxSDPLine, this.TrackId())
+}
+
+func (this *OnDemandServerMediaSubSession) rangeSDPLine() string {
+	return ""
+}
+
+func (this *OnDemandServerMediaSubSession) getAuxSDPLine() string {
+	return ""
 }

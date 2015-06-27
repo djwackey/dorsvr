@@ -14,11 +14,11 @@ type RTSPClientConnection struct {
 }
 
 func NewRTSPClientConnection(rtspServer *RTSPServer, socket net.Conn) *RTSPClientConnection {
-    return &RTSPClientConnection{rtspServer: rtspServer, clientOutputSocket: socket}
+	return &RTSPClientConnection{rtspServer: rtspServer, clientOutputSocket: socket}
 }
 
 func (this *RTSPClientConnection) GetRTSPServer() *RTSPServer {
-    return this.rtspServer
+	return this.rtspServer
 }
 
 func (this *RTSPClientConnection) IncomingRequestHandler() {
@@ -49,73 +49,75 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 	fmt.Println("HandleRequestBytes", string(buf[:len]))
 
-    var existed bool
-    var sessionIdStr string
-    var clientSession *RTSPClientSession
+	var existed bool
+	var sessionIdStr string
+	var clientSession *RTSPClientSession
 	requestString, parseSucceeded := ParseRTSPRequestString(buf, len)
 	if parseSucceeded {
 		this.currentCSeq = "2"
 		switch requestString.cmdName {
 		case "OPTIONS":
 			this.handleCommandOptions()
-        case "GET_PARAMETER":
-            this.handleCommandGetParameter()
-        case "SET_PARAMETER":
-            this.handleCommandSetParameter()
+			/*
+			   case "GET_PARAMETER":
+			       this.handleCommandGetParameter()
+			   case "SET_PARAMETER":
+			       this.handleCommandSetParameter()
+			*/
 		case "DESCRIBE":
 			this.handleCommandDescribe(requestString.urlPreSuffix, requestString.urlSuffix, string(buf))
 		case "SETUP":
 			{
-                if sessionIdStr == "" {
-                    var sessionId uint32
-                    for {
-				        sessionId = OurRandom32()
-                        sessionIdStr = fmt.Sprintf("%08X", sessionId)
+				if sessionIdStr == "" {
+					var sessionId uint32
+					for {
+						sessionId = OurRandom32()
+						sessionIdStr = fmt.Sprintf("%08X", sessionId)
 
-                        if _, existed = this.rtspServer.clientSessions[sessionIdStr]; !existed {
-                            break
-                        }
-                    }
-				    clientSession = this.NewClientSession(sessionId)
-                    this.rtspServer.clientSessions[sessionIdStr] = clientSession
-                } else {
-                    if clientSession, existed = this.rtspServer.clientSessions[sessionIdStr]; !existed {
-                        this.handleCommandSessionNotFound()
-                    }
-                }
+						if _, existed = this.rtspServer.clientSessions[sessionIdStr]; !existed {
+							break
+						}
+					}
+					clientSession = this.NewClientSession(sessionId)
+					this.rtspServer.clientSessions[sessionIdStr] = clientSession
+				} else {
+					if clientSession, existed = this.rtspServer.clientSessions[sessionIdStr]; !existed {
+						this.handleCommandSessionNotFound()
+					}
+				}
 
-                if clientSession != nil {
-				    clientSession.HandleCommandSetup()
-                }
+				if clientSession != nil {
+					clientSession.HandleCommandSetup(requestString.cmdName, requestString.urlPreSuffix, requestString.urlSuffix, string(buf))
+				}
 			}
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
 			{
-                if clientSession, existed = this.rtspServer.clientSessions[sessionIdStr]; existed {
-                    clientSession->handleCommandWithinSession()
-                } else {
-                    this.handleCommandSessionNotFound()
-                }
+				if clientSession, existed = this.rtspServer.clientSessions[sessionIdStr]; existed {
+					clientSession.HandleCommandWithinSession(requestString.cmdName)
+				} else {
+					this.handleCommandSessionNotFound()
+				}
 			}
 		case "RECORD":
 		default:
 			this.handleCommandBad()
 		}
-    } else {
-        /*
-        requestString, parseSucceeded := parseHTTPRequestString()
-        if parseSucceeded {
-		    switch requestString.cmdName {
-            case "GET":
-                this.handleHTTPCommandTunnelingGET()
-            case "POST":
-                this.handleHTTPCommandTunnelingPOST()
-            default:
-            }
-        }
-        */
-    }
+	} else {
+		/*
+			        requestString, parseSucceeded := parseHTTPRequestString()
+			        if parseSucceeded {
+					    switch requestString.cmdName {
+			            case "GET":
+			                this.handleHTTPCommandTunnelingGET()
+			            case "POST":
+			                this.handleHTTPCommandTunnelingPOST()
+			            default:
+			            }
+			        }
+		*/
+	}
 
-    fmt.Println(this.responseBuffer)
+	fmt.Println(this.responseBuffer)
 
 	sendBytes, err := this.clientOutputSocket.Write([]byte(this.responseBuffer))
 	if err != nil {
@@ -143,11 +145,12 @@ func (this *RTSPClientConnection) handleCommandSessionNotFound() {
 	this.setRTSPResponse("454 Session Not Found")
 }
 
-func (this *RTSPClientConnection) handleCommandUnsupportedTransport() {
+func (this *RTSPClientConnection) HandleCommandUnsupportedTransport() {
 	this.setRTSPResponse("461 Unsupported Transport")
 }
 
 func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fullRequestStr string) {
+	var urlTotalSuffix string
 	this.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
 
 	var session *ServerMediaSession
@@ -158,7 +161,7 @@ func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix,
 	}
 
 	sdpDescription := session.GenerateSDPDescription()
-    sdpDescriptionSize := len(sdpDescription)
+	sdpDescriptionSize := len(sdpDescription)
 	if sdpDescriptionSize <= 0 {
 		this.setRTSPResponse("404 File Not Found, Or In Incorrect Format")
 		return
@@ -176,8 +179,8 @@ func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix,
 }
 
 func (this *RTSPClientConnection) handleCommandBad() {
-    // Don't do anything with "fCurrentCSeq", because it might be nonsense
-    this.responseBuffer = fmt.Sprintf("RTSP/1.0 400 Bad Request\r\n%sAllow: %s\r\n\r\n", DateHeader(), allowedCommandNames)
+	// Don't do anything with "fCurrentCSeq", because it might be nonsense
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 400 Bad Request\r\n%sAllow: %s\r\n\r\n", DateHeader(), allowedCommandNames)
 }
 
 func (this *RTSPClientConnection) handleCommandNotSupported() {
@@ -185,21 +188,21 @@ func (this *RTSPClientConnection) handleCommandNotSupported() {
 }
 
 func (this *RTSPClientConnection) setRTSPResponse(responseStr string) {
-	this.responseBuffer = fmt.Sprintf("RTSP/1.0 %s\r\n" +
-		"CSeq: %s\r\n" +
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 %s\r\n"+
+		"CSeq: %s\r\n"+
 		"%s\r\n",
 		responseStr, this.currentCSeq, DateHeader())
 }
 
-func (this *RTSPClientConnection) setRTSPResponse(responseStr string, sessionId uint32) {
-	this.responseBuffer = fmt.Sprintf("RTSP/1.0 %s\r\n" +
-		"CSeq: %s\r\n" +
-		"%s\r\n" +
-        "Session: %08X\r\n\r\n",
+func (this *RTSPClientConnection) setRTSPResponseWithSessionId(responseStr string, sessionId uint32) {
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 %s\r\n"+
+		"CSeq: %s\r\n"+
+		"%s\r\n"+
+		"Session: %08X\r\n\r\n",
 		responseStr, this.currentCSeq, DateHeader(), sessionId)
 }
 
-func (this *RTSPClientConnection) AuthenticationOK(cmdName string, urlSuffix string, fullRequestStr string) bool {
+func (this *RTSPClientConnection) AuthenticationOK(cmdName, urlSuffix, fullRequestStr string) bool {
 	return true
 }
 

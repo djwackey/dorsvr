@@ -1,9 +1,17 @@
 package liveMedia
 
 type RTPSink struct {
-    MediaSink
+	MediaSink
 }
 
-func (this *RTPSink) auxSDPLine() {
-    return nil
+func (this *RTPSink) AuxSDPLine() string {
+	return ""
+}
+
+func (this *RTPSink) RtpPayloadType() string {
+	return ""
+}
+
+func (this *RTPSink) SdpMediaType() string {
+	return ""
 }

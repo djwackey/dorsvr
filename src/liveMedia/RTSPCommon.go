@@ -12,29 +12,29 @@ const MAX_COMMAND_NUM = 9
 var allowedCommandNames [MAX_COMMAND_NUM]string = [MAX_COMMAND_NUM]string{"OPTIONS", "DESCRIBE", "SETUP", "TEARDOWN", "PLAY", "PAUSE", "RECORD", "GET_PARAMETER", "SET_PARAMETER"}
 
 type RTSPRequestInfo struct {
-	cseq         string
-	cmdName      string
-	sessionIdStr string
-    urlPreSuffix string
-    urlSuffix    string
-    contentLength uint
+	cseq          string
+	cmdName       string
+	sessionIdStr  string
+	urlPreSuffix  string
+	urlSuffix     string
+	contentLength uint
 }
 
 type TransportHeader struct {
-    streamingMode     int
-    clientRTPPortNum  int
-    clientRTCPPortNum int
-    rtpChannelId      int
-    rtcpChannelId     int
-    destinationTTL    int
-    destinationAddr   string
-    streamingModeStr  string
+	streamingMode     int
+	clientRTPPortNum  int
+	clientRTCPPortNum int
+	rtpChannelId      int
+	rtcpChannelId     int
+	destinationTTL    int
+	destinationAddr   string
+	streamingModeStr  string
 }
 
 const (
-    RTP_UDP = iota
-    RTP_TCP
-    RAW_UDP
+	RTP_UDP = iota
+	RTP_TCP
+	RAW_UDP
 )
 
 func ParseRTSPRequestString(buf []byte, length int) (*RTSPRequestInfo, bool) {
@@ -96,15 +96,15 @@ func parseRequestCSeq(reqStr string) (string, bool) {
 }
 
 func parseTransportHeader(reqStr string) (*TransportHeader, bool) {
-    // Initialize the result parameters to default values:
-    header := new(TransportHeader)
-    header.streamingMode = RTP_UDP
-    header.destinationTTL = 255
-    header.clientRTPPortNum  = 0
-    header.clientRTCPPortNum = 1
-    header.rtpChannelId  = 0xFF
-    header.rtcpChannelId = 0xFF
-    return header, true
+	// Initialize the result parameters to default values:
+	header := new(TransportHeader)
+	header.streamingMode = RTP_UDP
+	header.destinationTTL = 255
+	header.clientRTPPortNum = 0
+	header.clientRTCPPortNum = 1
+	header.rtpChannelId = 0xFF
+	header.rtcpChannelId = 0xFF
+	return header, true
 }
 
 // A "Date:" header that can be used in a RTSP (or HTTP) response

@@ -8,13 +8,17 @@ import (
 	. "DorDatabase"
 	env "UsageEnvironment"
 	. "include"
-    . "liveMedia"
+	. "liveMedia"
 )
 
 func main() {
 	if PrintCommandArgs() {
 		return
 	}
+
+	fmt.Println("--------------------------------")
+	fmt.Println("|   Dor Media Server " + MEDIA_SERVER_VERSION + "   |")
+	fmt.Println("--------------------------------")
 
 	// create an instance of configure file manager.
 	confFileManager := NewConfFileManager()
@@ -40,8 +44,7 @@ func main() {
 		return
 	}
 	rtspServer.Start()
-
-	fmt.Println("Start Digital Operation Room Media Server.Version(1.0.0.3)")
+	fmt.Println(START_MEDIA_SERVER)
 
 	urlPrefix := rtspServer.RtspURLPrefix()
 	fmt.Println("This server's URL: " + urlPrefix + "<filename>.")

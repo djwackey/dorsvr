@@ -1,16 +1,16 @@
 package include
 
 import (
-    "time"
+	"time"
 )
 
-type timeval struct {
-    tv_sec int64
-    tv_usec int64
+type Timeval struct {
+	Tv_sec  int64
+	Tv_usec int64
 }
 
-func gettimeofday(val *timeval) {
-    tv_nsec := time.Now().UnixNano()
-    val.tv_sec =  tv_nsec / 1000000000
-    val.tv_usec = tv_nsec % (val.tv_sec * 1000000000)
+func GetTimeOfDay(val *Timeval) {
+	tv_nsec := time.Now().UnixNano()
+	val.Tv_sec = tv_nsec / 1000000000
+	val.Tv_usec = tv_nsec % (val.Tv_sec * 1000000000)
 }

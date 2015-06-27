@@ -10,7 +10,7 @@ type OutPacketBuffer struct {
 }
 
 func NewOutPacketBuffer() *OutPacketBuffer {
-    return &OutPacketBuffer{}
+	return &OutPacketBuffer{}
 }
 
 func (this *MediaSink) startPlaying() {
@@ -18,4 +18,3 @@ func (this *MediaSink) startPlaying() {
 
 func (this *MediaSink) stopPlaying() {
 }
-

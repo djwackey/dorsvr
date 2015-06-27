@@ -4,15 +4,16 @@ import (
 	"fmt"
 	. "groupsock"
 	"net"
-    "strings"
+	"runtime"
+	"strings"
 )
 
 type RTSPServer struct {
-	urlPrefix string
-	rtspPort  int
-	listen    *net.TCPListener
-    clientSessions map[string]*RTSPClientSession
-    serverMediaSessions map[string]*ServerMediaSession
+	urlPrefix           string
+	rtspPort            int
+	listen              *net.TCPListener
+	clientSessions      map[string]*RTSPClientSession
+	serverMediaSessions map[string]*ServerMediaSession
 }
 
 func NewRTSPServer(portNum int) *RTSPServer {
@@ -22,8 +23,10 @@ func NewRTSPServer(portNum int) *RTSPServer {
 		return nil
 	}
 
-    rtspServer.clientSessions = make(map[string]*RTSPClientSession)
-    rtspServer.serverMediaSessions = make(map[string]*ServerMediaSession)
+	runtime.GOMAXPROCS(rtspServer.NumCPU())
+
+	rtspServer.clientSessions = make(map[string]*RTSPClientSession)
+	rtspServer.serverMediaSessions = make(map[string]*ServerMediaSession)
 	return rtspServer
 }
 
@@ -54,6 +57,10 @@ func (this *RTSPServer) RtspURLPrefix() string {
 	return fmt.Sprintf("rtsp://%s:%d/", this.urlPrefix, this.rtspPort)
 }
 
+func (this *RTSPServer) NumCPU() int {
+	return runtime.NumCPU()
+}
+
 func (this *RTSPServer) IncomingConnectionHandler() {
 	for {
 		tcpConn, err := this.listen.AcceptTCP()
@@ -77,36 +84,37 @@ func (this *RTSPServer) NewClientConnection(conn net.Conn) {
 }
 
 func (this *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
-    serverMediaSession, _ = this.serverMediaSessions[streamName]
+	serverMediaSession, _ := this.serverMediaSessions[streamName]
 	return serverMediaSession
 }
 
 func (this *RTSPServer) AddServerMediaSession(serverMediaSession *ServerMediaSession) {
-    sessionName := serverMediaSession->streamName()
-    RemoveServerMediaSession(sessionName); // in case an existing "ServerMediaSession" with this name already exists
+	sessionName := serverMediaSession.StreamName()
+	//this.RemoveServerMediaSession(sessionName); // in case an existing "ServerMediaSession" with this name already exists
 
-    this.serverMediaSessions[sessionName] = serverMediaSession
+	this.serverMediaSessions[sessionName] = serverMediaSession
 }
 
 func (this *RTSPServer) RemoveServerMediaSession(serverMediaSession *ServerMediaSession) {
-	delete(this.serverMediaSessions, serverMediaSession)
+	//delete(this.serverMediaSessions, serverMediaSession)
 }
 
 func (this *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
-    var serverMediaSession *ServerMediaSession
+	var serverMediaSession *ServerMediaSession
 
-    array := strings.Split(fileName, ".")
-    if len(array) < 2:
-        return nil
+	array := strings.Split(fileName, ".")
+	if len(array) < 2 {
+		return nil
+	}
 
-    extension := array[1]
+	extension := array[1]
 
 	switch extension {
 	case "264":
-        // Assumed to be a H.264 Video Elementary Stream file:
-        serverMediaSession = NewServerMediaSession("H.264 Video")
-        //OutPacketBuffer::maxSize = 100000; // allow for some possibly large H.264 frames
-		serverMediaSession.AddSubSession(NewH264FileMediaSubSession())
+		// Assumed to be a H.264 Video Elementary Stream file:
+		serverMediaSession = NewServerMediaSession("H.264 Video", "")
+		//OutPacketBuffer::maxSize = 100000; // allow for some possibly large H.264 frames
+		//serverMediaSession.AddSubSession(NewH264FileMediaSubSession())
 	default:
 	}
 	return serverMediaSession
