@@ -112,9 +112,9 @@ func (this *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
 	switch extension {
 	case "264":
 		// Assumed to be a H.264 Video Elementary Stream file:
-		serverMediaSession = NewServerMediaSession("H.264 Video", "")
+		serverMediaSession = NewServerMediaSession("H.264 Video", fileName)
 		//OutPacketBuffer::maxSize = 100000; // allow for some possibly large H.264 frames
-		//serverMediaSession.AddSubSession(NewH264FileMediaSubSession())
+		serverMediaSession.AddSubSession(NewH264FileMediaSubSession())
 	default:
 	}
 	return serverMediaSession

@@ -1,8 +1,8 @@
 package liveMedia
 
 type ServerMediaSubSession interface {
-	NewStreamSource(estBitrate uint)
-	NewRTPSink()
+	//NewStreamSource(estBitrate uint)
+	//NewRTPSink()
 }
 
 //
