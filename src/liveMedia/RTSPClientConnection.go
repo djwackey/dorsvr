@@ -14,7 +14,10 @@ type RTSPClientConnection struct {
 }
 
 func NewRTSPClientConnection(rtspServer *RTSPServer, socket net.Conn) *RTSPClientConnection {
-	return &RTSPClientConnection{rtspServer: rtspServer, clientOutputSocket: socket}
+    rtspClientConn := new(RTSPClientConnection)
+    rtspClientConn.rtspServer = rtspServer
+    rtspClientConn.clientOutputSocket = socket
+	return rtspClientConn
 }
 
 func (this *RTSPClientConnection) GetRTSPServer() *RTSPServer {
@@ -54,7 +57,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 	var clientSession *RTSPClientSession
 	requestString, parseSucceeded := ParseRTSPRequestString(buf, len)
 	if parseSucceeded {
-		this.currentCSeq = "2"
+		this.currentCSeq = requestString.cseq
 		switch requestString.cmdName {
 		case "OPTIONS":
 			this.handleCommandOptions()
@@ -87,7 +90,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 				}
 
 				if clientSession != nil {
-					clientSession.HandleCommandSetup(requestString.cmdName, requestString.urlPreSuffix, requestString.urlSuffix, string(buf))
+					clientSession.HandleCommandSetup(requestString.urlPreSuffix, requestString.urlSuffix, string(buf))
 				}
 			}
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
@@ -103,18 +106,16 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 			this.handleCommandBad()
 		}
 	} else {
-		/*
-			        requestString, parseSucceeded := parseHTTPRequestString()
-			        if parseSucceeded {
-					    switch requestString.cmdName {
-			            case "GET":
-			                this.handleHTTPCommandTunnelingGET()
-			            case "POST":
-			                this.handleHTTPCommandTunnelingPOST()
-			            default:
-			            }
-			        }
-		*/
+	    requestString, parseSucceeded := ParseHTTPRequestString()
+        if parseSucceeded {
+		    switch requestString.cmdName {
+			    case "GET":
+			        this.handleHTTPCommandTunnelingGET()
+			    case "POST":
+			        this.handleHTTPCommandTunnelingPOST()
+			    default:
+			}
+		}
 	}
 
 	fmt.Println(this.responseBuffer)
@@ -150,7 +151,8 @@ func (this *RTSPClientConnection) HandleCommandUnsupportedTransport() {
 }
 
 func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fullRequestStr string) {
-	var urlTotalSuffix string
+    urlTotalSuffix := urlPreSuffix + "\\" + urlSuffix
+
 	this.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
 
 	var session *ServerMediaSession
@@ -185,6 +187,12 @@ func (this *RTSPClientConnection) handleCommandBad() {
 
 func (this *RTSPClientConnection) handleCommandNotSupported() {
 	this.responseBuffer = fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n%sAllow: %s\r\n\r\n", this.currentCSeq, DateHeader(), allowedCommandNames)
+}
+
+func (this *RTSPClientConnection) handleHTTPCommandTunnelingGET() {
+}
+
+func (this *RTSPClientConnection) handleHTTPCommandTunnelingPOST() {
 }
 
 func (this *RTSPClientConnection) setRTSPResponse(responseStr string) {

@@ -1,4 +1,4 @@
 package liveMedia
 
-type FramedSource interface {
+type FramedSource struct {
 }

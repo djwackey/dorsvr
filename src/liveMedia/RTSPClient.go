@@ -4,25 +4,29 @@ import (
 	"fmt"
 	"net"
 	"time"
+	. "include"
 )
 
 // default value; you can reassign this in your application if you need to
 var responseBufferSize = 20000
 
 type RTSPClient struct {
-	mCSeq    uint
-	mBaseURL string
-	mTCPConn *net.TCPConn
+	cseq    uint
+	baseURL string
+    userAgentHeaderStr string
+	tcpConn *net.TCPConn
 }
 
 type RequestRecord struct {
-	mCSeq        uint
-	mCommandName string
-	mHandler     interface{}
+	cseq        uint
+	commandName string
+	handler     interface{}
 }
 
-func NewRTSPClient(rtspURL string) *RTSPClient {
-	return &RTSPClient{}
+func NewRTSPClient(rtspURL, appName string) *RTSPClient {
+    rtspClient := new(RTSPClient)
+    rtspClient.InitRTSPClient(rtspURL, appName)
+	return rtspClient
 }
 
 func NewRequestRecord(cseq uint, commandName string, responseHandler interface{}) *RequestRecord {
@@ -30,50 +34,88 @@ func NewRequestRecord(cseq uint, commandName string, responseHandler interface{}
 }
 
 func (this *RequestRecord) commandName() string {
-	return this.mCommandName
+	return this.commandName
 }
 
 func (this *RequestRecord) subsession() string {
 	return ""
 }
 
-func (this *RTSPClient) SendOptionsCommand() {
+func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
+    this.cseq = 1
+    this.SetBaseURL(rtspURL)
+
+    // Set the "User-Agent:" header to use in each request:
+    libName := "Dor Streaming Media v"
+    libVersionStr := MEDIA_SERVER_VERSION
+    libPrefix := ""
+    libSuffix := ""
+    if appName != "" {
+        libPrefix = " ("
+        libSuffix = ")"
+    }
+
+    userAgentName = fmt.Sprintf("%s%s%s%s%s", appName, libPrefix, libName, libVersionStr, libSuffix)
+    this.SetUserAgentString(userAgentName)
 }
 
-func (this *RTSPClient) SendAnnounceCommand() {
+func (this *RTSPClient) SendOptionsCommand(responseHandler interface{}) uint {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "OPTIONS", responseHandler))
+}
+
+func (this *RTSPClient) SendAnnounceCommand(responseHandler interface{}) uint {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "ANNOUNCE", responseHandler))
 }
 
 func (this *RTSPClient) SendDescribeCommand(responseHandler interface{}) uint {
-	this.mCSeq += 1
-	return this.sendRequest(NewRequestRecord(this.mCSeq, "DESCRIBE", responseHandler))
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "DESCRIBE", responseHandler))
 }
 
 func (this *RTSPClient) SendSetupCommand() {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "SETUP", responseHandler))
 }
 
 func (this *RTSPClient) SendPlayCommand() {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "PLAY", responseHandler))
 }
 
 func (this *RTSPClient) SendPauseCommand() {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "PAUSE", responseHandler))
 }
 
 func (this *RTSPClient) SendRecordCommand() {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "RECORD", responseHandler))
 }
 
 func (this *RTSPClient) SendTeardownCommand() {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "TEARDOWN", responseHandler))
 }
 
 func (this *RTSPClient) SendSetParameterCommand() {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "SET_PARAMETER", responseHandler))
 }
 
 func (this *RTSPClient) SendGetParameterCommand() {
+	this.cseq ++
+	return this.sendRequest(NewRequestRecord(this.cseq, "GET_PARAMETER", responseHandler))
 }
 
 func (this *RTSPClient) SetUserAgentString(userAgentName string) {
+    formatStr := "User-Agent: %s\r\n"
+    this.userAgentHeaderStr = fmt.Sprintf(formatStr, userAgentName)
 }
 
 func (this *RTSPClient) SetBaseURL(url string) {
-	this.mBaseURL = url
+	this.baseURL = url
 }
 
 func (this *RTSPClient) openConnection() {
@@ -82,18 +124,18 @@ func (this *RTSPClient) openConnection() {
 }
 
 func (this *RTSPClient) connectToServer() {
-	addr, err := net.ResolveTCPAddr("tcp", this.mBaseURL)
+	addr, err := net.ResolveTCPAddr("tcp", this.baseURL)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	this.mTCPConn, err = net.DialTCP("tcp", nil, addr)
+	this.tcpConn, err = net.DialTCP("tcp", nil, addr)
 	if err != nil {
-		fmt.Println("Failed to connect to server.", this.mBaseURL, err)
+		fmt.Println("Failed to connect to server.", this.baseURL, err)
 		return
 	}
-	defer this.mTCPConn.Close()
+	defer this.tcpConn.Close()
 
 	go this.incomingDataHandler()
 }
@@ -110,7 +152,7 @@ func (this *RTSPClient) handleResponseBytes() {
 }
 
 func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
-	if this.mTCPConn == nil {
+	if this.tcpConn == nil {
 		this.connectToServer()
 	}
 
@@ -128,7 +170,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
 
 	cmdFmt := "%s %s %s\r\n"
 
-	writeBytes, err := this.mTCPConn.Write([]byte(cmdFmt))
+	writeBytes, err := this.tcpConn.Write([]byte(cmdFmt))
 	if err != nil {
 		fmt.Println(err, writeBytes)
 	}

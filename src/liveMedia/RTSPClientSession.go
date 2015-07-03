@@ -1,49 +1,97 @@
 package liveMedia
 
-import "fmt"
+import (
+    "fmt"
+    "time"
+)
 
 type RTSPClientSession struct {
 	isMulticast      bool
+    isTimerRunning   bool
 	numStreamStates  int
 	TCPStreamIdCount int
 	ourSessionId     uint32
+    streamStates     *streamState
 	rtspServer       *RTSPServer
 	rtspClientConn   *RTSPClientConnection
+    serverMediaSession *ServerMediaSession
+    livenessTimeoutTimer time.Timer
+}
+
+type streamState struct {
+    subsession *ServerMediaSubSession
+    streamToken interface{}
 }
 
 func NewRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionId uint32) *RTSPClientSession {
 	rtspClientSession := new(RTSPClientSession)
+    rtspClientSession.noteLiveness()
 	rtspClientSession.ourSessionId = sessionId
 	rtspClientSession.rtspClientConn = rtspClientConn
 	rtspClientSession.rtspServer = rtspClientConn.GetRTSPServer()
 	return rtspClientSession
 }
 
-func (this *RTSPClientSession) HandleCommandSetup(cmdName, urlPreSuffix, urlSuffix, reqStr string) {
+func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr string) {
+    streamName := urlPreSuffix
+    trackId := urlSuffix
+
 	this.noteLiveness()
 
+    var rtpChannelId int
+    var rtcpChannelId int
 	var streamingMode int
 
-	//sms := this.rtspServer.LookupServerMediaSession(urlTotalSuffix)
+	sms := this.rtspServer.LookupServerMediaSession(streamName)
+    if sms == nil {
+        if this.serverMediaSession == nil {
+            this.rtspClientConn.handleCommandNotFound()
+        } else {
+            this.rtspClientConn.handleCommandBad()
+        }
+        return
+    }
+
+    if this.serverMediaSession == nil {
+        this.serverMediaSession = sms
+    } else if sms != this.serverMediaSession {
+        this.rtspClientConn.handleCommandBad()
+        return
+    }
+
+    streamStates = new(streamState)
+    streamStates.subsession = nil
 
 	transportHeader, _ := parseTransportHeader(reqStr)
 	if transportHeader.streamingMode == RTP_TCP && transportHeader.rtpChannelId == 0xFF {
-		//rtpChannelId = this.TCPStreamIdCount
-		//rtcpChannelId = this.TCPStreamIdCount + 1
+		rtpChannelId = this.TCPStreamIdCount
+		rtcpChannelId = this.TCPStreamIdCount + 1
 	}
 	if transportHeader.streamingMode == RTP_TCP {
-		//rtcpChannelId := this.TCPStreamIdCount + 2
+		rtcpChannelId = this.TCPStreamIdCount + 2
 	}
 
-	//parseRangeHeader()
-	//parsePlayNowHeader()
+	parseRangeHeader()
+	parsePlayNowHeader()
+
 	//var subsession ServerMediaSubSession
 	var destAddrStr string
 	var sourceAddrStr string
 	var serverRTPPort int
 	var serverRTCPPort int
 
-	//subsession.GetStreamParameters()
+    type StreamParameter struct {
+    isMulticast bool
+    clientRTPPort int
+    clientRTCPPort int
+    serverRTPPort int
+    serverRTCPPort int
+    destinationTTL uint
+    destinationAddr string
+    streamToken interface{}
+}
+
+    streamParameter := subsession.GetStreamParameters()
 
 	if this.isMulticast {
 		switch streamingMode {
@@ -85,66 +133,110 @@ func (this *RTSPClientSession) HandleCommandSetup(cmdName, urlPreSuffix, urlSuff
 				"CSeq: %s\r\n" +
 				"%s" +
 				"Transport: RTP/AVP;unicast;destination=%s;source=%s;client_port=%d-%d;server_port=%d-%d\r\n" +
-				"Session: %08X\r\n\r\n")
+				"Session: %08X\r\n\r\n", this.rtspClientConn.currentCSeq,
+				DateHeader(),
+                destAddrStr,
+                sourceAddrStr,
+                clientRTPPort,
+                clientRTCPPort,
+                serverRTPPort,
+                serverRTCPPort,
+                this.ourSessionId)
 		case RTP_TCP:
 			this.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n" +
 				"CSeq: %s\r\n" +
 				"%s" +
 				"Transport: RTP/AVP/TCP;unicast;destination=%s;source=%s;interleaved=%d-%d\r\n" +
-				"Session: %08X\r\n\r\n")
+				"Session: %08X\r\n\r\n", this.rtspClientConn.currentCSeq,
+				DateHeader(),
+                destAddrStr,
+                sourceAddrStr,
+                rtpChannelId,
+                rtcpChannelId,
+                this.ourSessionId)
 		case RAW_UDP:
 			this.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n" +
 				"CSeq: %s\r\n" +
 				"%s" +
 				"Transport: %s;unicast;destination=%s;source=%s;client_port=%d;server_port=%d\r\n" +
-				"Session: %08X\r\n\r\n")
+				"Session: %08X\r\n\r\n", this.rtspClientConn.currentCSeq,
+				DateHeader(),
+                streamingModeStr,
+                destAddrStr,
+                sourceAddrStr,
+                clientRTPPort,
+                serverRTPPort,
+                this.ourSessionId)
 		}
 	}
 }
 
 func (this *RTSPClientSession) HandleCommandWithinSession(cmdName string) {
-	//var subsession ServerMediaSubSession
+    this.noteLiveness()
+
+	var subsession ServerMediaSubSession
 	switch cmdName {
 	case "TEARDOWN":
-		//this.HandleCommandTearDown(this.rtspClientConn, subsession)
+		this.HandleCommandTearDown(subsession)
 	case "PLAY":
-		//this.HandleCommandPlay(this.rtspClientConn, subsession, fullRequestStr)
+		this.HandleCommandPlay(subsession, fullRequestStr)
 	case "PAUSE":
-		//this.HandleCommandPause(this.rtspClientConn, subsession)
+		this.HandleCommandPause(subsession)
 	case "GET_PARAMETER":
-		//this.HandleCommandGetParameter(this.rtspClientConn, subsession, fullRequestStr)
+		this.handleCommandGetParameter()
 	case "SET_PARAMETER":
-		//this.HandleCommandSetParameter(this.rtspClientConn, subsession, fullRequestStr)
+		this.handleCommandSetParameter()
 	}
 }
 
-func (this *RTSPClientSession) HandleCommandPlay() {
+func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSession, fullRequestStr string) {
+    rtspServer.RtspURL()
+
+    parseScaleHeader()
+
 	for i := 0; i < this.numStreamStates; i++ {
-		//this.streamStates[i].subsession.startStream()
+		this.streamStates[i].subsession.startStream()
 	}
 }
 
-func (this *RTSPClientSession) HandleCommandPause() {
+func (this *RTSPClientSession) HandleCommandPause(subsession *ServerMediaSubSession) {
 	for i := 0; i < this.numStreamStates; i++ {
-		//this.streamStates[i].subsession.pauseStream()
+		this.streamStates[i].subsession.pauseStream()
 	}
 
 	this.rtspClientConn.setRTSPResponseWithSessionId("200 OK", this.ourSessionId)
 }
 
-func (this *RTSPClientSession) HandleCommandGetParameter() {
+func (this *RTSPClientSession) handleCommandGetParameter() {
 	this.rtspClientConn.setRTSPResponseWithSessionId("200 OK", this.ourSessionId)
 }
 
-func (this *RTSPClientSession) HandleCommandSetParameter() {
+func (this *RTSPClientSession) handleCommandSetParameter() {
 	this.rtspClientConn.setRTSPResponseWithSessionId("200 OK", this.ourSessionId)
 }
 
-func (this *RTSPClientSession) HandleCommandTearDown() {
+func (this *RTSPClientSession) HandleCommandTearDown(subsession *ServerMediaSubSession) {
 	for i := 0; i < this.numStreamStates; i++ {
-		//this.streamStates[i].subsession.deleteStream()
+		this.streamStates[i].subsession.deleteStream()
 	}
 }
 
 func (this *RTSPClientSession) noteLiveness() {
+    if !this.isTimerRunning {
+        go this.livenessTimeoutTask(time.Second * this.rtspServer.reclamationTestSeconds)
+        this.isTimerRunning = true
+    } else {
+        this.livenessTimeoutTimer.Reset(time.Millisecond * millisec)
+    }
+}
+
+func (this *RTSPClientSession) livenessTimeoutTask(d time.Duration) {
+    this.livenessTimeoutTimer = time.NewTimer(d)
+
+    for {
+        select {
+        case <- this.livenessTimeoutTimer.C:
+            fmt.Println("livenessTimeoutTask")
+        }
+    }
 }

@@ -2,8 +2,10 @@ package liveMedia
 
 import (
 	"fmt"
+    "log"
 	. "groupsock"
 	"net"
+    _ "net/http/pprof"
 	"runtime"
 	"strings"
 )
@@ -11,40 +13,61 @@ import (
 type RTSPServer struct {
 	urlPrefix           string
 	rtspPort            int
-	listen              *net.TCPListener
+    httpPort            int
+	rtspListen          *net.TCPListener
+    httpListen          *net.TCPListener
 	clientSessions      map[string]*RTSPClientSession
 	serverMediaSessions map[string]*ServerMediaSession
+    reclamationTestSeconds int
 }
 
 func NewRTSPServer(portNum int) *RTSPServer {
 	rtspServer := new(RTSPServer)
 	rtspServer.rtspPort = portNum
-	if rtspServer.SetupOurSocket() != nil {
+
+    var err error
+	rtspServer.rtspListen, err = rtspServer.SetupOurSocket(portNum)
+    if err != nil {
 		return nil
 	}
 
 	runtime.GOMAXPROCS(rtspServer.NumCPU())
 
+    rtspServer.StartMonitor()
 	rtspServer.clientSessions = make(map[string]*RTSPClientSession)
 	rtspServer.serverMediaSessions = make(map[string]*ServerMediaSession)
+    rtspServer.reclamationTestSeconds = 65
 	return rtspServer
 }
 
 func (this *RTSPServer) Start() {
-	go this.IncomingConnectionHandler()
+	go this.IncomingConnectionHandler(this.rtspListen)
 }
 
-func (this *RTSPServer) SetupOurSocket() error {
-	tcpAddr := fmt.Sprintf("0.0.0.0:%d", this.rtspPort)
+func (this *RTSPServer) StartMonitor() {
+    log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+}
+
+func (this *RTSPServer) SetupOurSocket(portNum int) (*net.TCPListener, error) {
+	tcpAddr := fmt.Sprintf("0.0.0.0:%d", PortNum)
 	addr, _ := net.ResolveTCPAddr("tcp", tcpAddr)
 
-	var err error
-	this.listen, err = net.ListenTCP("tcp", addr)
-	if err != nil {
-		return err
+    return net.ListenTCP("tcp", addr)
+}
+
+func (this *RTSPServer) SetUpTunnelingOverHTTP(httpPort int) bool {
+    var err error
+	rtspServer.httpListen, err = rtspServer.SetupOurSocket(httpPort)
+    if err != nil {
+		return false
 	}
 
-	return nil
+	go this.IncomingConnectionHandler(this.httpListen)
+    return true
+}
+
+func (this *RTSPServer) HttpServerPortNum() int {
+    return this.httpPort
 }
 
 func (this *RTSPServer) RtspURL(streamName string) string {
@@ -61,9 +84,9 @@ func (this *RTSPServer) NumCPU() int {
 	return runtime.NumCPU()
 }
 
-func (this *RTSPServer) IncomingConnectionHandler() {
+func (this *RTSPServer) IncomingConnectionHandler(serverListen *net.TCPListener) {
 	for {
-		tcpConn, err := this.listen.AcceptTCP()
+		tcpConn, err := serverListen.AcceptTCP()
 		if err != nil {
 			fmt.Println("failed to accept client.")
 			continue
@@ -84,19 +107,44 @@ func (this *RTSPServer) NewClientConnection(conn net.Conn) {
 }
 
 func (this *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
+    // Next, check whether we already have a "ServerMediaSession" for this file:
+	sms, smsExists := this.serverMediaSessions[streamName]
+
+	fid, err := os.Open(streamName)
+	if err != nil {
+        if smsExists {
+            this.RemoveServerMediaSession(sms)
+        }
+		return nil
+	}
+	defer fid.Close()
+
+    if !smsExists {
+        sms = this.CreateNewSMS(streamName)
+        this.AddServerMediaSession(sms)
+    }
+
+	return sms
+}
+
+/*
+func (this *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
 	serverMediaSession, _ := this.serverMediaSessions[streamName]
 	return serverMediaSession
-}
+}*/
 
 func (this *RTSPServer) AddServerMediaSession(serverMediaSession *ServerMediaSession) {
 	sessionName := serverMediaSession.StreamName()
-	//this.RemoveServerMediaSession(sessionName); // in case an existing "ServerMediaSession" with this name already exists
+
+    // in case an existing "ServerMediaSession" with this name already exists
+	serverMediaSession, _ := this.serverMediaSessions[streamName]
+	this.RemoveServerMediaSession(serverMediaSession)
 
 	this.serverMediaSessions[sessionName] = serverMediaSession
 }
 
 func (this *RTSPServer) RemoveServerMediaSession(serverMediaSession *ServerMediaSession) {
-	//delete(this.serverMediaSessions, serverMediaSession)
+	delete(this.serverMediaSessions, serverMediaSession)
 }
 
 func (this *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {

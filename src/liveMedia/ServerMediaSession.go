@@ -27,7 +27,7 @@ func NewServerMediaSession(description, streamName string) *ServerMediaSession {
 	serverMediaSession := new(ServerMediaSession)
 	serverMediaSession.descSDPStr = description + ", streamed by the Dor Media Server"
 	serverMediaSession.infoSDPStr = streamName
-	serverMediaSession.subSessions = []*ServerMediaSubSession{}
+	serverMediaSession.subSessions = make([]*ServerMediaSubSession)
 	serverMediaSession.ipAddr, _ = OurIPAddress()
 
 	GetTimeOfDay(&serverMediaSession.creationTime)
@@ -85,7 +85,7 @@ func (this *ServerMediaSession) StreamName() string {
 }
 
 func (this *ServerMediaSession) AddSubSession(subSession ServerMediaSubSession) {
-	//this.subSessions.append(subSession)
+	this.subSessions = append(this.subSessions, subSession)
 	this.subsessionCounter++
 }
 

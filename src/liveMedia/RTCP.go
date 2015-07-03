@@ -1,5 +1,9 @@
 package liveMedia
 
+import (
+    . "groupsock"
+)
+
 const (
 	// RTCP packet types:
 	RTCP_PT_SR   = 200
@@ -20,10 +24,13 @@ const (
 	RTCP_SDES_PRIV  = 8
 )
 
+type SDESItem struct {
+}
+
 type RTCPInstance struct {
 }
 
-func NewRTCPInstance() *RTCPInstance {
+func NewRTCPInstance(GroupSOck *RTCPgs, ) *RTCPInstance {
 	return &RTCPInstance{}
 }
 

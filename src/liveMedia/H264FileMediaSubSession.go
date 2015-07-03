@@ -1,14 +1,20 @@
 package liveMedia
 
+import (
+    . "groupsock"
+)
+
 type H264FileMediaSubSession struct {
 	FileServerMediaSubSession
 }
 
 func NewH264FileMediaSubSession() *H264FileMediaSubSession {
-	return &H264FileMediaSubSession{}
+    h264FileMediaSubSession := new(H264FileMediaSubSession)
+    h264FileMediaSubSession.InitFileServerMediaSubSession()
+	return h264FileMediaSubSession
 }
 
-func (this *H264FileMediaSubSession) CreateNewStreamSource(estBitrate uint) *H264VideoStreamFramer {
+func (this *H264FileMediaSubSession) CreateNewStreamSource() *H264VideoStreamFramer {
 	estBitrate = 500 // kbps, estimate
 
 	// Create the video source:
@@ -19,9 +25,26 @@ func (this *H264FileMediaSubSession) CreateNewStreamSource(estBitrate uint) *H26
 	this.fileSize = fileSource.FileSize()
 
 	// Create a framer for the Video Elementary Stream:
-	return NewH264VideoStreamFramer()
+	return NewH264VideoStreamFramer(fileSource)
 }
 
-func (this *H264FileMediaSubSession) CreateNewRTPSink() {
-	//return NewH264VideoRTPSink()
+func (this *H264FileMediaSubSession) CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) interface{} {
+	return NewH264VideoRTPSink(rtpGroupSock, rtpPayloadType)
 }
+
+func (this *H264FileMediaSubSession) GetStreamParameters() *StreamParameter {
+    mediaSource := this.CreateNewStreamSource()
+    rtpSink := this.CreateNewRTPSink()
+
+    return this.getStreamParameters()
+}
+/*
+func (this *H264FileMediaSubSession) startStream() {
+    this.startStream()
+}
+
+func (this *H264FileMediaSubSession) pauseStream() {
+}
+
+func (this *H264FileMediaSubSession) deleteStream() {
+}*/

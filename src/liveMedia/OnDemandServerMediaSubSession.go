@@ -6,19 +6,51 @@ import (
 )
 
 type OnDemandServerMediaSubSession struct {
+    ServerMediaSubSession
 	SDPLines      string
 	trackId       string
 	trackNumber   int
 	portNumForSDP int
+    initialPortNum int
+    lastStreamToken interface{}
+}
+
+type StreamParameter struct {
+    isMulticast bool
+    clientRTPPort int
+    clientRTCPPort int
+    serverRTPPort int
+    serverRTCPPort int
+    destinationTTL uint
+    destinationAddr string
+    streamToken interface{}
+}
+
+func (this *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession() {
 }
 
 func (this *OnDemandServerMediaSubSession) sdpLines() {
 	if this.SDPLines != "" {
-		//this.setSDPLinesFromRTPSink()
+		this.setSDPLinesFromRTPSink(nil, 500)
 	}
 }
 
-func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId uint) {
+func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId uint) *StreamParameter {
+    streamBitrate = 500
+    serverPortNum = this.initialPortNum
+
+    serverRTPPort  := serverPortNum
+    serverRTCPPort := serverPortNum + 1
+
+    rtpGroupSock  := NewGroupSock(serverRTPPort)
+    rtcpGroupSock := NewGroupSock(serverRTCPPort)
+
+    udpSink := NewBasicUDPSink(rtpGroupSock)
+
+    this.lastStreamToken = NewStreamState(serverRTPPort, serverRTCPPort, rtpSink, udpSink, streamBitrate, mediaSource, rtpGroupSock, rtcpGroupSock)
+
+    sp := new(StreamParameter)
+    return sp
 }
 
 func (this *OnDemandServerMediaSubSession) TrackId() string {
@@ -55,10 +87,22 @@ func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink *RTPSi
 	this.SDPLines = fmt.Sprintf(sdpFmt, mediaType, this.portNumForSDP, rtpPayloadType, ipAddr, estBitrate, rangeLine, auxSDPLine, this.TrackId())
 }
 
-func (this *OnDemandServerMediaSubSession) rangeSDPLine() string {
-	return ""
+func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink *RTPSink) string {
+    if rtpSink == nil {
+	    return ""
+    } else {
+        return rtpSink.AuxSDPLine()
+    }
 }
 
-func (this *OnDemandServerMediaSubSession) getAuxSDPLine() string {
-	return ""
+func (this *OnDemandServerMediaSubSession) startStream() {
+    streamState.startPlaying()
+}
+
+func (this *OnDemandServerMediaSubSession) pauseStream() {
+    streamState.pause()
+}
+
+func (this *OnDemandServerMediaSubSession) deleteStream() {
+    streamState.endPlaying()
 }

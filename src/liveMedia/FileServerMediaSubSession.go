@@ -5,3 +5,7 @@ type FileServerMediaSubSession struct {
 	fileName string
 	fileSize int64
 }
+
+func (this *FileServerMediaSubSession) InitFileServerMediaSubSession() {
+    this.InitOnDemandServerMediaSubSession()
+}

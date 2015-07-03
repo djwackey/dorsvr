@@ -31,6 +31,15 @@ type TransportHeader struct {
 	streamingModeStr  string
 }
 
+type RangeHeader struct {
+}
+
+type PlayNowHeader struct {
+}
+
+type ScaleHeader struct {
+}
+
 const (
 	RTP_UDP = iota
 	RTP_TCP
@@ -53,6 +62,11 @@ func ParseRTSPRequestString(buf []byte, length int) (*RTSPRequestInfo, bool) {
 		}
 	*/
 	return reqInfo, result
+}
+
+func ParseHTTPRequestString() (*RTSPRequestInfo, bool) {
+	reqInfo := new(RTSPRequestInfo)
+    return reqInfo, true
 }
 
 func parseCommandName(reqStr string) (string, bool) {
@@ -105,6 +119,21 @@ func parseTransportHeader(reqStr string) (*TransportHeader, bool) {
 	header.rtpChannelId = 0xFF
 	header.rtcpChannelId = 0xFF
 	return header, true
+}
+
+func parseRangeHeader() *RangeHeader {
+    rangeHeader := new(RangeHeader)
+    return rangeHeader
+}
+
+func parsePlayNowHeader() *PlayNowHeader {
+    playNowHeader := new(PlayNowHeader)
+    return playNowHeader
+}
+
+func parseScaleHeader() *ScaleHeader {
+    scaleHeader := new(ScaleHeader)
+    return scaleHeader
 }
 
 // A "Date:" header that can be used in a RTSP (or HTTP) response
