@@ -46,29 +46,87 @@ const (
 	RAW_UDP
 )
 
-func ParseRTSPRequestString(buf []byte, length int) (*RTSPRequestInfo, bool) {
+func ParseRTSPRequestString(buf []byte) (*RTSPRequestInfo, bool) {
 	reqStr := string(buf)
 
 	var result bool
 	reqInfo := new(RTSPRequestInfo)
-	reqInfo.cmdName, result = parseCommandName(reqStr)
+
+	array := strings.Split(reqStr, "\r\n")
+	length := len(array)
+	if length <= 1 {
+		return nil, false
+	}
+
+	result = parseCommandName(array[0], reqInfo)
 	if !result {
 		return nil, false
 	}
+
+	for i := 1; i < length; i++ {
+		Parse(array[i], reqInfo)
+	}
+
+	// Parse URL Suffix
 	/*
 		reqInfo.cseq, result = parseRequestCSeq(reqStr[len(reqInfo.cmdName):])
 		if !result {
 			return nil, false
 		}
 	*/
+
 	return reqInfo, result
+}
+
+func Parse(reqStr string, reqInfo *RTSPRequestInfo) bool {
+	array := strings.Split(reqStr, " ")
+	length := len(array)
+	if length <= 1 {
+		return false
+	}
+
+	length = len(array[0])
+	switch array[0] {
+	case "CSeq:":
+		reqInfo.cseq = array[1]
+	case "Session:":
+	}
+
+	return true
 }
 
 func ParseHTTPRequestString() (*RTSPRequestInfo, bool) {
 	reqInfo := new(RTSPRequestInfo)
-    return reqInfo, true
+	return reqInfo, true
 }
 
+func parseCommandName(reqStr string, reqInfo *RTSPRequestInfo) bool {
+	array := strings.Split(reqStr, " ")
+	if len(array) != 3 {
+		array = strings.Split(reqStr, "\t")
+		if len(array) != 3 {
+			return false
+		}
+	}
+
+	reqInfo.cmdName = array[0]
+	s := array[1]
+	l := strings.Split(s, "/")
+	t := l[len(l)-1]
+	l = strings.Split(t, ".")
+	if len(l) != 2 {
+		return false
+	}
+
+	reqInfo.urlPreSuffix = l[0]
+	reqInfo.urlSuffix = l[1]
+	//fmt.Println("yanfei: ", l[0], l[1])
+	//version := array[2]
+	//fmt.Println("parseCommandName: " + version)
+	return true
+}
+
+/*
 func parseCommandName(reqStr string) (string, bool) {
 	var result bool
 	var cmdName string
@@ -80,7 +138,7 @@ func parseCommandName(reqStr string) (string, bool) {
 	}
 
 	return cmdName, result
-}
+}*/
 
 func parseRequestCSeq(reqStr string) (string, bool) {
 	cseqIndex := strings.Index(reqStr, "CSeq:")
@@ -122,18 +180,18 @@ func parseTransportHeader(reqStr string) (*TransportHeader, bool) {
 }
 
 func parseRangeHeader() *RangeHeader {
-    rangeHeader := new(RangeHeader)
-    return rangeHeader
+	rangeHeader := new(RangeHeader)
+	return rangeHeader
 }
 
 func parsePlayNowHeader() *PlayNowHeader {
-    playNowHeader := new(PlayNowHeader)
-    return playNowHeader
+	playNowHeader := new(PlayNowHeader)
+	return playNowHeader
 }
 
 func parseScaleHeader() *ScaleHeader {
-    scaleHeader := new(ScaleHeader)
-    return scaleHeader
+	scaleHeader := new(ScaleHeader)
+	return scaleHeader
 }
 
 // A "Date:" header that can be used in a RTSP (or HTTP) response

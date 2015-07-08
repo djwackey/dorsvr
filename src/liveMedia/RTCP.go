@@ -1,7 +1,7 @@
 package liveMedia
 
 import (
-    . "groupsock"
+	. "groupsock"
 )
 
 const (
@@ -30,7 +30,7 @@ type SDESItem struct {
 type RTCPInstance struct {
 }
 
-func NewRTCPInstance(GroupSOck *RTCPgs, ) *RTCPInstance {
+func NewRTCPInstance(RTCPgs *GroupSock) *RTCPInstance {
 	return &RTCPInstance{}
 }
 

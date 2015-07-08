@@ -3,6 +3,6 @@ package liveMedia
 import "os"
 
 type FramedFileSource struct {
-    FramedSource
+	FramedSource
 	fid *os.File
 }

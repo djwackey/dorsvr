@@ -14,9 +14,9 @@ type RTSPClientConnection struct {
 }
 
 func NewRTSPClientConnection(rtspServer *RTSPServer, socket net.Conn) *RTSPClientConnection {
-    rtspClientConn := new(RTSPClientConnection)
-    rtspClientConn.rtspServer = rtspServer
-    rtspClientConn.clientOutputSocket = socket
+	rtspClientConn := new(RTSPClientConnection)
+	rtspClientConn.rtspServer = rtspServer
+	rtspClientConn.clientOutputSocket = socket
 	return rtspClientConn
 }
 
@@ -34,7 +34,7 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 		case nil:
 			this.HandleRequestBytes(buffer, length)
 		default:
-			fmt.Println(err.Error())
+			//fmt.Println(err.Error())
 			if err.Error() == "EOF" {
 				isclose = true
 			}
@@ -55,7 +55,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 	var existed bool
 	var sessionIdStr string
 	var clientSession *RTSPClientSession
-	requestString, parseSucceeded := ParseRTSPRequestString(buf, len)
+	requestString, parseSucceeded := ParseRTSPRequestString(buf)
 	if parseSucceeded {
 		this.currentCSeq = requestString.cseq
 		switch requestString.cmdName {
@@ -106,14 +106,14 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 			this.handleCommandBad()
 		}
 	} else {
-	    requestString, parseSucceeded := ParseHTTPRequestString()
-        if parseSucceeded {
-		    switch requestString.cmdName {
-			    case "GET":
-			        this.handleHTTPCommandTunnelingGET()
-			    case "POST":
-			        this.handleHTTPCommandTunnelingPOST()
-			    default:
+		requestString, parseSucceeded := ParseHTTPRequestString()
+		if parseSucceeded {
+			switch requestString.cmdName {
+			case "GET":
+				this.handleHTTPCommandTunnelingGET()
+			case "POST":
+				this.handleHTTPCommandTunnelingPOST()
+			default:
 			}
 		}
 	}
@@ -151,7 +151,8 @@ func (this *RTSPClientConnection) HandleCommandUnsupportedTransport() {
 }
 
 func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fullRequestStr string) {
-    urlTotalSuffix := urlPreSuffix + "\\" + urlSuffix
+	urlTotalSuffix := urlPreSuffix + "." + urlSuffix
+	fmt.Println("handleC", urlTotalSuffix)
 
 	this.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
 

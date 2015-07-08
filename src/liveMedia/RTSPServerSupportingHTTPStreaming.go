@@ -1,7 +1,7 @@
 package liveMedia
 
 type RTSPServerSupportingHTTPStreaming struct {
-    RTSPServer
+	RTSPServer
 }
 
 func (this *RTSPServerSupportingHTTPStreaming) InitRTSPServerSupportingHTTPStreaming() {

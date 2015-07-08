@@ -1,8 +1,11 @@
 package liveMedia
 
-type ServerMediaSubSession struct {
+type IServerMediaSubSession interface {
 	//NewStreamSource(estBitrate uint)
 	//NewRTPSink()
+}
+
+type ServerMediaSubSession struct {
 }
 
 //

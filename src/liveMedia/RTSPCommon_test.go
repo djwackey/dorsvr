@@ -7,11 +7,11 @@ import (
 
 var (
 	OPTIONS_COMMAND = "OPTIONS rtsp://172.22.0.172/123.ts RTSP/1.0\r\n" +
-		"CSeq: 2\r\n" +
+		"CSeq: 1\r\n" +
 		"User-Agent: LibVLC/2.1.2 (LIVE555 Streaming Media v2013.12.05)\r\n\r\n"
 
-	DESCRIPTION_COMMAND = "DESCRIBE rtsp://192.168.1.103/live1 RTSP/1.0\r\n" +
-		"CSeq: 3\r\n" +
+	DESCRIPTION_COMMAND = "DESCRIBE rtsp://192.168.1.103/live1.264 RTSP/1.0\r\n" +
+		"CSeq: 2\r\n" +
 		"User-Agent: LibVLC/2.1.5 (LIVE555 Streaming Media v2014.05.27)\r\n" +
 		"Accept: application/sdp\r\n\r\n"
 
@@ -21,16 +21,20 @@ var (
 )
 
 func Test_ParseRTSPRequestString(t *testing.T) {
-	reqInfo, result := ParseRTSPRequestString([]byte(OPTIONS_COMMAND), len(OPTIONS_COMMAND))
+	//reqInfo, result := ParseRTSPRequestString([]byte(OPTIONS_COMMAND))
+	reqInfo, result := ParseRTSPRequestString([]byte(DESCRIPTION_COMMAND))
 	if result {
 		fmt.Println("cmdName:", reqInfo.cmdName)
 		fmt.Println("CSeq:", reqInfo.cseq)
+		fmt.Println("urlPreSuffix:", reqInfo.urlPreSuffix)
+		fmt.Println("urlSuffix:", reqInfo.urlSuffix)
 		fmt.Println("sessionIdStr:", reqInfo.sessionIdStr)
 		t.Log("ok")
 	} else {
 	}
 }
 
+/*
 func Test_parseCommandName(t *testing.T) {
 	cmdName, result := parseCommandName(OPTIONS_COMMAND)
 	if result {
@@ -39,4 +43,4 @@ func Test_parseCommandName(t *testing.T) {
 	} else {
 		t.Error("failed")
 	}
-}
+}*/

@@ -3,30 +3,29 @@ package liveMedia
 import "fmt"
 
 type H264VideoStreamFramer struct {
-    MPEGVideoStreamFramer
+	MPEGVideoStreamFramer
 	parser    *H264VideoStreamParser
 	frameRate float64
 }
 
 type H264VideoStreamParser struct {
-    MPEGVideoStreamParser
+	MPEGVideoStreamParser
 	outputStartCodeSize        int
 	haveSeenFirstStartCode     bool
 	haveSeenFirstByteOfNALUnit bool
 }
 
-func NewH264VideoStreamFramer(inputSource *FramedSource) *H264VideoStreamFramer {
-    h264VideoStreamFramer = new(H264VideoStreamFramer)
-	h264VideoStreamFramer.parser := NewH264VideoStreamParser()
-    h264VideoStreamFramer.inputSource = inputSource
-	h264VideoStreamFramer.frameRate := 25.0
+func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer {
+	h264VideoStreamFramer := new(H264VideoStreamFramer)
+	h264VideoStreamFramer.parser = NewH264VideoStreamParser()
+	h264VideoStreamFramer.inputSource = inputSource
+	h264VideoStreamFramer.frameRate = 25.0
 	return h264VideoStreamFramer
 }
 
 func (this *H264VideoStreamFramer) setSPSandPPS(sPropParameterSetsStr string) {
-    sPropRecords := parseSPropParameterSets()
+	//sPropRecords := parseSPropParameterSets()
 }
-
 
 func NewH264VideoStreamParser() *H264VideoStreamParser {
 	return &H264VideoStreamParser{}

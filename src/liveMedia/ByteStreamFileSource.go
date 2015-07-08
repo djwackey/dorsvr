@@ -6,9 +6,9 @@ import (
 )
 
 type ByteStreamFileSource struct {
-    FramedFileSource
+	FramedFileSource
 	fileSize int64
-    buff     []byte
+	buff     []byte
 }
 
 func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
@@ -17,12 +17,12 @@ func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
 		return nil
 	}
 
-    fileSource := new(ByteStreamFileSource)
-    fileSource.fid = fid
-	fileSource.buff := make([]byte, 10000)
+	fileSource := new(ByteStreamFileSource)
+	fileSource.fid = fid
+	fileSource.buff = make([]byte, 10000)
 
 	stat, _ := fid.Stat()
-	fileSource.fileSize := stat.Size()
+	fileSource.fileSize = stat.Size()
 	return fileSource
 }
 

@@ -6,7 +6,7 @@ var maxSize uint = 100000
 type MediaSink struct {
 }
 
-type (this *MediaSink) InitMediaSink() {
+func (this *MediaSink) InitMediaSink() {
 }
 
 type OutPacketBuffer struct {

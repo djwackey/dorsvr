@@ -6,24 +6,24 @@ import (
 )
 
 type OnDemandServerMediaSubSession struct {
-    ServerMediaSubSession
-	SDPLines      string
-	trackId       string
-	trackNumber   int
-	portNumForSDP int
-    initialPortNum int
-    lastStreamToken interface{}
+	ServerMediaSubSession
+	SDPLines        string
+	trackId         string
+	trackNumber     int
+	portNumForSDP   int
+	initialPortNum  int
+	lastStreamToken interface{}
 }
 
 type StreamParameter struct {
-    isMulticast bool
-    clientRTPPort int
-    clientRTCPPort int
-    serverRTPPort int
-    serverRTCPPort int
-    destinationTTL uint
-    destinationAddr string
-    streamToken interface{}
+	isMulticast     bool
+	clientRTPPort   int
+	clientRTCPPort  int
+	serverRTPPort   int
+	serverRTCPPort  int
+	destinationTTL  uint
+	destinationAddr string
+	streamToken     interface{}
 }
 
 func (this *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession() {
@@ -36,21 +36,23 @@ func (this *OnDemandServerMediaSubSession) sdpLines() {
 }
 
 func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId uint) *StreamParameter {
-    streamBitrate = 500
-    serverPortNum = this.initialPortNum
+	//streamBitrate := 500
+	//serverPortNum := this.initialPortNum
 
-    serverRTPPort  := serverPortNum
-    serverRTCPPort := serverPortNum + 1
+	//serverRTPPort  := serverPortNum
+	//serverRTCPPort := serverPortNum + 1
 
-    rtpGroupSock  := NewGroupSock(serverRTPPort)
-    rtcpGroupSock := NewGroupSock(serverRTCPPort)
+	//rtpGroupSock  := NewGroupSock(serverRTPPort)
+	//rtcpGroupSock := NewGroupSock(serverRTCPPort)
 
-    udpSink := NewBasicUDPSink(rtpGroupSock)
+	//rtpSink := ""
+	//mediaSource := ""
+	//udpSink := NewBasicUDPSink(rtpGroupSock)
 
-    this.lastStreamToken = NewStreamState(serverRTPPort, serverRTCPPort, rtpSink, udpSink, streamBitrate, mediaSource, rtpGroupSock, rtcpGroupSock)
+	//this.lastStreamToken = NewStreamState(serverRTPPort, serverRTCPPort, rtpSink, udpSink, streamBitrate, mediaSource, rtpGroupSock, rtcpGroupSock)
 
-    sp := new(StreamParameter)
-    return sp
+	sp := new(StreamParameter)
+	return sp
 }
 
 func (this *OnDemandServerMediaSubSession) TrackId() string {
@@ -67,9 +69,9 @@ func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink *RTPSi
 
 	rtpPayloadType := rtpSink.RtpPayloadType()
 	mediaType := rtpSink.SdpMediaType()
-	rangeLine := this.rangeSDPLine()
+	rangeLine := "" //this.rangeSDPLine()
 
-	auxSDPLine := this.getAuxSDPLine()
+	auxSDPLine := "" //this.getAuxSDPLine()
 	if auxSDPLine == "" {
 		auxSDPLine = ""
 	}
@@ -88,21 +90,21 @@ func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink *RTPSi
 }
 
 func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink *RTPSink) string {
-    if rtpSink == nil {
-	    return ""
-    } else {
-        return rtpSink.AuxSDPLine()
-    }
+	if rtpSink == nil {
+		return ""
+	} else {
+		return rtpSink.AuxSDPLine()
+	}
 }
 
 func (this *OnDemandServerMediaSubSession) startStream() {
-    streamState.startPlaying()
+	//streamState.startPlaying()
 }
 
 func (this *OnDemandServerMediaSubSession) pauseStream() {
-    streamState.pause()
+	//streamState.pause()
 }
 
 func (this *OnDemandServerMediaSubSession) deleteStream() {
-    streamState.endPlaying()
+	//streamState.endPlaying()
 }

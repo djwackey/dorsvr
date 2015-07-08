@@ -1,14 +1,18 @@
 package liveMedia
 
+import (
+	. "groupsock"
+)
+
 type RTPSink struct {
 	MediaSink
-    rtpPayloadType int
-    rtpInterface RTPInterface
+	rtpPayloadType int
+	rtpInterface   *RTPInterface
 }
 
 func (this *RTPSink) InitRTPSink(gs *GroupSock, rtpPayloadType int) {
-    this.rtpInterface = NewRTPInterface(gs)
-    this.rtpPayloadType = rtpPayloadType
+	this.rtpInterface = NewRTPInterface(gs)
+	this.rtpPayloadType = rtpPayloadType
 }
 
 func (this *RTPSink) AuxSDPLine() string {

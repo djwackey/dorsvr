@@ -49,11 +49,11 @@ func main() {
 	urlPrefix := rtspServer.RtspURLPrefix()
 	fmt.Println("This server's URL: " + urlPrefix + "<filename>.")
 
-    if !rtspServer.SetUpTunnelingOverHTTP(80) || !rtspServer.SetUpTunnelingOverHTTP(8000) || !rtspServer.SetUpTunnelingOverHTTP(8080) {
-        fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling, or for HTTP live streaming (for indexed Transport Stream files only).)", rtspServer.HttpServerPortNum()))
-    } else {
-        fmt.Println("(RTSP-over-HTTP tunneling is not available.)")
-    }
+	if !rtspServer.SetUpTunnelingOverHTTP(80) || !rtspServer.SetUpTunnelingOverHTTP(8000) || !rtspServer.SetUpTunnelingOverHTTP(8080) {
+		fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling, or for HTTP live streaming (for indexed Transport Stream files only).)", rtspServer.HttpServerPortNum()))
+	} else {
+		fmt.Println("(RTSP-over-HTTP tunneling is not available.)")
+	}
 
 	env.TaskScheduler().DoEventLoop()
 	return

@@ -5,5 +5,5 @@ type VideoRTPSink struct {
 }
 
 func (this *VideoRTPSink) InitVideoRTPSink() {
-    this.InitMultiFramedRTPSink()
+	this.InitMultiFramedRTPSink()
 }

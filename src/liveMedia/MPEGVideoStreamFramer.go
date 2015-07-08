@@ -1,7 +1,7 @@
 package liveMedia
 
 type MPEGVideoStreamFramer struct {
-    FramedFilter
+	FramedFilter
 }
 
 type MPEGVideoStreamParser struct {

@@ -5,25 +5,25 @@ type MultiFramedRTPSink struct {
 }
 
 func (this *MultiFramedRTPSink) InitMultiFramedRTPSink() {
-    this.InitRTPSink()
+	//this.InitRTPSink()
 }
 
 func (this *MultiFramedRTPSink) continuePlaying() {
-    buildAndSendPacket()
+	this.buildAndSendPacket()
 }
 
 func (this *MultiFramedRTPSink) buildAndSendPacket() {
-    this.packFrame()
+	this.packFrame()
 }
 
 func (this *MultiFramedRTPSink) packFrame() {
-    afterGettingFrame()
+	this.afterGettingFrame()
 }
 
 func (this *MultiFramedRTPSink) afterGettingFrame() {
-    sendPacketIfNecessary()
+	this.sendPacketIfNecessary()
 }
 
 func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
-    rtpInterface.sendPacket()
+	//this.rtpInterface.sendPacket()
 }

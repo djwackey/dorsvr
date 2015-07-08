@@ -1,6 +1,6 @@
 package liveMedia
 
 type FramedFilter struct {
-    FramedSource
-    inputSource *FramedSource
+	FramedSource
+	inputSource IFramedSource
 }

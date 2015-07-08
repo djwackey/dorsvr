@@ -27,9 +27,11 @@ func main() {
 		return
 	}
 
-	openURL(os.Args[0], os.Args[1])
+	os.Args[0] = "dorsvr"
 
-	env.TaskScheduler().DoEventLoop()
+	if openURL(os.Args[0], os.Args[1]) {
+		env.TaskScheduler().DoEventLoop()
+	}
 }
 
 func usage(progName string) {
@@ -37,20 +39,26 @@ func usage(progName string) {
 	fmt.Println("\t(where each <rtsp-url-i> is a \"rtsp://\" URL)")
 }
 
-func openURL(appName, rtspURL string) {
+func openURL(appName, rtspURL string) bool {
 	rtspClient := NewOurRTSPClient(appName, rtspURL)
 	if rtspClient == nil {
 		fmt.Println("Failed to create a RTSP client URL", rtspURL)
-		return
+		return false
 	}
 
 	rtspClientCount++
 
-	rtspClient.SendDescribeCommand(continueAfterDESCRIBE)
+	sendBytes := rtspClient.SendDescribeCommand(continueAfterDESCRIBE)
+	fmt.Println("sendBytes: ", sendBytes)
+	if sendBytes == 0 {
+		return false
+	}
+
+	return true
 }
 
 func continueAfterDESCRIBE() {
-    fmt.Println("continueAfterDESCRIBE")
+	fmt.Println("continueAfterDESCRIBE")
 }
 
 func continueAfterSETUP() {
@@ -60,5 +68,5 @@ func continueAfterPLAY() {
 }
 
 func setupNextSubSession(rtspClient *RTSPClient) {
-    rtspClient.SendPlayCommand(continueAfterPLAY)
+	rtspClient.SendPlayCommand(continueAfterPLAY)
 }
