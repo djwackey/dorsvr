@@ -17,13 +17,21 @@ type RTSPClient struct {
 	baseURL            string
 	userAgentHeaderStr string
 	tcpConn            *net.TCPConn
+    scs                *StreamClientState
+    tunnelOverHTTPPortNum int
 }
 
 type RequestRecord struct {
 	cseq        uint
 	commandName string
 	contentStr  string
-	handler     interface{}
+	handler     ResponseHandler
+    subsession *MediaSubSession
+    session    *MediaSession
+}
+
+type ResponseHandler interface {
+    Handle(rtspClient *RTSPClient, resultCode int, resultStr string)
 }
 
 func NewRTSPClient(rtspURL, appName string) *RTSPClient {
@@ -44,21 +52,35 @@ func (this *RequestRecord) CommandName() string {
 	return this.commandName
 }
 
-func (this *RequestRecord) subsession() string {
-	return ""
+func (this *RequestRecord) Session() *MediaSession {
+	return this.session
+}
+
+func (this *RequestRecord) Subsession() *MediaSubSession {
+	return this.subsession
 }
 
 func (this *RequestRecord) CSeq() uint {
 	return this.cseq
 }
 
+func (this *RequestRecord) URL() string {
+	return this.baseURL
+}
+
 func (this *RequestRecord) ContentStr() string {
 	return this.contentStr
+}
+
+func (this *RequestRecord) Handler() interface{} {
+    return this.handler
 }
 
 func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	this.cseq = 1
 	this.SetBaseURL(rtspURL)
+
+    this.scs = NewStreamClientState()
 
 	// Set the "User-Agent:" header to use in each request:
 	libName := "Dor Streaming Media v"
@@ -74,52 +96,57 @@ func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	this.SetUserAgentString(userAgentName)
 }
 
-func (this *RTSPClient) SendOptionsCommand(responseHandler interface{}) uint {
+
+func (this *RTSPClient) SCS() *StreamClientState {
+    return this.scs
+}
+
+func (this *RTSPClient) SendOptionsCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "OPTIONS", responseHandler))
 }
 
-func (this *RTSPClient) SendAnnounceCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendAnnounceCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "ANNOUNCE", responseHandler))
 }
 
-func (this *RTSPClient) SendDescribeCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendDescribeCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "DESCRIBE", responseHandler))
 }
 
-func (this *RTSPClient) SendSetupCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendSetupCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "SETUP", responseHandler))
 }
 
-func (this *RTSPClient) SendPlayCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendPlayCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "PLAY", responseHandler))
 }
 
-func (this *RTSPClient) SendPauseCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendPauseCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "PAUSE", responseHandler))
 }
 
-func (this *RTSPClient) SendRecordCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendRecordCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "RECORD", responseHandler))
 }
 
-func (this *RTSPClient) SendTeardownCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendTeardownCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "TEARDOWN", responseHandler))
 }
 
-func (this *RTSPClient) SendSetParameterCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendSetParameterCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "SET_PARAMETER", responseHandler))
 }
 
-func (this *RTSPClient) SendGetParameterCommand(responseHandler interface{}) uint {
+func (this *RTSPClient) SendGetParameterCommand(responseHandler interface{}) int {
 	this.cseq++
 	return this.sendRequest(NewRequestRecord(this.cseq, "GET_PARAMETER", responseHandler))
 }
@@ -239,11 +266,22 @@ func (this *RTSPClient) incomingDataHandler() {
 func (this *RTSPClient) handleResponseBytes() {
 	buffer := make([]byte, 1024)
 	for {
-		readBytes, _ := this.tcpConn.Read(buffer)
+		readBytes, err := this.tcpConn.Read(buffer)
+        if err != nil {
+            fmt.Println("handleResponseBytes")
+            fmt.Println(err)
+        }
+
 		//fmt.Println("handleResponseBytes")
 		fmt.Println(string(buffer), readBytes)
-		//time.Sleep(1000 * time.Millisecond)
 	}
+}
+
+func (this *RTSPClient) handleRequestError(request *RequestRecord) {
+    handler := request.Handler()
+    if handler != nil {
+        handler.Handle(this, 0, "OK")
+    }
 }
 
 func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
@@ -253,11 +291,18 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
 		}
 	}
 
+    if this.tunnelOverHTTPPortNum != 0 {
+        this.setupHTTPTunneling()
+    }
+
 	protocalStr := "RTSP/1.0"
 
-	//contentStr := request.ContentStr()
-
-	//contentLengthHeaderFmt := "Content-Length: %s\r\n"
+	contentStr := request.ContentStr()
+    contentStrLen := len(contentStr)
+    if contentStrLen > 0 {
+	    contentLengthHeaderFmt := "Content-Length: %s\r\n"
+        contentLengthHeader := fmt.Sprintf(contentLengthHeaderFmt, contentStrLen)
+    }
 
 	var extraHeaders string
 	switch request.CommandName() {
@@ -266,7 +311,8 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
 	case "DESCRIBE":
 		extraHeaders = "Accept: application/sdp\r\n"
 	case "SETUP":
-		//subsession = request.subsession()
+        subsession := request.Subsession()
+        this.constructSubSessionURL(subsession)
 	case "PLAY":
 	case "GET", "POST":
 	default:
@@ -275,19 +321,38 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
 	cmdFmt := "%s %s %s\r\n" +
 		"CSeq: %d\r\n" +
 		"%s" +
-		"%s"
+		"%s" +
+        "%s"
 
 	cmd := fmt.Sprintf(cmdFmt, request.CommandName(),
 		this.baseURL,
 		protocalStr,
 		request.CSeq(),
 		this.userAgentHeaderStr,
-		extraHeaders)
+		extraHeaders,
+        contentStr)
 
 	writeBytes, err := this.tcpConn.Write([]byte(cmd))
 	if err != nil {
 		fmt.Println("RTSPClient::sendRequst", err, writeBytes)
 	}
 	fmt.Println(cmd, writeBytes)
-	return uint(writeBytes)
+
+    this.handleRequestError(request)
+	return writeBytes
+}
+
+func (this *RTSPClient) sessionURL(session *MediaSessioin) string {
+    url := session.ControlPath()
+    if url == "" || url == "*" {
+        url = this.baseURL
+    }
+    return url
+}
+
+func (this *RTSPClient) constructSubSessionURL(subsession *MediaSubSession) (string, string, string) {
+    prefix := this.sessionURL(subsession.parentSession())
+    suffix := subsession.ControlPath()
+    separator := ""
+    return prefix, separator, suffix
 }
