@@ -13,25 +13,25 @@ import (
 var responseBufferSize = 20000
 
 type RTSPClient struct {
-	cseq               uint
-	baseURL            string
-	userAgentHeaderStr string
-	tcpConn            *net.TCPConn
-    scs                *StreamClientState
-    tunnelOverHTTPPortNum int
+	cseq                  uint
+	baseURL               string
+	userAgentHeaderStr    string
+	tcpConn               *net.TCPConn
+	scs                   *StreamClientState
+	tunnelOverHTTPPortNum int
 }
 
 type RequestRecord struct {
 	cseq        uint
 	commandName string
 	contentStr  string
-	handler     ResponseHandler
-    subsession *MediaSubSession
-    session    *MediaSession
+	handler     interface{} //ResponseHandler
+	subsession  *MediaSubSession
+	session     *MediaSession
 }
 
 type ResponseHandler interface {
-    Handle(rtspClient *RTSPClient, resultCode int, resultStr string)
+	Handle(rtspClient *RTSPClient, resultCode int, resultStr string)
 }
 
 func NewRTSPClient(rtspURL, appName string) *RTSPClient {
@@ -64,23 +64,26 @@ func (this *RequestRecord) CSeq() uint {
 	return this.cseq
 }
 
+/*
 func (this *RequestRecord) URL() string {
 	return this.baseURL
-}
+}*/
 
 func (this *RequestRecord) ContentStr() string {
 	return this.contentStr
 }
 
-func (this *RequestRecord) Handler() interface{} {
-    return this.handler
+func (this *RequestRecord) Handle(rtspClient *RTSPClient, resultCode int, resultStr string) {
+	if this.handler != nil {
+		this.handler.(func(rtspClient *RTSPClient, resultCode int, resultStr string))(rtspClient, resultCode, resultStr)
+	}
 }
 
 func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	this.cseq = 1
 	this.SetBaseURL(rtspURL)
 
-    this.scs = NewStreamClientState()
+	this.scs = NewStreamClientState()
 
 	// Set the "User-Agent:" header to use in each request:
 	libName := "Dor Streaming Media v"
@@ -96,9 +99,8 @@ func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	this.SetUserAgentString(userAgentName)
 }
 
-
 func (this *RTSPClient) SCS() *StreamClientState {
-    return this.scs
+	return this.scs
 }
 
 func (this *RTSPClient) SendOptionsCommand(responseHandler interface{}) int {
@@ -267,10 +269,10 @@ func (this *RTSPClient) handleResponseBytes() {
 	buffer := make([]byte, 1024)
 	for {
 		readBytes, err := this.tcpConn.Read(buffer)
-        if err != nil {
-            fmt.Println("handleResponseBytes")
-            fmt.Println(err)
-        }
+		if err != nil {
+			fmt.Println("handleResponseBytes")
+			fmt.Println(err)
+		}
 
 		//fmt.Println("handleResponseBytes")
 		fmt.Println(string(buffer), readBytes)
@@ -278,31 +280,29 @@ func (this *RTSPClient) handleResponseBytes() {
 }
 
 func (this *RTSPClient) handleRequestError(request *RequestRecord) {
-    handler := request.Handler()
-    if handler != nil {
-        handler.Handle(this, 0, "OK")
-    }
+	request.Handle(this, 0, "OK")
 }
 
-func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
+func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 	if this.tcpConn == nil {
 		if !this.connectToServer() {
 			return 0
 		}
 	}
 
-    if this.tunnelOverHTTPPortNum != 0 {
-        this.setupHTTPTunneling()
-    }
+	if this.tunnelOverHTTPPortNum != 0 {
+		//this.setupHTTPTunneling()
+	}
 
 	protocalStr := "RTSP/1.0"
 
 	contentStr := request.ContentStr()
-    contentStrLen := len(contentStr)
-    if contentStrLen > 0 {
-	    contentLengthHeaderFmt := "Content-Length: %s\r\n"
-        contentLengthHeader := fmt.Sprintf(contentLengthHeaderFmt, contentStrLen)
-    }
+	contentStrLen := len(contentStr)
+	if contentStrLen > 0 {
+		contentLengthHeaderFmt := "Content-Length: %s\r\n"
+		contentLengthHeader := fmt.Sprintf(contentLengthHeaderFmt, contentStrLen)
+		fmt.Println("contentLengthHeader", contentLengthHeader)
+	}
 
 	var extraHeaders string
 	switch request.CommandName() {
@@ -311,8 +311,8 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
 	case "DESCRIBE":
 		extraHeaders = "Accept: application/sdp\r\n"
 	case "SETUP":
-        subsession := request.Subsession()
-        this.constructSubSessionURL(subsession)
+		subsession := request.Subsession()
+		this.constructSubSessionURL(subsession)
 	case "PLAY":
 	case "GET", "POST":
 	default:
@@ -322,7 +322,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
 		"CSeq: %d\r\n" +
 		"%s" +
 		"%s" +
-        "%s"
+		"%s"
 
 	cmd := fmt.Sprintf(cmdFmt, request.CommandName(),
 		this.baseURL,
@@ -330,7 +330,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
 		request.CSeq(),
 		this.userAgentHeaderStr,
 		extraHeaders,
-        contentStr)
+		contentStr)
 
 	writeBytes, err := this.tcpConn.Write([]byte(cmd))
 	if err != nil {
@@ -338,21 +338,21 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) uint {
 	}
 	fmt.Println(cmd, writeBytes)
 
-    this.handleRequestError(request)
+	this.handleRequestError(request)
 	return writeBytes
 }
 
-func (this *RTSPClient) sessionURL(session *MediaSessioin) string {
-    url := session.ControlPath()
-    if url == "" || url == "*" {
-        url = this.baseURL
-    }
-    return url
+func (this *RTSPClient) sessionURL(session *MediaSession) string {
+	url := session.ControlPath()
+	if url == "" || url == "*" {
+		url = this.baseURL
+	}
+	return url
 }
 
 func (this *RTSPClient) constructSubSessionURL(subsession *MediaSubSession) (string, string, string) {
-    prefix := this.sessionURL(subsession.parentSession())
-    suffix := subsession.ControlPath()
-    separator := ""
-    return prefix, separator, suffix
+	prefix := "" //this.sessionURL(subsession.parentSession())
+	suffix := subsession.ControlPath()
+	separator := ""
+	return prefix, separator, suffix
 }

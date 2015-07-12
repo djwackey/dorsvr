@@ -1,12 +1,11 @@
 package liveMedia
 
-
 type StreamClientState struct {
-    MediaSession    *Session
-    MediaSubSession *Subsession
+	Session    *MediaSession
+	Subsession *MediaSubSession
 }
 
 func NewStreamClientState() *StreamClientState {
-    streamClientState := new(StreamClientState)
-    return streamClientState
+	streamClientState := new(StreamClientState)
+	return streamClientState
 }

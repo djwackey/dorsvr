@@ -56,6 +56,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 	var sessionIdStr string
 	var clientSession *RTSPClientSession
 	requestString, parseSucceeded := ParseRTSPRequestString(buf)
+    fmt.Println(requestString)
 	if parseSucceeded {
 		this.currentCSeq = requestString.cseq
 		switch requestString.cmdName {
@@ -71,6 +72,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 			this.handleCommandDescribe(requestString.urlPreSuffix, requestString.urlSuffix, string(buf))
 		case "SETUP":
 			{
+				fmt.Println("SETUP New Client Session")
 				if sessionIdStr == "" {
 					var sessionId uint32
 					for {
@@ -118,7 +120,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 		}
 	}
 
-	fmt.Println(this.responseBuffer)
+	//fmt.Println(this.responseBuffer)
 
 	sendBytes, err := this.clientOutputSocket.Write([]byte(this.responseBuffer))
 	if err != nil {
@@ -152,7 +154,7 @@ func (this *RTSPClientConnection) HandleCommandUnsupportedTransport() {
 
 func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fullRequestStr string) {
 	urlTotalSuffix := urlPreSuffix + "." + urlSuffix
-	fmt.Println("handleC", urlTotalSuffix)
+	//fmt.Println("handleCommandDescribe", urlTotalSuffix)
 
 	this.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
 
@@ -174,7 +176,7 @@ func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix,
 	rtspURL := this.rtspServer.RtspURL(streamName)
 	this.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\nCSeq: %s\r\n"+
 		"%s"+
-		"Content-Base: %s/\r\n"+
+		"Content-Base: %s\r\n"+
 		"Content-Type: application/sdp\r\n"+
 		"Content-Length: %d\r\n\r\n"+
 		"%s",

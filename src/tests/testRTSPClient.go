@@ -58,95 +58,95 @@ func openURL(appName, rtspURL string) bool {
 }
 
 func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr string) {
-    for {
-        if resultCode != 0 {
-            fmt.Println(fmt.Sprintf("Failed to get a SDP description: %s", resultStr))
-            break
-        }
+	for {
+		if resultCode != 0 {
+			fmt.Println(fmt.Sprintf("Failed to get a SDP description: %s", resultStr))
+			break
+		}
 
-        sdpDesc := resultStr
-        fmt.Println(fmt.Sprintf("Got a SDP Description: %s", sdpDesc))
+		sdpDesc := resultStr
+		fmt.Println(fmt.Sprintf("Got a SDP Description: %s", sdpDesc))
 
-        scs := rtspClient.SCS()
-        // Create a media session object from this SDP description
-        scs.Session = NewMediaSession(sdpDesc)
-        if scs.Session == nil {
-            fmt.Println("Failed to create a MediaSession object from the sdp Description.")
-            break
-        } else {
-            fmt.Println("This session has no media subsessions (i.e., no \"-m\" lines)")
-            break
-        }
+		scs := rtspClient.SCS()
+		// Create a media session object from this SDP description
+		scs.Session = NewMediaSession(sdpDesc)
+		if scs.Session == nil {
+			fmt.Println("Failed to create a MediaSession object from the sdp Description.")
+			break
+		} else {
+			fmt.Println("This session has no media subsessions (i.e., no \"-m\" lines)")
+			break
+		}
 
-        // Then, create and set up our data source objects for the session.
-        setupNextSubSession(rtspClient)
-        return
-    }
+		// Then, create and set up our data source objects for the session.
+		setupNextSubSession(rtspClient)
+		return
+	}
 
-    // An error occurred with this stream.
-    shutdownStream(rtspClient)
+	// An error occurred with this stream.
+	shutdownStream(rtspClient)
 }
 
 func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string) {
-    if result != 0 {
-        fmt.Println(fmt.Sprintf("Failed to set up the subsession"))
-    }
+	if resultCode != 0 {
+		fmt.Println(fmt.Sprintf("Failed to set up the subsession"))
+	}
 
-    scs := rtspClient.SCS()
-    scs.Subsession.Sink = NewDummySink()
-    if scs.Subsession.Sink == nil {
-        fmt.Println("Failed to create a data sink for the subsession.")
-        return
-    }
+	//scs := rtspClient.SCS()
+	//scs.Subsession.Sink = NewDummySink()
+	//if scs.Subsession.Sink == nil {
+	//    fmt.Println("Failed to create a data sink for the subsession.")
+	//    return
+	//}
 
-    scs.Subsession.Sink.StartPlaying()
-    if scs.Subsession.rtcpInstance() != nil {
-        scs.Subsession.rtcpInstance().setByeHandler(subsessionByeHandler, scs.subsession)
-    }
+	//scs.Subsession.Sink.StartPlaying()
+	//if scs.Subsession.rtcpInstance() != nil {
+	//    scs.Subsession.rtcpInstance().setByeHandler(subsessionByeHandler, scs.subsession)
+	//}
 
-    // Set up the next subsession, if any:
-    setupNextSubsession(rtspClient);
+	// Set up the next subsession, if any:
+	setupNextSubSession(rtspClient)
 }
 
 func continueAfterPLAY(rtspClient *RTSPClient, resultCode int, resultStr string) {
-    if result != 0 {
-        fmt.Println(fmt.Sprintf("Failed to start playing session: %s", resultStr))
-        return
-    }
+	if resultCode != 0 {
+		fmt.Println(fmt.Sprintf("Failed to start playing session: %s", resultStr))
+		return
+	}
 }
 
 func subsessionByeHandler() {
-    fmt.Println("Received RTCP BYE on subsession.")
+	fmt.Println("Received RTCP BYE on subsession.")
 
-    // Now act as if the subsession had closed:
-    subsessionAfterPlaying(subsession)
+	// Now act as if the subsession had closed:
+	//subsessionAfterPlaying(subsession)
 }
 
 func subsessionAfterPlaying(subsession *MediaSubSession) {
-    //shutdownStream()
+	//shutdownStream()
 }
 
 func shutdownStream(rtspClient *RTSPClient) {
-    subsession->rtcpInstance()->setByeHandler(nil, nil)
+	//subsession.tcpInstance().setByeHandler(nil, nil)
 
-    rtspClient.SendTearDownCommand()
+	rtspClient.SendTeardownCommand(nil)
 
-    fmt.Println("Closing the Stream.")
+	fmt.Println("Closing the Stream.")
 }
 
 func setupNextSubSession(rtspClient *RTSPClient) {
-    scs := rtspClient.SCS()
-    scs.Subsession = scs.next()
-    if !scs.Subsession.Initiate() {
-        fmt.Println("Failed to initiate the subsession.")
-        setupNextSubSession(rtspClient *RTSPClient)
-    } else {
-        rtspClient.SendSetupCommand(continueAfterSETUP)
-    }
+	scs := rtspClient.SCS()
+	//scs.Subsession = scs.next()
+	if !scs.Subsession.Initiate() {
+		fmt.Println("Failed to initiate the subsession.")
+		setupNextSubSession(rtspClient)
+	} else {
+		rtspClient.SendSetupCommand(continueAfterSETUP)
+	}
 
-    if scs.Subsession.absStartTime() != nil {
-	    rtspClient.SendPlayCommand(continueAfterPLAY)
-    } else {
-	    rtspClient.SendPlayCommand(continueAfterPLAY)
-    }
+	//if scs.Subsession.absStartTime() != nil {
+	//    rtspClient.SendPlayCommand(continueAfterPLAY)
+	//} else {
+	//    rtspClient.SendPlayCommand(continueAfterPLAY)
+	//}
 }

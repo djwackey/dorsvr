@@ -55,11 +55,13 @@ func ParseRTSPRequestString(buf []byte) (*RTSPRequestInfo, bool) {
 	array := strings.Split(reqStr, "\r\n")
 	length := len(array)
 	if length <= 1 {
+        fmt.Println("Failed to Split \\r\\n")
 		return nil, false
 	}
 
 	result = parseCommandName(array[0], reqInfo)
 	if !result {
+        fmt.Println("Failed to Parse Command Name")
 		return nil, false
 	}
 
@@ -102,6 +104,7 @@ func ParseHTTPRequestString() (*RTSPRequestInfo, bool) {
 
 func parseCommandName(reqStr string, reqInfo *RTSPRequestInfo) bool {
 	array := strings.Split(reqStr, " ")
+    //fmt.Println("parseCommandName", reqStr, len(array))
 	if len(array) != 3 {
 		array = strings.Split(reqStr, "\t")
 		if len(array) != 3 {
@@ -110,19 +113,24 @@ func parseCommandName(reqStr string, reqInfo *RTSPRequestInfo) bool {
 	}
 
 	reqInfo.cmdName = array[0]
-	s := array[1]
-	l := strings.Split(s, "/")
-	t := l[len(l)-1]
-	l = strings.Split(t, ".")
-	if len(l) != 2 {
-		return false
-	}
+    switch reqInfo.cmdName {
+    case "DESCRIBE":
+        s := array[1]
+	    l := strings.Split(s, "/")
+	    t := l[len(l)-1]
+	    l = strings.Split(t, ".")
+	    if len(l) != 2 {
+		    return false
+	    }
 
-	reqInfo.urlPreSuffix = l[0]
-	reqInfo.urlSuffix = l[1]
-	//fmt.Println("yanfei: ", l[0], l[1])
-	//version := array[2]
-	//fmt.Println("parseCommandName: " + version)
+	    reqInfo.urlPreSuffix = l[0]
+	    reqInfo.urlSuffix = l[1]
+	    //fmt.Println("yanfei: ", l[0], l[1])
+	    //version := array[2]
+	    //fmt.Println("parseCommandName: " + version)
+    case "SETUP":
+    }
+
 	return true
 }
 

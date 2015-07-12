@@ -10,6 +10,6 @@ type H264VideoRTPSink struct {
 
 func NewH264VideoRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) *H264VideoRTPSink {
 	h264VideoRTPSink := new(H264VideoRTPSink)
-	h264VideoRTPSink.InitVideoRTPSink()
+	h264VideoRTPSink.InitVideoRTPSink(rtpGroupSock, rtpPayloadType, 90000, "H264")
 	return h264VideoRTPSink
 }

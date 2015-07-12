@@ -25,10 +25,10 @@ type streamState struct {
 
 func NewRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionId uint32) *RTSPClientSession {
 	rtspClientSession := new(RTSPClientSession)
-	rtspClientSession.noteLiveness()
 	rtspClientSession.ourSessionId = sessionId
 	rtspClientSession.rtspClientConn = rtspClientConn
 	rtspClientSession.rtspServer = rtspClientConn.GetRTSPServer()
+	rtspClientSession.noteLiveness()
 	return rtspClientSession
 }
 
@@ -36,7 +36,7 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 	streamName := urlPreSuffix
 	//trackId := urlSuffix
 
-	this.noteLiveness()
+	//this.noteLiveness()
 
 	var rtpChannelId int
 	var rtcpChannelId int
@@ -218,6 +218,7 @@ func (this *RTSPClientSession) noteLiveness() {
 		go this.livenessTimeoutTask(time.Second * this.rtspServer.reclamationTestSeconds)
 		this.isTimerRunning = true
 	} else {
+        fmt.Println("noteLiveness", this.livenessTimeoutTimer)
 		this.livenessTimeoutTimer.Reset(time.Second * this.rtspServer.reclamationTestSeconds)
 	}
 }

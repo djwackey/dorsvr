@@ -7,9 +7,7 @@ import (
 
 type OnDemandServerMediaSubSession struct {
 	ServerMediaSubSession
-	SDPLines        string
-	trackId         string
-	trackNumber     int
+	sdpLines        string
 	portNumForSDP   int
 	initialPortNum  int
 	lastStreamToken interface{}
@@ -26,13 +24,22 @@ type StreamParameter struct {
 	streamToken     interface{}
 }
 
-func (this *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession() {
+func (this *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession(isubsession IServerMediaSubSession) {
+	this.InitServerMediaSubSession(isubsession)
 }
 
-func (this *OnDemandServerMediaSubSession) sdpLines() {
-	if this.SDPLines != "" {
-		this.setSDPLinesFromRTPSink(nil, 500)
+func (this *OnDemandServerMediaSubSession) SDPLines() string {
+	if this.sdpLines == "" {
+		inputSource := this.isubsession.CreateNewStreamSource()
+
+		rtpPayloadType := 96 + this.TrackNumber() - 1
+		dummyGroupSock := NewGroupSock(0)
+		dummyRTPSink := this.isubsession.CreateNewRTPSink(dummyGroupSock, rtpPayloadType)
+
+		this.setSDPLinesFromRTPSink(dummyRTPSink, inputSource, 500)
 	}
+
+	return this.sdpLines
 }
 
 func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId uint) *StreamParameter {
@@ -55,20 +62,14 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtc
 	return sp
 }
 
-func (this *OnDemandServerMediaSubSession) TrackId() string {
-	if this.trackId == "" {
-		this.trackId = fmt.Sprintf("track%d", this.trackNumber)
-	}
-	return this.trackId
-}
-
-func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink *RTPSink, estBitrate uint) {
+func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink IRTPSink, inputSource IFramedSource, estBitrate uint) {
 	if rtpSink == nil {
 		return
 	}
 
 	rtpPayloadType := rtpSink.RtpPayloadType()
 	mediaType := rtpSink.SdpMediaType()
+	rtpmapLine := rtpSink.RtpmapLine()
 	rangeLine := "" //this.rangeSDPLine()
 
 	auxSDPLine := "" //this.getAuxSDPLine()
@@ -76,17 +77,26 @@ func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink *RTPSi
 		auxSDPLine = ""
 	}
 
-	ipAddr, _ := OurIPAddress()
+	ipAddr := "0.0.0.0"
 
-	sdpFmt := "m=%s %u RTP/AVP %d\r\n" +
+	sdpFmt := "m=%s %d RTP/AVP %d\r\n" +
 		"c=IN IP4 %s\r\n" +
-		"b=AS:%u\r\n" +
+		"b=AS:%d\r\n" +
 		"%s" +
 		"%s" +
 		"%s" +
 		"a=control:%s\r\n"
 
-	this.SDPLines = fmt.Sprintf(sdpFmt, mediaType, this.portNumForSDP, rtpPayloadType, ipAddr, estBitrate, rangeLine, auxSDPLine, this.TrackId())
+	this.sdpLines = fmt.Sprintf(sdpFmt,
+		mediaType,
+		this.portNumForSDP,
+		rtpPayloadType,
+		ipAddr,
+		estBitrate,
+		rtpmapLine,
+		rangeLine,
+		auxSDPLine,
+		this.TrackId())
 }
 
 func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink *RTPSink) string {

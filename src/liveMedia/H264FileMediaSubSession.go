@@ -1,6 +1,7 @@
 package liveMedia
 
 import (
+	//"fmt"
 	. "groupsock"
 )
 
@@ -10,11 +11,11 @@ type H264FileMediaSubSession struct {
 
 func NewH264FileMediaSubSession() *H264FileMediaSubSession {
 	h264FileMediaSubSession := new(H264FileMediaSubSession)
-	h264FileMediaSubSession.InitFileServerMediaSubSession()
+	h264FileMediaSubSession.InitFileServerMediaSubSession(h264FileMediaSubSession)
 	return h264FileMediaSubSession
 }
 
-func (this *H264FileMediaSubSession) CreateNewStreamSource() *H264VideoStreamFramer {
+func (this *H264FileMediaSubSession) CreateNewStreamSource() IFramedSource {
 	//estBitrate = 500 // kbps, estimate
 
 	// Create the video source:
@@ -28,7 +29,7 @@ func (this *H264FileMediaSubSession) CreateNewStreamSource() *H264VideoStreamFra
 	return NewH264VideoStreamFramer(fileSource)
 }
 
-func (this *H264FileMediaSubSession) CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) interface{} {
+func (this *H264FileMediaSubSession) CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) IRTPSink {
 	return NewH264VideoRTPSink(rtpGroupSock, rtpPayloadType)
 }
 

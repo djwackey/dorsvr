@@ -20,14 +20,14 @@ type ServerMediaSession struct {
 	referenceCount    int
 	subsessionCounter int
 	creationTime      Timeval
-	subSessions       []*ServerMediaSubSession
+	subSessions       []IServerMediaSubSession
 }
 
 func NewServerMediaSession(description, streamName string) *ServerMediaSession {
 	serverMediaSession := new(ServerMediaSession)
 	serverMediaSession.descSDPStr = description + ", streamed by the Dor Media Server"
 	serverMediaSession.infoSDPStr = streamName
-	serverMediaSession.subSessions = make([]*ServerMediaSubSession, 1024*1024)
+	serverMediaSession.subSessions = make([]IServerMediaSubSession, 1024*1024)
 	serverMediaSession.ipAddr, _ = OurIPAddress()
 
 	GetTimeOfDay(&serverMediaSession.creationTime)
@@ -52,7 +52,7 @@ func (this *ServerMediaSession) GenerateSDPDescription() string {
 	}
 
 	sdpPrefixFmt := "v=0\r\n" +
-		"o=- %ld%06ld %d IN IP4 %s\r\n" +
+		"o=- %d%06d %d IN IP4 %s\r\n" +
 		"s=%s\r\n" +
 		"i=%s\r\n" +
 		"t=0 0\r\n" +
@@ -65,7 +65,8 @@ func (this *ServerMediaSession) GenerateSDPDescription() string {
 		"a=x-qt-text-inf:%s\r\n" +
 		"%s"
 
-	sdp := fmt.Sprintf(sdpPrefixFmt, this.creationTime.Tv_sec,
+	sdp := fmt.Sprintf(sdpPrefixFmt,
+		this.creationTime.Tv_sec,
 		this.creationTime.Tv_usec,
 		1,
 		this.ipAddr,
@@ -77,6 +78,13 @@ func (this *ServerMediaSession) GenerateSDPDescription() string {
 		this.descSDPStr,
 		this.infoSDPStr,
 		this.miscSDPLines)
+
+    // Then, add the (media-level) lines for each subsession:
+	for i := 0; i < this.subsessionCounter; i++ {
+		sdpLines := this.subSessions[i].SDPLines()
+        sdp += sdpLines
+	}
+
 	return sdp
 }
 
@@ -85,8 +93,9 @@ func (this *ServerMediaSession) StreamName() string {
 }
 
 func (this *ServerMediaSession) AddSubSession(subSession IServerMediaSubSession) {
-	//this.subSessions = append(this.subSessions, subSession)
+	this.subSessions[this.subsessionCounter] = subSession
 	this.subsessionCounter++
+	subSession.IncrTrackNumber()
 }
 
 func (this *ServerMediaSession) duration() float32 {

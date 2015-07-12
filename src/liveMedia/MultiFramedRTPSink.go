@@ -1,11 +1,17 @@
 package liveMedia
 
+import (
+	. "groupsock"
+)
+
 type MultiFramedRTPSink struct {
 	RTPSink
 }
 
-func (this *MultiFramedRTPSink) InitMultiFramedRTPSink() {
-	//this.InitRTPSink()
+func (this *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int,
+                                                                                rtpTimestampFrequency uint,
+                                                                                rtpPayloadFormatName string) {
+	this.InitRTPSink(rtpGroupSock, rtpPayloadType, rtpTimestampFrequency, rtpPayloadFormatName)
 }
 
 func (this *MultiFramedRTPSink) continuePlaying() {
