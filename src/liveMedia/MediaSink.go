@@ -13,7 +13,7 @@ type OutPacketBuffer struct {
 }
 
 func NewOutPacketBuffer() *OutPacketBuffer {
-	return &OutPacketBuffer{}
+	return new(OutPacketBuffer)
 }
 
 func (this *MediaSink) startPlaying() {

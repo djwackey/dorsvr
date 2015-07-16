@@ -6,11 +6,13 @@ import (
 
 type RTPInterface struct {
 	gs *GroupSock
+    owner interface{}
 }
 
-func NewRTPInterface(gs *GroupSock) *RTPInterface {
+func NewRTPInterface(owner interface{}, gs *GroupSock) *RTPInterface {
 	rtpInterface := new(RTPInterface)
 	rtpInterface.gs = gs
+    rtpInterface.owner = owner
 	return rtpInterface
 }
 

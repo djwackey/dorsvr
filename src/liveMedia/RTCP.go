@@ -25,13 +25,45 @@ const (
 )
 
 type SDESItem struct {
+    data []byte
 }
 
 type RTCPInstance struct {
+    typeOfEvent int
+    totSessionBW uint
+    CNAME SDESItem
+    Sink *RTPSink
+    Source *RTPSource
+    outBuf *OutPacketBuffer
+    rtcpInterface *RTCPInterface
 }
 
-func NewRTCPInstance(RTCPgs *GroupSock) *RTCPInstance {
-	return &RTCPInstance{}
+func NewSDESItem(tag byte, value string) *SDESItem {
+    length := len(value)
+    if length > 0xFF {
+        length = 0xFF   // maximum data length for a SDES item
+    }
+
+    this.data[0] = tag
+    this.data[1] = (byte) length
+    return new(SDESItem)
+}
+
+func (this *SDESItem) totalSize() uint {
+    return 2 + (uint) this.data[1]
+}
+
+func NewRTCPInstance(RTCPgs *GroupSock, cname string) *RTCPInstance {
+    rtcp := new(RTCPInstance)
+    rtcp.typeOfEvent = EVENT_REPORT
+    rtcp.outBuf = NewOutPacketBuffer()
+    rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
+
+    rtcp.rtcpInterface = NewRTCPInterface(rtcp, RTCPgs)
+    rtcp.rtcpInterface.startNetworkReading()
+
+    go rtcp.incomingReportHandler()
+    return rtcp
 }
 
 func (this *RTCPInstance) setByeHandler() {
@@ -41,4 +73,7 @@ func (this *RTCPInstance) setSRHandler() {
 }
 
 func (this *RTCPInstance) setRRHandler() {
+}
+
+func (this *RTCPInstance) incomingReportHandler() {
 }
