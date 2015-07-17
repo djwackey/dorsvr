@@ -129,7 +129,10 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 }
 
 func (this *RTSPClientConnection) handleCommandOptions() {
-	this.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\nCSeq: %s\r\n%sPublic: %s\r\n\r\n", this.currentCSeq, DateHeader(), allowedCommandNames)
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
+                                      "CSeq: %s\r\n"+
+                                      "%sPublic: %s\r\n\r\n",
+                                      this.currentCSeq, DateHeader(), allowedCommandNames)
 }
 
 func (this *RTSPClientConnection) handleCommandGetParameter() {
@@ -174,7 +177,8 @@ func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix,
 
 	streamName := session.StreamName()
 	rtspURL := this.rtspServer.RtspURL(streamName)
-	this.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\nCSeq: %s\r\n"+
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
+        "CSeq: %s\r\n"+
 		"%s"+
 		"Content-Base: %s\r\n"+
 		"Content-Type: application/sdp\r\n"+
@@ -185,11 +189,16 @@ func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix,
 
 func (this *RTSPClientConnection) handleCommandBad() {
 	// Don't do anything with "fCurrentCSeq", because it might be nonsense
-	this.responseBuffer = fmt.Sprintf("RTSP/1.0 400 Bad Request\r\n%sAllow: %s\r\n\r\n", DateHeader(), allowedCommandNames)
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 400 Bad Request\r\n"+
+                                      "%sAllow: %s\r\n\r\n",
+                                      DateHeader(), allowedCommandNames)
 }
 
 func (this *RTSPClientConnection) handleCommandNotSupported() {
-	this.responseBuffer = fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n%sAllow: %s\r\n\r\n", this.currentCSeq, DateHeader(), allowedCommandNames)
+	this.responseBuffer = fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\n"+
+                                      "CSeq: %s\r\n"+
+                                      "%sAllow: %s\r\n\r\n",
+                                      this.currentCSeq, DateHeader(), allowedCommandNames)
 }
 
 func (this *RTSPClientConnection) handleHTTPCommandTunnelingGET() {

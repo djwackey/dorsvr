@@ -7,15 +7,26 @@ import (
 type StreamState struct {
 	rtpSink        *RTPSink
 	udpSink        *BasicUDPSink
-	rtpGS          GroupSock
-	rtcpGS         GroupSock
-	rtcpInstance   RTCPInstance
+	rtpGS          *GroupSock
+	rtcpGS         *GroupSock
+	rtcpInstance   *RTCPInstance
+    mediaSource    *FramedSource
 	serverRTPPort  int
 	serverRTCPPort int
+    totalBW        uint
 }
 
-func NewStreamState() *StreamState {
-	return &StreamState{}
+func NewStreamState(serverRTPPort, serverRTCPPort int, rtpSink *RTPSink, udpSink *BasicUDPSink, totalBW uint, mediaSource FramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
+    streamState := new(StreamState)
+    streamState.rtpGS = rtpGS
+    streamState.rtcpGS = rtcpGS
+    streamState.rtpSink = rtpSink
+    streamState.udpSink = udpSink
+    streamState.totalBW = totalBW
+    streamState.mediaSource = mediaSource
+    streamState.serverRTPPort = serverRTPPort
+    streamState.serverRTCPPort = serverRTCPPort
+    return streamState
 }
 
 func (this *StreamState) startPlaying() {
@@ -36,4 +47,12 @@ func (this *StreamState) pause() {
 }
 
 func (this *StreamState) endPlaying() {
+}
+
+func (this *StreamState) ServerRTPPort() int {
+    return this.serverRTPPort
+}
+
+func (this *StreamState) ServerRTCPPort() int {
+    return this.serverRTCPPort
 }

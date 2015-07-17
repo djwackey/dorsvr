@@ -53,9 +53,10 @@ func (this *SDESItem) totalSize() uint {
     return 2 + (uint) this.data[1]
 }
 
-func NewRTCPInstance(RTCPgs *GroupSock, cname string) *RTCPInstance {
+func NewRTCPInstance(RTCPgs *GroupSock, totSessionBW uint, cname string) *RTCPInstance {
     rtcp := new(RTCPInstance)
     rtcp.typeOfEvent = EVENT_REPORT
+    rtcp.totSessionBW = totSessionBW
     rtcp.outBuf = NewOutPacketBuffer()
     rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
 
@@ -63,10 +64,13 @@ func NewRTCPInstance(RTCPgs *GroupSock, cname string) *RTCPInstance {
     rtcp.rtcpInterface.startNetworkReading()
 
     go rtcp.incomingReportHandler()
+    //this.onExpire(rtcp)
     return rtcp
 }
 
-func (this *RTCPInstance) setByeHandler() {
+func (this *RTCPInstance) setByeHandler(handlerTask interface{}, clientData interface{}) {
+    //this.byeHandlerTask = handlerTask
+    //this.byeHandlerClientData = clientData
 }
 
 func (this *RTCPInstance) setSRHandler() {

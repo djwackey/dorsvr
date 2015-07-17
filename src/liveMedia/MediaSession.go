@@ -21,6 +21,8 @@ type MediaSubSession struct {
 	//rtpSource RTPSource
     rtcpInstance *RTCPInstance
 	controlPath string
+    absStartTime string
+    absEndTime string
 }
 
 func NewMediaSubSession() *MediaSubSession {
@@ -36,6 +38,15 @@ func (this *MediaSession) ControlPath() string {
 	return this.controlPath
 }
 
+func (this *MediaSession) absStartTime() string {
+    return this.absStartTime
+}
+
+func (this *MediaSession) absEndTime() string {
+    return this.absEndTime
+}
+
+// MediaSubSession Implementation
 func (this *MediaSubSession) Initiate() bool {
     this.rtpSocket = NewGroupSock()
     this.rtcpSocket = NewGroupSock()
@@ -46,7 +57,6 @@ func (this *MediaSubSession) Initiate() bool {
 func (this *MediaSubSession) deInitiate() {
 }
 
-// Imple
 func (this *MediaSubSession) ControlPath() string {
 	return this.controlPath
 }
