@@ -8,8 +8,13 @@ import (
 type IServerMediaSubSession interface {
 	CreateNewStreamSource() IFramedSource
 	CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) IRTPSink
+	getStreamParameters(rtpChannelId, rtcpChannelId int) *StreamParameter
 	IncrTrackNumber()
 	SDPLines() string
+	startStream(streamState *StreamState)
+	pauseStream(streamState *StreamState)
+	//seekStream()
+	deleteStream(streamState *StreamState)
 }
 
 type ServerMediaSubSession struct {
@@ -22,7 +27,7 @@ func (this *ServerMediaSubSession) InitServerMediaSubSession(isubsession IServer
 	this.isubsession = isubsession
 }
 
-func (this *OnDemandServerMediaSubSession) TrackId() string {
+func (this *ServerMediaSubSession) TrackId() string {
 	if this.trackId == "" {
 		this.trackId = fmt.Sprintf("track%d", this.trackNumber)
 	}

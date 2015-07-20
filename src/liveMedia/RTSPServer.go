@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"strings"
@@ -170,7 +171,7 @@ func (this *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
 		// Assumed to be a H.264 Video Elementary Stream file:
 		serverMediaSession = NewServerMediaSession("H.264 Video", fileName)
 		//OutPacketBuffer::maxSize = 100000; // allow for some possibly large H.264 frames
-		serverMediaSession.AddSubSession(NewH264FileMediaSubSession())
+		serverMediaSession.AddSubSession(NewH264FileMediaSubSession(fileName))
 	default:
 	}
 	return serverMediaSession

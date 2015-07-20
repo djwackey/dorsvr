@@ -6,6 +6,7 @@ import (
 )
 
 type BasicUDPSink struct {
+	MediaSink
 	gs             *GroupSock
 	maxPayloadSize uint
 	outputBuffer   []byte

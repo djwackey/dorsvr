@@ -1,11 +1,15 @@
 package liveMedia
 
 import (
+	"fmt"
 	. "groupsock"
+	"strings"
 )
 
 type MediaSession struct {
-	controlPath string
+	controlPath  string
+	absStartTime string
+	absEndTime   string
 }
 
 func NewMediaSession(sdpDesc string) *MediaSession {
@@ -15,14 +19,18 @@ func NewMediaSession(sdpDesc string) *MediaSession {
 }
 
 type MediaSubSession struct {
-	rtpSocket  *GroupSock
-	rtcpSocket *GroupSock
-    Sink *MediaSink
-	//rtpSource RTPSource
-    rtcpInstance *RTCPInstance
-	controlPath string
-    absStartTime string
-    absEndTime string
+	rtpSocket             *GroupSock
+	rtcpSocket            *GroupSock
+	Sink                  *MediaSink
+	rtpSource             *RTPSource
+	readSource            IFramedSource
+	rtcpInstance          *RTCPInstance
+	rtpTimestampFrequency uint
+	rtpPayloadFormat      int
+	clientPortNum         int
+	protocolName          string
+	controlPath           string
+	codecName             string
 }
 
 func NewMediaSubSession() *MediaSubSession {
@@ -38,19 +46,39 @@ func (this *MediaSession) ControlPath() string {
 	return this.controlPath
 }
 
-func (this *MediaSession) absStartTime() string {
-    return this.absStartTime
+func (this *MediaSession) AbsStartTime() string {
+	return this.absStartTime
 }
 
-func (this *MediaSession) absEndTime() string {
-    return this.absEndTime
+func (this *MediaSession) AbsEndTime() string {
+	return this.absEndTime
 }
 
 // MediaSubSession Implementation
 func (this *MediaSubSession) Initiate() bool {
-    this.rtpSocket = NewGroupSock()
-    this.rtcpSocket = NewGroupSock()
-    this.rtcpInstance = NewRTCPInstance()
+	if len(this.codecName) <= 0 {
+		fmt.Println("Codec is unspecified")
+		return false
+	}
+
+	protocolIsRTP := strings.EqualFold(this.protocolName, "RTP")
+	if protocolIsRTP {
+		this.clientPortNum = this.clientPortNum &^ 1
+	}
+
+	this.rtpSocket = NewGroupSock(this.clientPortNum)
+	if this.rtpSocket == nil {
+		fmt.Println("Failed to create RTP socket")
+		return false
+	}
+
+	if protocolIsRTP {
+		// Set our RTCP port to be the RTP Port +1
+		rtcpPortNum := this.clientPortNum | 1
+		this.rtcpSocket = NewGroupSock(rtcpPortNum)
+	}
+
+	//this.rtcpInstance = NewRTCPInstance()
 	return true
 }
 
@@ -62,5 +90,22 @@ func (this *MediaSubSession) ControlPath() string {
 }
 
 func (this *MediaSubSession) RtcpInstance() *RTCPInstance {
-    return this.rtcpInstance
+	return this.rtcpInstance
+}
+
+func (this *MediaSubSession) createSourceObject() {
+	if strings.EqualFold(this.protocolName, "RTP") {
+		this.readSource = NewBasicUDPSource()
+		this.rtpSource = nil
+
+		if strings.EqualFold(this.codecName, "MP2T") {
+			// this sets "durationInMicroseconds" correctly, based on the PCR values
+			//this.readSource = NewMPEG2TransportStreamFramer(this.readSource)
+		}
+	} else {
+		switch this.codecName {
+		case "H264":
+			//this.readSource = NewH264VideoRTPSource(this.rtpSocket, this.rtpPayloadFormat, this.rtpTimestampFrequency)
+		}
+	}
 }

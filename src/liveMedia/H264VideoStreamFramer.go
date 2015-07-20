@@ -23,12 +23,15 @@ func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	return h264VideoStreamFramer
 }
 
+func (this *H264VideoStreamFramer) doGetNextFrame() {
+}
+
 func (this *H264VideoStreamFramer) setSPSandPPS(sPropParameterSetsStr string) {
 	//sPropRecords := parseSPropParameterSets()
 }
 
 func NewH264VideoStreamParser() *H264VideoStreamParser {
-	return &H264VideoStreamParser{}
+	return new(H264VideoStreamParser)
 }
 
 func (this *H264VideoStreamParser) Parse(data []byte) {

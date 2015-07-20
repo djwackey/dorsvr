@@ -5,14 +5,14 @@ import (
 )
 
 type RTPInterface struct {
-	gs *GroupSock
-    owner interface{}
+	gs    *GroupSock
+	owner interface{}
 }
 
 func NewRTPInterface(owner interface{}, gs *GroupSock) *RTPInterface {
 	rtpInterface := new(RTPInterface)
 	rtpInterface.gs = gs
-    rtpInterface.owner = owner
+	rtpInterface.owner = owner
 	return rtpInterface
 }
 
@@ -22,6 +22,6 @@ func (this *RTPInterface) startNetworkReading( /*handlerProc interface*/ ) {
 func (this *RTPInterface) stopNetworkReading() {
 }
 
-func (this *RTPInterface) sendPacket(packet []byte, packetSize uint) {
-	this.gs.Output(string(packet), packetSize, this.gs.TTL())
+func (this *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
+	return this.gs.Output(packet, packetSize, this.gs.TTL())
 }

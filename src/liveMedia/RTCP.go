@@ -25,52 +25,58 @@ const (
 )
 
 type SDESItem struct {
-    data []byte
+	data []byte
 }
+
+// bytes, (1500, minus some allowance for IP, UDP, UMTP headers)
+var maxRTCPPacketSize uint = 1450
+var preferredPacketSize uint = 1000 // bytes
 
 type RTCPInstance struct {
-    typeOfEvent int
-    totSessionBW uint
-    CNAME SDESItem
-    Sink *RTPSink
-    Source *RTPSource
-    outBuf *OutPacketBuffer
-    rtcpInterface *RTCPInterface
+	typeOfEvent   int
+	totSessionBW  uint
+	CNAME         *SDESItem
+	Sink          *RTPSink
+	Source        *RTPSource
+	outBuf        *OutPacketBuffer
+	rtcpInterface *RTPInterface
 }
 
-func NewSDESItem(tag byte, value string) *SDESItem {
-    length := len(value)
-    if length > 0xFF {
-        length = 0xFF   // maximum data length for a SDES item
-    }
+func NewSDESItem(tag int, value string) *SDESItem {
+	item := new(SDESItem)
 
-    this.data[0] = tag
-    this.data[1] = (byte) length
-    return new(SDESItem)
+	length := len(value)
+	if length > 0xFF {
+		length = 0xFF // maximum data length for a SDES item
+	}
+
+	//item.data[0] = tag
+	//item.data[1] = (byte) length
+	return item
 }
 
 func (this *SDESItem) totalSize() uint {
-    return 2 + (uint) this.data[1]
+	return 2 //+ (uint) this.data[1]
 }
 
 func NewRTCPInstance(RTCPgs *GroupSock, totSessionBW uint, cname string) *RTCPInstance {
-    rtcp := new(RTCPInstance)
-    rtcp.typeOfEvent = EVENT_REPORT
-    rtcp.totSessionBW = totSessionBW
-    rtcp.outBuf = NewOutPacketBuffer()
-    rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
+	rtcp := new(RTCPInstance)
+	rtcp.typeOfEvent = EVENT_REPORT
+	rtcp.totSessionBW = totSessionBW
+	rtcp.outBuf = NewOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
+	rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
 
-    rtcp.rtcpInterface = NewRTCPInterface(rtcp, RTCPgs)
-    rtcp.rtcpInterface.startNetworkReading()
+	rtcp.rtcpInterface = NewRTPInterface(rtcp, RTCPgs)
+	rtcp.rtcpInterface.startNetworkReading()
 
-    go rtcp.incomingReportHandler()
-    //this.onExpire(rtcp)
-    return rtcp
+	go rtcp.incomingReportHandler()
+	//this.onExpire(rtcp)
+	return rtcp
 }
 
 func (this *RTCPInstance) setByeHandler(handlerTask interface{}, clientData interface{}) {
-    //this.byeHandlerTask = handlerTask
-    //this.byeHandlerClientData = clientData
+	//this.byeHandlerTask = handlerTask
+	//this.byeHandlerClientData = clientData
 }
 
 func (this *RTCPInstance) setSRHandler() {

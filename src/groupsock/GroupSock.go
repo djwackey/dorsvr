@@ -12,7 +12,7 @@ func NewGroupSock(portNum int) *GroupSock {
 	return gs
 }
 
-func (this *GroupSock) Output(buffer string, bufferSize, ttlToSend uint) bool {
+func (this *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
 	return true
 }
 

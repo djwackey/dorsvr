@@ -10,7 +10,7 @@ type OnDemandServerMediaSubSession struct {
 	sdpLines        string
 	portNumForSDP   int
 	initialPortNum  int
-	lastStreamToken interface{}
+	lastStreamToken *StreamState
 }
 
 type StreamParameter struct {
@@ -21,11 +21,11 @@ type StreamParameter struct {
 	serverRTCPPort  int
 	destinationTTL  uint
 	destinationAddr string
-	streamToken     interface{}
+	streamToken     *StreamState
 }
 
 func (this *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession(isubsession IServerMediaSubSession) {
-    this.initialPortNum = 6970
+	this.initialPortNum = 6970
 	this.InitServerMediaSubSession(isubsession)
 }
 
@@ -43,34 +43,42 @@ func (this *OnDemandServerMediaSubSession) SDPLines() string {
 	return this.sdpLines
 }
 
-func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId uint) *StreamParameter {
+func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId int) *StreamParameter {
 	streamBitrate := 500
 
 	sp := new(StreamParameter)
 
-    serverRTPPort, serverRTCPPort int
-    if this.lastStreamToken != nil {
-        streamState := this.lastStreamToken.(*StreamState)
-        serverRTPPort = streamState.ServerRTPPort()
-        serverRTCPPort = streamState.ServerRTCPPort()
+	var serverRTPPort, serverRTCPPort, rtpPayloadType int
+	if this.lastStreamToken != nil {
+		streamState := this.lastStreamToken
+		serverRTPPort = streamState.ServerRTPPort()
+		serverRTCPPort = streamState.ServerRTCPPort()
 
-        sp.streamToken = this.lastStreamToken
-    } else {
-	    serverPortNum := this.initialPortNum
+		sp.streamToken = this.lastStreamToken
+	} else {
+		serverPortNum := this.initialPortNum
 
-	    serverRTPPort  = serverPortNum
-	    serverRTCPPort = serverPortNum + 1
+		serverRTPPort = serverPortNum
+		serverRTCPPort = serverPortNum + 1
 
-        mediaSource := this.isubsession.CreateNewStreamSource()
-	    rtpSink := this.isubsession.CreateNewRTPSink()
+		rtpGroupSock := NewGroupSock(serverRTPPort)
+		rtcpGroupSock := NewGroupSock(serverRTCPPort)
 
-        rtpGroupSock  := NewGroupSock(serverRTPPort)
-	    rtcpGroupSock := NewGroupSock(serverRTCPPort)
+		mediaSource := this.isubsession.CreateNewStreamSource()
+		rtpSink := this.isubsession.CreateNewRTPSink(rtpGroupSock, rtpPayloadType)
 
-	    udpSink := NewBasicUDPSink(rtpGroupSock)
+		udpSink := NewBasicUDPSink(rtpGroupSock)
 
-	    this.lastStreamToken = NewStreamState(serverRTPPort, serverRTCPPort, rtpSink, udpSink, streamBitrate, mediaSource, rtpGroupSock, rtcpGroupSock)
-    }
+		this.lastStreamToken = NewStreamState(serverRTPPort,
+			serverRTCPPort,
+			rtpSink,
+			udpSink,
+			streamBitrate,
+			mediaSource,
+			rtpGroupSock,
+			rtcpGroupSock)
+		sp.streamToken = this.lastStreamToken
+	}
 
 	return sp
 }
@@ -120,14 +128,14 @@ func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink *RTPSink) strin
 	}
 }
 
-func (this *OnDemandServerMediaSubSession) startStream() {
-	//streamState.startPlaying()
+func (this *OnDemandServerMediaSubSession) startStream(streamState *StreamState) {
+	streamState.startPlaying()
 }
 
-func (this *OnDemandServerMediaSubSession) pauseStream() {
-	//streamState.pause()
+func (this *OnDemandServerMediaSubSession) pauseStream(streamState *StreamState) {
+	streamState.pause()
 }
 
-func (this *OnDemandServerMediaSubSession) deleteStream() {
-	//streamState.endPlaying()
+func (this *OnDemandServerMediaSubSession) deleteStream(streamState *StreamState) {
+	streamState.endPlaying()
 }

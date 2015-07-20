@@ -9,9 +9,9 @@ type H264FileMediaSubSession struct {
 	FileServerMediaSubSession
 }
 
-func NewH264FileMediaSubSession() *H264FileMediaSubSession {
+func NewH264FileMediaSubSession(fileName string) *H264FileMediaSubSession {
 	h264FileMediaSubSession := new(H264FileMediaSubSession)
-	h264FileMediaSubSession.InitFileServerMediaSubSession(h264FileMediaSubSession)
+	h264FileMediaSubSession.InitFileServerMediaSubSession(h264FileMediaSubSession, fileName)
 	return h264FileMediaSubSession
 }
 
@@ -32,22 +32,3 @@ func (this *H264FileMediaSubSession) CreateNewStreamSource() IFramedSource {
 func (this *H264FileMediaSubSession) CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) IRTPSink {
 	return NewH264VideoRTPSink(rtpGroupSock, rtpPayloadType)
 }
-
-func (this *H264FileMediaSubSession) GetStreamParameters() *StreamParameter {
-	//mediaSource := this.CreateNewStreamSource()
-	//rtpSink := this.CreateNewRTPSink()
-
-	//return this.getStreamParameters()
-	return nil
-}
-
-/*
-func (this *H264FileMediaSubSession) startStream() {
-    this.startStream()
-}
-
-func (this *H264FileMediaSubSession) pauseStream() {
-}
-
-func (this *H264FileMediaSubSession) deleteStream() {
-}*/

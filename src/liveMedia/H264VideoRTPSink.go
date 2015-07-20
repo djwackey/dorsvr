@@ -6,6 +6,8 @@ import (
 
 type H264VideoRTPSink struct {
 	VideoRTPSink
+	SPS int
+	PPS int
 }
 
 func NewH264VideoRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) *H264VideoRTPSink {

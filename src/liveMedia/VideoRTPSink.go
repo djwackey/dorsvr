@@ -9,8 +9,8 @@ type VideoRTPSink struct {
 }
 
 func (this *VideoRTPSink) InitVideoRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int,
-                                                                    rtpTimestampFrequency uint,
-                                                                    rtpPayloadFormatName string) {
+	rtpTimestampFrequency uint,
+	rtpPayloadFormatName string) {
 	this.InitMultiFramedRTPSink(rtpGroupSock, rtpPayloadType, rtpTimestampFrequency, rtpPayloadFormatName)
 }
 

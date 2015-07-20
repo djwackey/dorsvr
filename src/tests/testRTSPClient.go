@@ -13,7 +13,7 @@ type OurRTSPClient struct {
 }
 
 type DummySink struct {
-    MediaSink
+	MediaSink
 }
 
 var rtspClientCount int
@@ -99,13 +99,13 @@ func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string
 	scs := rtspClient.SCS()
 	scs.Subsession.Sink = NewDummySink()
 	if scs.Subsession.Sink == nil {
-	    fmt.Println("Failed to create a data sink for the subsession.")
-        return
+		fmt.Println("Failed to create a data sink for the subsession.")
+		return
 	}
 
 	scs.Subsession.Sink.StartPlaying()
 	if scs.Subsession.rtcpInstance() != nil {
-	    scs.Subsession.rtcpInstance().setByeHandler(subsessionByeHandler, scs.subsession)
+		scs.Subsession.rtcpInstance().setByeHandler(subsessionByeHandler, scs.subsession)
 	}
 
 	// Set up the next subsession, if any:
@@ -156,5 +156,5 @@ func setupNextSubSession(rtspClient *RTSPClient) {
 }
 
 func NewDummySink() *DummySink {
-    return new(DummySink)
+	return new(DummySink)
 }

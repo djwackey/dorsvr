@@ -3,45 +3,47 @@ package liveMedia
 import (
 	"fmt"
 	"os"
+    . "include"
 )
 
 type ByteStreamFileSource struct {
 	FramedFileSource
+    presentationTime Timeval
 	fileSize int64
-	buff     []byte
 }
 
 func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
 	fid, err := os.Open(fileName)
 	if err != nil {
+        fmt.Println(err, fileName)
 		return nil
 	}
 
 	fileSource := new(ByteStreamFileSource)
 	fileSource.fid = fid
-	fileSource.buff = make([]byte, 10000)
+
+    fmt.Println("[ByteStreamFileSource]", fileSource)
 
 	stat, _ := fid.Stat()
 	fileSource.fileSize = stat.Size()
+    fileSource.InitFramedFileSource(fileSource)
 	return fileSource
 }
 
-func (this *ByteStreamFileSource) DoReadFromFile() {
-	defer this.fid.Close()
-	for {
-		readBytes, err := this.fid.Read(this.buff)
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
+func (this *ByteStreamFileSource) doGetNextFrame() {
+	this.doReadFromFile()
+}
 
-		//sp.Parse(buff)
-
-		//fmt.Println(buff[:5])
-		//nul := buff[5] & 0x1f
-		fmt.Println(readBytes)
-		//fmt.Println(nul)
+func (this *ByteStreamFileSource) doReadFromFile() {
+	//defer this.fid.Close()
+    readBytes, err := this.fid.Read(this.buffTo)
+    if err != nil {
+	    fmt.Println(err)
+		return
 	}
+
+    fmt.Println(readBytes)
+	GetTimeOfDay(&this.presentationTime)
 }
 
 func (this *ByteStreamFileSource) FileSize() int64 {

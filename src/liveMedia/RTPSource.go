@@ -1,9 +1,9 @@
 package liveMedia
 
-type RTPSource type {
-    FramedSource
+type RTPSource struct {
+	FramedSource
 }
 
 func NewRTPSource() *RTPSource {
-    return new(RTPSource)
+	return new(RTPSource)
 }
