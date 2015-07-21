@@ -26,7 +26,9 @@ func (this *H264FileMediaSubSession) CreateNewStreamSource() IFramedSource {
 	this.fileSize = fileSource.FileSize()
 
 	// Create a framer for the Video Elementary Stream:
-	return NewH264VideoStreamFramer(fileSource)
+	streamFramer := NewH264VideoStreamFramer(fileSource)
+	//fileSource.InitFramedFileSource(streamFramer)
+	return streamFramer
 }
 
 func (this *H264FileMediaSubSession) CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) IRTPSink {

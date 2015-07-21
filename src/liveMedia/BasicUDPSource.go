@@ -1,12 +1,12 @@
 package liveMedia
 
 type BasicUDPSource struct {
-    FramedSource
+	FramedSource
 }
 
 func NewBasicUDPSource() *BasicUDPSource {
 	return new(BasicUDPSource)
 }
 
-func (this *BasicUDPSource) doGetNextFrame() {
+func (this *BasicUDPSource) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
 }

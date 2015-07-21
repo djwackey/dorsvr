@@ -22,11 +22,7 @@ type IRTPSink interface {
 	continuePlaying()
 }
 
-func (this *RTPSink) InitRTPSink(rtpSink IRTPSink,
-	gs *GroupSock,
-	rtpPayloadType int,
-	rtpTimestampFrequency uint,
-	rtpPayloadFormatName string) {
+func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType int, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
 	this.InitMediaSink(rtpSink)
 	this.rtpInterface = NewRTPInterface(this, gs)
 	this.rtpPayloadType = rtpPayloadType

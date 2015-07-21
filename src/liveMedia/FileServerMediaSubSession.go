@@ -7,6 +7,6 @@ type FileServerMediaSubSession struct {
 }
 
 func (this *FileServerMediaSubSession) InitFileServerMediaSubSession(isubsession IServerMediaSubSession, fileName string) {
-    this.fileName = fileName
+	this.fileName = fileName
 	this.InitOnDemandServerMediaSubSession(isubsession)
 }

@@ -18,18 +18,18 @@ func (this *MediaSink) InitMediaSink(rtpSink IRTPSink) {
 
 //////// OutPacketBuffer ////////
 type OutPacketBuffer struct {
-	buff []byte
-    preferred uint
-	curOffset uint
-    maxPacketSize uint
-    overflowDataSize uint
+	buff             []byte
+	preferred        uint
+	curOffset        uint
+	maxPacketSize    uint
+	overflowDataSize uint
 }
 
 func NewOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffer {
-    outPacketBuffer := new(OutPacketBuffer)
-    outPacketBuffer.preferred = preferredPacketSize
-    outPacketBuffer.maxPacketSize = maxPacketSize
-    return outPacketBuffer
+	outPacketBuffer := new(OutPacketBuffer)
+	outPacketBuffer.preferred = preferredPacketSize
+	outPacketBuffer.maxPacketSize = maxPacketSize
+	return outPacketBuffer
 }
 
 func (this *OutPacketBuffer) packet() []byte {
@@ -45,11 +45,11 @@ func (this *OutPacketBuffer) curPacketSize() uint {
 }
 
 func (this *OutPacketBuffer) haveOverflowData() bool {
-    return this.overflowDataSize > 0
+	return this.overflowDataSize > 0
 }
 
 func (this *OutPacketBuffer) totalBytesAvailable() uint {
-    return 0
+	return 1024
 }
 
 func (this *MediaSink) startPlaying(source IFramedSource) bool {

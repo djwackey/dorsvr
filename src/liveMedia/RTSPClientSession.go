@@ -259,7 +259,7 @@ func (this *RTSPClientSession) noteLiveness() {
 		go this.livenessTimeoutTask(time.Second * this.rtspServer.reclamationTestSeconds)
 		this.isTimerRunning = true
 	} else {
-		fmt.Println("noteLiveness", this.livenessTimeoutTimer)
+		//fmt.Println("noteLiveness", this.livenessTimeoutTimer)
 		this.livenessTimeoutTimer.Reset(time.Second * this.rtspServer.reclamationTestSeconds)
 	}
 }

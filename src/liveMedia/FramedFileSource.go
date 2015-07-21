@@ -8,5 +8,5 @@ type FramedFileSource struct {
 }
 
 func (this *FramedFileSource) InitFramedFileSource(source IFramedSource) {
-    this.InitFramedSource(source)
+	this.InitFramedSource(source)
 }

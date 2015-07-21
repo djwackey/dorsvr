@@ -23,7 +23,8 @@ func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	return h264VideoStreamFramer
 }
 
-func (this *H264VideoStreamFramer) doGetNextFrame() {
+func (this *H264VideoStreamFramer) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
+	this.inputSource.getNextFrame(buffTo, maxSize, afterGettingFunc)
 }
 
 func (this *H264VideoStreamFramer) setSPSandPPS(sPropParameterSetsStr string) {
