@@ -7,7 +7,7 @@ import (
 
 type IServerMediaSubSession interface {
 	CreateNewStreamSource() IFramedSource
-	CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType int) IRTPSink
+	CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
 	getStreamParameters(rtpChannelId, rtcpChannelId int) *StreamParameter
 	IncrTrackNumber()
 	SDPLines() string
@@ -18,7 +18,7 @@ type IServerMediaSubSession interface {
 }
 
 type ServerMediaSubSession struct {
-	trackNumber int
+	trackNumber uint
 	trackId     string
 	isubsession IServerMediaSubSession
 }
@@ -34,7 +34,7 @@ func (this *ServerMediaSubSession) TrackId() string {
 	return this.trackId
 }
 
-func (this *ServerMediaSubSession) TrackNumber() int {
+func (this *ServerMediaSubSession) TrackNumber() uint {
 	return this.trackNumber
 }
 

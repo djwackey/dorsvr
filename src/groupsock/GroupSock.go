@@ -1,11 +1,11 @@
 package groupsock
 
 type GroupSock struct {
-	portNum int
+	portNum uint
 	ttl     uint
 }
 
-func NewGroupSock(portNum int) *GroupSock {
+func NewGroupSock(portNum uint) *GroupSock {
 	gs := new(GroupSock)
 	gs.portNum = portNum
 	gs.ttl = 255

@@ -9,16 +9,16 @@ type OnDemandServerMediaSubSession struct {
 	ServerMediaSubSession
 	sdpLines        string
 	portNumForSDP   int
-	initialPortNum  int
+	initialPortNum  uint
 	lastStreamToken *StreamState
 }
 
 type StreamParameter struct {
 	isMulticast     bool
-	clientRTPPort   int
-	clientRTCPPort  int
-	serverRTPPort   int
-	serverRTCPPort  int
+	clientRTPPort   uint
+	clientRTCPPort  uint
+	serverRTPPort   uint
+	serverRTCPPort  uint
 	destinationTTL  uint
 	destinationAddr string
 	streamToken     *StreamState
@@ -48,7 +48,7 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtc
 
 	sp := new(StreamParameter)
 
-	var serverRTPPort, serverRTCPPort, rtpPayloadType int
+	var serverRTPPort, serverRTCPPort, rtpPayloadType uint
 	if this.lastStreamToken != nil {
 		streamState := this.lastStreamToken
 		serverRTPPort = streamState.ServerRTPPort()

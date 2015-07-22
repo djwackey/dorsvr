@@ -3,7 +3,7 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
-	"time"
+	//"time"
 )
 
 var rtpHeaderSize int = 12
@@ -12,9 +12,12 @@ type MultiFramedRTPSink struct {
 	RTPSink
 	outBuf           *OutPacketBuffer
 	ourMaxPacketSize uint
+    timestampPosition uint
+    specialHeaderSize uint
+    specialHeaderPosition uint
 }
 
-func (this *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IRTPSink, rtpGroupSock *GroupSock, rtpPayloadType int, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
+func (this *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IRTPSink, rtpGroupSock *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
 	// Default max packet size (1500, minus allowance for IP, UDP, UMTP headers)
 	// (Also, make it a multiple of 4 bytes, just in case that matters.)
 	this.setPacketSizes(1000, 1448)
@@ -31,7 +34,7 @@ func (this *MultiFramedRTPSink) continuePlaying() {
 }
 
 func (this *MultiFramedRTPSink) buildAndSendPacket() {
-    rtpHdr := 0x80000000
+    var rtpHdr uint = 0x80000000
     rtpHdr |= this.rtpPayloadType << 16
     rtpHdr |= this.seqNo
     this.outBuf.enqueueWord(rtpHdr)
@@ -39,13 +42,13 @@ func (this *MultiFramedRTPSink) buildAndSendPacket() {
     this.timestampPosition = this.outBuf.curPacketSize()
     this.outBuf.skipBytes(4)
 
-    this.outBuf.enqueueWord(this.SSC())
+    this.outBuf.enqueueWord(this.SSRC())
 
     // Allow for a special, payload-format-specific header following the
     // RTP header:
-    this.specialHeaderPosition = this.outBuf->curPacketSize();
-    this.specialHeaderSize = this.specialHeaderSize();
-    this.outBuf->skipBytes(this.specialHeaderSize);
+    this.specialHeaderPosition = this.outBuf.curPacketSize();
+    this.specialHeaderSize = this.SpecialHeaderSize();
+    this.outBuf.skipBytes(this.specialHeaderSize);
 
 	this.packFrame()
 }
@@ -75,4 +78,9 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 		fmt.Println("sendPacketIfNecessary")
 		//time.Sleep(2 * time.Second)
 	}
+}
+
+func (this *MultiFramedRTPSink) SpecialHeaderSize() uint {
+    // default implementation: Assume no special header:
+    return 0
 }

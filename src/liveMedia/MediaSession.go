@@ -27,7 +27,7 @@ type MediaSubSession struct {
 	rtcpInstance          *RTCPInstance
 	rtpTimestampFrequency uint
 	rtpPayloadFormat      int
-	clientPortNum         int
+	clientPortNum         uint
 	protocolName          string
 	controlPath           string
 	codecName             string

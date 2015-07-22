@@ -66,7 +66,7 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		this.streamStates.subsession = this.serverMediaSession.subSessions[0]
 	}
 
-	transportHeader, _ := parseTransportHeader(reqStr)
+	transportHeader := parseTransportHeader(reqStr)
 	if transportHeader.streamingMode == RTP_TCP && transportHeader.rtpChannelId == 0xFF {
 		rtpChannelId = this.TCPStreamIdCount
 		rtcpChannelId = this.TCPStreamIdCount + 1
@@ -75,8 +75,8 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		rtcpChannelId = this.TCPStreamIdCount + 2
 	}
 
-	parseRangeHeader()
-	parsePlayNowHeader()
+	parseRangeHeader(reqStr)
+	parsePlayNowHeader(reqStr)
 
 	subsession := this.streamStates.subsession
 
@@ -191,7 +191,7 @@ func (this *RTSPClientSession) HandleCommandWithinSession(cmdName, urlPreSuffix,
 func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSession, fullRequestStr string) {
 	//this.rtspServer.RtspURL()
 
-	parseScaleHeader()
+	parseScaleHeader(fullRequestStr)
 
 	this.streamStates.subsession.startStream(this.streamStates.streamToken)
 

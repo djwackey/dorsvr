@@ -3,6 +3,7 @@ package liveMedia
 import (
 	"fmt"
 	"strings"
+    "strconv"
 	"time"
 )
 
@@ -191,8 +192,8 @@ func parseTransportHeader(reqStr string) *TransportHeader {
             break
         }
 
-        fields := buf[10:]
-        var p1, p2, rtpCid, rtcpCid, ttl int
+        fields := reqStr[10:]
+        var p1, p2, rtpCid, rtcpCid, ttl string
         var field string
         for {
             num, err := fmt.Sscanf(fields, "%[^;\r\n]", &field)
@@ -210,36 +211,36 @@ func parseTransportHeader(reqStr string) *TransportHeader {
                 header.streamingModeStr = field
             } else if strings.Index(field, "destination=") != -1 {
                 header.destinationAddr = field[12:]
-            } else if num, _ = fmt.Sscanf("ttl%d", &ttl); num == 1 {
-                header.destinationTTL = ttl
-            } else if num, _ = fmt.Sscanf("client_port=%d-%d", &p1, &p2); num == 2 {
-                header.clientRTPPortNum = p1
+            } else if num, _ = fmt.Sscanf("ttl%d", ttl); num == 1 {
+                header.destinationTTL, _ = strconv.Atoi(ttl)
+            } else if num, _ = fmt.Sscanf("client_port=%d-%d", p1, p2); num == 2 {
+                header.clientRTPPortNum, _ = strconv.Atoi(p1)
                 if header.streamingMode == RAW_UDP {
                     header.clientRTCPPortNum = 0
                 } else {
-                    header.clientRTCPPortNum = p2
+                    header.clientRTCPPortNum, _ = strconv.Atoi(p2)
                 }
-            } else if num, _ = fmt.Sscanf("client_port=%s", &p1); num == 1 {
-                header.clientRTPPortNum = p1
+            } else if num, _ = fmt.Sscanf("client_port=%s", p1); num == 1 {
+                header.clientRTPPortNum, _ = strconv.Atoi(p1)
                 if header.streamingMode == RAW_UDP {
                     header.clientRTCPPortNum = 0
                 } else {
-                    header.clientRTCPPortNum = p1
+                    header.clientRTCPPortNum, _ = strconv.Atoi(p1)
                 }
-            } else if num, _ = fmt.Sscanf("interleaved=%d-%d", &rtpCid, &rtcpCid); num == 2 {
-                header.rtpChannelId = rtpCid
-                header.rtcpChannelId = rtcpCid
+            } else if num, _ = fmt.Sscanf("interleaved=%d-%d", rtpCid, rtcpCid); num == 2 {
+                header.rtpChannelId, _ = strconv.Atoi(rtpCid)
+                header.rtcpChannelId, _ = strconv.Atoi(rtcpCid)
             }
 
             fields = fields[len(field):]
             i := 0
             for {
-                if fields[i] != ";" {
+                if string(fields[i]) != ";" {
                     break
                 }
                 i++
             }
-            if fields[i] == "\0" || fields[i] == "\r" || fields[i] == "\n" {
+            if string(fields[i]) == "\r" || string(fields[i]) == "\n" {
                 break
             }
         }
@@ -254,7 +255,7 @@ func parseRangeParam(paramStr string) *RangeHeader {
 
     var start, end float32
     numCharsMatched := 0
-    num, _ := fmt.Sscanf(paramStr, "npt = %lf - %lf", &start, &end)
+    num, err := fmt.Sscanf(paramStr, "npt = %lf - %lf", &start, &end)
     if err != nil {
         return nil
     }
@@ -280,8 +281,9 @@ func parseRangeParam(paramStr string) *RangeHeader {
                     return nil
                 }
 
-                if numCharsMatched {
+                if numCharsMatched > 0{
                     as, ae := "", ""
+                    utcTimes := string(paramStr[numCharsMatched:])
                     num, err = fmt.Sscanf(utcTimes, "%[^-]-%s", &as, &ae)
                     if err != nil {
                         return nil
@@ -290,7 +292,7 @@ func parseRangeParam(paramStr string) *RangeHeader {
                     if num == 2 {
                         rangeHeader.absStartTime = as
                         rangeHeader.absEndTime = ae
-                    } else if sscanfResult == 1 {
+                    } else if num == 1 {
                         rangeHeader.absStartTime = as
                     }
                 } else {
@@ -303,10 +305,10 @@ func parseRangeParam(paramStr string) *RangeHeader {
 	return rangeHeader
 }
 
-func parseRangeHeader(buf string, size int) *RangeHeader {
+func parseRangeHeader(buf string) *RangeHeader {
     // First, find "Range:"
     var finded bool
-    for i:=0; i<size; i++ {
+    for i:=0; i<len(buf); i++ {
         if strings.EqualFold(buf, "Range: ") {
             finded = true
             break
@@ -330,8 +332,8 @@ func parsePlayNowHeader(buf string) bool {
 
 func parseScaleHeader(buf string) float32 {
     // Initialize the result parameter to a default value:
-    scale = 1.0
-    do {
+    var scale float32 = 1.0
+    for {
         index := strings.Index(buf, "Scale:")
         if index != -1 {
             break
@@ -340,14 +342,15 @@ func parseScaleHeader(buf string) float32 {
         fields := buf[index:]
         i := 0
         for {
-            if fields[i] != " " {
+            if string(fields[i]) != " " {
                 break
             }
             i++
         }
-        var sc float32
-        if num, _ := fmt.Sscanf(fields, "%f", &sc); num == 1  {
-            scale = sc
+        var sc string
+        if num, _ := fmt.Sscanf(fields, "%f", sc); num == 1  {
+            f, _ := strconv.ParseFloat(sc, 32)
+            scale = float32(f)
         }
 
         break

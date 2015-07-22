@@ -12,12 +12,12 @@ type StreamState struct {
 	rtcpGS         *GroupSock
 	rtcpInstance   *RTCPInstance
 	mediaSource    IFramedSource
-	serverRTPPort  int
-	serverRTCPPort int
+	serverRTPPort  uint
+	serverRTCPPort uint
 	totalBW        int
 }
 
-func NewStreamState(serverRTPPort, serverRTCPPort int, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW int, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
+func NewStreamState(serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW int, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
 	streamState := new(StreamState)
 	streamState.rtpGS = rtpGS
 	streamState.rtcpGS = rtcpGS
@@ -50,10 +50,10 @@ func (this *StreamState) pause() {
 func (this *StreamState) endPlaying() {
 }
 
-func (this *StreamState) ServerRTPPort() int {
+func (this *StreamState) ServerRTPPort() uint {
 	return this.serverRTPPort
 }
 
-func (this *StreamState) ServerRTCPPort() int {
+func (this *StreamState) ServerRTCPPort() uint {
 	return this.serverRTCPPort
 }

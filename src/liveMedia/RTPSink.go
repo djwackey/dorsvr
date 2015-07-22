@@ -7,14 +7,16 @@ import (
 
 type RTPSink struct {
 	MediaSink
-	rtpPayloadType        int
+    ssrc                  uint
+    seqNo                 uint
+	rtpPayloadType        uint
 	rtpTimestampFrequency uint
 	rtpPayloadFormatName  string
 	rtpInterface          *RTPInterface
 }
 
 type IRTPSink interface {
-	RtpPayloadType() int
+	RtpPayloadType() uint
 	RtpmapLine() string
 	SdpMediaType() string
 	startPlaying(source IFramedSource) bool
@@ -22,12 +24,16 @@ type IRTPSink interface {
 	continuePlaying()
 }
 
-func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType int, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
+func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
 	this.InitMediaSink(rtpSink)
 	this.rtpInterface = NewRTPInterface(this, gs)
 	this.rtpPayloadType = rtpPayloadType
 	this.rtpTimestampFrequency = rtpTimestampFrequency
 	this.rtpPayloadFormatName = rtpPayloadFormatName
+}
+
+func (this *RTPSink) SSRC() uint {
+    return this.ssrc
 }
 
 func (this *RTPSink) AuxSDPLine() string {
@@ -38,7 +44,7 @@ func (this *RTPSink) SdpMediaType() string {
 	return "data"
 }
 
-func (this *RTPSink) RtpPayloadType() int {
+func (this *RTPSink) RtpPayloadType() uint {
 	return this.rtpPayloadType
 }
 

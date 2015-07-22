@@ -22,14 +22,17 @@ func readSocket() {
 }
 
 func writeSocket(address string, port int, buffer []byte, bufferSize int) bool {
-    udpConn, err := net.DialUDP("udp", nil, addr)
+    addr := fmt.Sprintf("%s:%d", address, port)
+    udpAddr, _ := net.ResolveUDPAddr("udp", addr)
+
+    udpConn, err := net.DialUDP("udp", nil, udpAddr)
     if err != nil {
         return false
     }
 
-    writeBytes, err = udpConn.WriteTo(buffer, addr)
+    _, err = udpConn.WriteTo(buffer, udpAddr)
     if err != nil {
-        fmt.Println(writeBytes)
+        //fmt.Println(writeBytes)
         return false
     }
 
