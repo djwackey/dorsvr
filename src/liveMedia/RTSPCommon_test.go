@@ -21,17 +21,16 @@ var (
 )
 
 func Test_ParseRTSPRequestString(t *testing.T) {
-	//reqInfo, result := ParseRTSPRequestString([]byte(OPTIONS_COMMAND))
-	reqInfo, result := ParseRTSPRequestString([]byte(DESCRIPTION_COMMAND))
-	if result {
-		fmt.Println("cmdName:", reqInfo.cmdName)
-		fmt.Println("CSeq:", reqInfo.cseq)
-		fmt.Println("urlPreSuffix:", reqInfo.urlPreSuffix)
-		fmt.Println("urlSuffix:", reqInfo.urlSuffix)
-		fmt.Println("sessionIdStr:", reqInfo.sessionIdStr)
-		t.Log("ok")
-	} else {
-	}
+	//reqInfo, result := ParseRTSPRequestString([]byte(DESCRIPTION_COMMAND))
+	//if result {
+	//	fmt.Println("CSeq:",         reqInfo.cseq)
+	//	fmt.Println("cmdName:",      reqInfo.cmdName)
+	//	fmt.Println("urlSuffix:",    reqInfo.urlSuffix)
+	//	fmt.Println("urlPreSuffix:", reqInfo.urlPreSuffix)
+	//	fmt.Println("sessionIdStr:", reqInfo.sessionIdStr)
+	//	t.Log("ok")
+	//} else {
+	//}
 }
 
 /*

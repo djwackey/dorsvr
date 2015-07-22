@@ -32,12 +32,10 @@ type TransportHeader struct {
 }
 
 type RangeHeader struct {
-}
-
-type PlayNowHeader struct {
-}
-
-type ScaleHeader struct {
+    rangeStart float32
+    rangeEnd   float32
+    absStartTime string
+    absEndTime   string
 }
 
 const (
@@ -176,7 +174,7 @@ func parseRequestCSeq(reqStr string) (string, bool) {
 	return cseq, true
 }
 
-func parseTransportHeader(reqStr string) (*TransportHeader, bool) {
+func parseTransportHeader(reqStr string) *TransportHeader {
 	// Initialize the result parameters to default values:
 	header := new(TransportHeader)
 	header.streamingMode = RTP_UDP
@@ -185,22 +183,177 @@ func parseTransportHeader(reqStr string) (*TransportHeader, bool) {
 	header.clientRTCPPortNum = 1
 	header.rtpChannelId = 0xFF
 	header.rtcpChannelId = 0xFF
-	return header, true
+
+    for {
+        // First, find "Transport:"
+        index := strings.Index(reqStr, "Transport:")
+        if index == -1 {
+            break
+        }
+
+        fields := buf[10:]
+        var p1, p2, rtpCid, rtcpCid, ttl int
+        var field string
+        for {
+            num, err := fmt.Sscanf(fields, "%[^;\r\n]", &field)
+            if err != nil {
+                break
+            }
+
+            if num != 1 { break }
+
+            if strings.EqualFold(field, "RTP/AVP/TCP") {
+	            header.streamingMode = RTP_TCP
+            } else if strings.EqualFold(field, "RAW/RAW/UDP") ||
+                      strings.EqualFold(field, "MP2T/H2221/UDP") {
+                header.streamingMode = RAW_UDP
+                header.streamingModeStr = field
+            } else if strings.Index(field, "destination=") != -1 {
+                header.destinationAddr = field[12:]
+            } else if num, _ = fmt.Sscanf("ttl%d", &ttl); num == 1 {
+                header.destinationTTL = ttl
+            } else if num, _ = fmt.Sscanf("client_port=%d-%d", &p1, &p2); num == 2 {
+                header.clientRTPPortNum = p1
+                if header.streamingMode == RAW_UDP {
+                    header.clientRTCPPortNum = 0
+                } else {
+                    header.clientRTCPPortNum = p2
+                }
+            } else if num, _ = fmt.Sscanf("client_port=%s", &p1); num == 1 {
+                header.clientRTPPortNum = p1
+                if header.streamingMode == RAW_UDP {
+                    header.clientRTCPPortNum = 0
+                } else {
+                    header.clientRTCPPortNum = p1
+                }
+            } else if num, _ = fmt.Sscanf("interleaved=%d-%d", &rtpCid, &rtcpCid); num == 2 {
+                header.rtpChannelId = rtpCid
+                header.rtcpChannelId = rtcpCid
+            }
+
+            fields = fields[len(field):]
+            i := 0
+            for {
+                if fields[i] != ";" {
+                    break
+                }
+                i++
+            }
+            if fields[i] == "\0" || fields[i] == "\r" || fields[i] == "\n" {
+                break
+            }
+        }
+        break
+    }
+
+	return header
 }
 
-func parseRangeHeader() *RangeHeader {
+func parseRangeParam(paramStr string) *RangeHeader {
 	rangeHeader := new(RangeHeader)
+
+    var start, end float32
+    numCharsMatched := 0
+    num, _ := fmt.Sscanf(paramStr, "npt = %lf - %lf", &start, &end)
+    if err != nil {
+        return nil
+    }
+
+    if num == 2 {
+        rangeHeader.rangeStart = start
+        rangeHeader.rangeEnd = end
+    } else {
+        num, err = fmt.Sscanf(paramStr, "npt = %lf -", &start)
+        if err != nil {
+            return nil
+        }
+
+        if num == 1 {
+            rangeHeader.rangeStart = start
+        } else {
+            if strings.EqualFold(paramStr, "npt = now -") {
+                rangeHeader.rangeStart = 0.0
+                rangeHeader.rangeEnd = 0.0
+            } else {
+                num, err = fmt.Sscanf(paramStr, "clock = %n", &numCharsMatched)
+                if err != nil {
+                    return nil
+                }
+
+                if numCharsMatched {
+                    as, ae := "", ""
+                    num, err = fmt.Sscanf(utcTimes, "%[^-]-%s", &as, &ae)
+                    if err != nil {
+                        return nil
+                    }
+
+                    if num == 2 {
+                        rangeHeader.absStartTime = as
+                        rangeHeader.absEndTime = ae
+                    } else if sscanfResult == 1 {
+                        rangeHeader.absStartTime = as
+                    }
+                } else {
+                    fmt.Sscanf(paramStr, "smtpe = %n", &numCharsMatched)
+                }
+            }
+        }
+    }
+
 	return rangeHeader
 }
 
-func parsePlayNowHeader() *PlayNowHeader {
-	playNowHeader := new(PlayNowHeader)
-	return playNowHeader
+func parseRangeHeader(buf string, size int) *RangeHeader {
+    // First, find "Range:"
+    var finded bool
+    for i:=0; i<size; i++ {
+        if strings.EqualFold(buf, "Range: ") {
+            finded = true
+            break
+        }
+    }
+    if !finded { return nil }
+
+    return parseRangeParam(buf)
 }
 
-func parseScaleHeader() *ScaleHeader {
-	scaleHeader := new(ScaleHeader)
-	return scaleHeader
+func parsePlayNowHeader(buf string) bool {
+    // Find "x-playNow:" header, if present
+    var finded bool
+    index := strings.Index(buf, "x-playNow:")
+    if index != -1 {
+        finded = true
+    }
+
+	return finded
+}
+
+func parseScaleHeader(buf string) float32 {
+    // Initialize the result parameter to a default value:
+    scale = 1.0
+    do {
+        index := strings.Index(buf, "Scale:")
+        if index != -1 {
+            break
+        }
+
+        fields := buf[index:]
+        i := 0
+        for {
+            if fields[i] != " " {
+                break
+            }
+            i++
+        }
+        var sc float32
+        if num, _ := fmt.Sscanf(fields, "%f", &sc); num == 1  {
+            scale = sc
+        }
+
+        break
+    }
+
+	return scale
 }
 
 // A "Date:" header that can be used in a RTSP (or HTTP) response

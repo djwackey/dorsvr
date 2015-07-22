@@ -31,6 +31,22 @@ func (this *MultiFramedRTPSink) continuePlaying() {
 }
 
 func (this *MultiFramedRTPSink) buildAndSendPacket() {
+    rtpHdr := 0x80000000
+    rtpHdr |= this.rtpPayloadType << 16
+    rtpHdr |= this.seqNo
+    this.outBuf.enqueueWord(rtpHdr)
+
+    this.timestampPosition = this.outBuf.curPacketSize()
+    this.outBuf.skipBytes(4)
+
+    this.outBuf.enqueueWord(this.SSC())
+
+    // Allow for a special, payload-format-specific header following the
+    // RTP header:
+    this.specialHeaderPosition = this.outBuf->curPacketSize();
+    this.specialHeaderSize = this.specialHeaderSize();
+    this.outBuf->skipBytes(this.specialHeaderSize);
+
 	this.packFrame()
 }
 
@@ -47,7 +63,7 @@ func (this *MultiFramedRTPSink) packFrame() {
 }
 
 func (this *MultiFramedRTPSink) afterGettingFrame() {
-	go this.sendPacketIfNecessary()
+	this.sendPacketIfNecessary()
 }
 
 func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
@@ -57,6 +73,6 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 		}
 
 		fmt.Println("sendPacketIfNecessary")
-		time.Sleep(2 * time.Second)
+		//time.Sleep(2 * time.Second)
 	}
 }

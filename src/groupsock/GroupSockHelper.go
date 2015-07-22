@@ -15,10 +15,25 @@ func SetupDatagramSocket() {
 func SetupStreamSocket() {
 }
 
+func createSocket(sockType string) {
+}
+
 func readSocket() {
 }
 
-func writeSocket() {
+func writeSocket(address string, port int, buffer []byte, bufferSize int) bool {
+    udpConn, err := net.DialUDP("udp", nil, addr)
+    if err != nil {
+        return false
+    }
+
+    writeBytes, err = udpConn.WriteTo(buffer, addr)
+    if err != nil {
+        fmt.Println(writeBytes)
+        return false
+    }
+
+    return true
 }
 
 func OurIPAddress() (string, error) {
