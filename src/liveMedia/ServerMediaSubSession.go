@@ -11,6 +11,7 @@ type IServerMediaSubSession interface {
 	getStreamParameters(rtpChannelId, rtcpChannelId int) *StreamParameter
 	IncrTrackNumber()
 	SDPLines() string
+    CNAME() string
 	startStream(streamState *StreamState)
 	pauseStream(streamState *StreamState)
 	//seekStream()

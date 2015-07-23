@@ -18,6 +18,9 @@ func SetupStreamSocket() {
 func createSocket(sockType string) {
 }
 
+func closeSocket() {
+}
+
 func readSocket() {
 }
 

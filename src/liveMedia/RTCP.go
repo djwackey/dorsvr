@@ -40,6 +40,9 @@ type RTCPInstance struct {
 	Source        *RTPSource
 	outBuf        *OutPacketBuffer
 	rtcpInterface *RTPInterface
+    ByeHandlerTask interface{}
+    SRHandlerTask interface{}
+    RRHandlerTask interface{}
 }
 
 func NewSDESItem(tag int, value string) *SDESItem {
@@ -59,19 +62,22 @@ func (this *SDESItem) totalSize() uint {
 	return 2 //+ (uint) this.data[1]
 }
 
-func NewRTCPInstance(RTCPgs *GroupSock, totSessionBW uint, cname string) *RTCPInstance {
+func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPInstance {
 	rtcp := new(RTCPInstance)
 	rtcp.typeOfEvent = EVENT_REPORT
 	rtcp.totSessionBW = totSessionBW
 	rtcp.outBuf = NewOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
 	rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
 
-	rtcp.rtcpInterface = NewRTPInterface(rtcp, RTCPgs)
+	rtcp.rtcpInterface = NewRTPInterface(rtcp, rtcpGS)
 	rtcp.rtcpInterface.startNetworkReading()
 
 	go rtcp.incomingReportHandler()
 	//this.onExpire(rtcp)
 	return rtcp
+}
+
+func (this *RTCPInstance) setSpecificRRHandler() {
 }
 
 func (this *RTCPInstance) setByeHandler(handlerTask interface{}, clientData interface{}) {

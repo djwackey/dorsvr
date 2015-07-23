@@ -5,7 +5,9 @@ import (
 	. "groupsock"
 )
 
+//////// StreamState ////////
 type StreamState struct {
+    master         IServerMediaSubSession
 	rtpSink        IRTPSink
 	udpSink        *BasicUDPSink
 	rtpGS          *GroupSock
@@ -17,10 +19,11 @@ type StreamState struct {
 	totalBW        int
 }
 
-func NewStreamState(serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW int, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
+func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW int, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
 	streamState := new(StreamState)
 	streamState.rtpGS = rtpGS
 	streamState.rtcpGS = rtcpGS
+    streamState.master = master
 	streamState.rtpSink = rtpSink
 	streamState.udpSink = udpSink
 	streamState.totalBW = totalBW
@@ -31,6 +34,20 @@ func NewStreamState(serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSin
 }
 
 func (this *StreamState) startPlaying() {
+    if this.rtcpInstance == nil && this.rtpSink != nil {
+        this.rtcpInstance = NewRTCPInstance(this.rtcpGS, this.totalBW, this.master.CNAME())
+    }
+
+    if dests.isTCP() {
+        if this.rtcpInstance != nil {
+        }
+    } else {
+    }
+
+    if this.rtcpInstance != nil {
+        this.rtcpInstance.setSpecificRRHandler()
+    }
+
 	if this.rtpSink != nil {
 		this.rtpSink.startPlaying(this.mediaSource)
 	} else if this.udpSink != nil {
@@ -56,4 +73,29 @@ func (this *StreamState) ServerRTPPort() uint {
 
 func (this *StreamState) ServerRTCPPort() uint {
 	return this.serverRTCPPort
+}
+
+func (this *StreamState) afterPlayingStreamState() {
+    this.reclaim()
+}
+
+func (this *StreamState) reclaim() {
+}
+
+
+//////// Destinations ////////
+type Destinations struct {
+    isTCP bool
+    rtpPort int
+    rtcpPort int
+    rtpChannelId uint
+    rtcpChannelId uint
+}
+
+func NewDestinations(rtpDestPort, rtcpDestPort int) *Destinations {
+    dests := new(Destinations)
+    dests.isTCP = false
+    dests.rtpPort = rtpDestPort
+    dests.rtcpPort = rtcpDestPort
+    return dests
 }

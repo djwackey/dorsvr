@@ -22,6 +22,10 @@ func (this *RTPInterface) startNetworkReading( /*handlerProc interface*/ ) {
 func (this *RTPInterface) stopNetworkReading() {
 }
 
+func (this *RTPInterface) GS() {
+    return this.gs
+}
+
 func (this *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
 	return this.gs.Output(packet, packetSize, this.gs.TTL())
 }
