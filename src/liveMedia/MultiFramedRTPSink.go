@@ -10,11 +10,11 @@ var rtpHeaderSize int = 12
 
 type MultiFramedRTPSink struct {
 	RTPSink
-	outBuf           *OutPacketBuffer
-	ourMaxPacketSize uint
-    timestampPosition uint
-    specialHeaderSize uint
-    specialHeaderPosition uint
+	outBuf                *OutPacketBuffer
+	ourMaxPacketSize      uint
+	timestampPosition     uint
+	specialHeaderSize     uint
+	specialHeaderPosition uint
 }
 
 func (this *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IRTPSink, rtpGroupSock *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
@@ -29,26 +29,27 @@ func (this *MultiFramedRTPSink) setPacketSizes(preferredPacketSize, maxPacketSiz
 	this.ourMaxPacketSize = maxPacketSize
 }
 
-func (this *MultiFramedRTPSink) continuePlaying() {
+func (this *MultiFramedRTPSink) multiFramedPlaying() {
+	fmt.Println("MultiFramedRTPSink::continuePlaying")
 	this.buildAndSendPacket()
 }
 
 func (this *MultiFramedRTPSink) buildAndSendPacket() {
-    var rtpHdr uint = 0x80000000
-    rtpHdr |= this.rtpPayloadType << 16
-    rtpHdr |= this.seqNo
-    this.outBuf.enqueueWord(rtpHdr)
+	var rtpHdr uint = 0x80000000
+	rtpHdr |= this.rtpPayloadType << 16
+	rtpHdr |= this.seqNo
+	this.outBuf.enqueueWord(rtpHdr)
 
-    this.timestampPosition = this.outBuf.curPacketSize()
-    this.outBuf.skipBytes(4)
+	this.timestampPosition = this.outBuf.curPacketSize()
+	this.outBuf.skipBytes(4)
 
-    this.outBuf.enqueueWord(this.SSRC())
+	this.outBuf.enqueueWord(this.SSRC())
 
-    // Allow for a special, payload-format-specific header following the
-    // RTP header:
-    this.specialHeaderPosition = this.outBuf.curPacketSize();
-    this.specialHeaderSize = this.SpecialHeaderSize();
-    this.outBuf.skipBytes(this.specialHeaderSize);
+	// Allow for a special, payload-format-specific header following the
+	// RTP header:
+	this.specialHeaderPosition = this.outBuf.curPacketSize()
+	this.specialHeaderSize = this.SpecialHeaderSize()
+	this.outBuf.skipBytes(this.specialHeaderSize)
 
 	this.packFrame()
 }
@@ -81,6 +82,6 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 }
 
 func (this *MultiFramedRTPSink) SpecialHeaderSize() uint {
-    // default implementation: Assume no special header:
-    return 0
+	// default implementation: Assume no special header:
+	return 0
 }

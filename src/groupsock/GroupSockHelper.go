@@ -25,21 +25,21 @@ func readSocket() {
 }
 
 func writeSocket(address string, port int, buffer []byte, bufferSize int) bool {
-    addr := fmt.Sprintf("%s:%d", address, port)
-    udpAddr, _ := net.ResolveUDPAddr("udp", addr)
+	addr := fmt.Sprintf("%s:%d", address, port)
+	udpAddr, _ := net.ResolveUDPAddr("udp", addr)
 
-    udpConn, err := net.DialUDP("udp", nil, udpAddr)
-    if err != nil {
-        return false
-    }
+	udpConn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		return false
+	}
 
-    _, err = udpConn.WriteTo(buffer, udpAddr)
-    if err != nil {
-        //fmt.Println(writeBytes)
-        return false
-    }
+	_, err = udpConn.WriteTo(buffer, udpAddr)
+	if err != nil {
+		//fmt.Println(writeBytes)
+		return false
+	}
 
-    return true
+	return true
 }
 
 func OurIPAddress() (string, error) {

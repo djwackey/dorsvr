@@ -1,6 +1,9 @@
 package liveMedia
 
-import "fmt"
+import (
+	"fmt"
+	. "include"
+)
 
 //////// H264VideoStreamParser ////////
 type H264VideoStreamParser struct {
@@ -30,17 +33,16 @@ func (this *H264VideoStreamParser) parse(data []byte) {
 func (this *H264VideoStreamParser) analyzeSPSData() {
 }
 
-
 //////// H264VideoStreamFramer ////////
 type H264VideoStreamFramer struct {
 	MPEGVideoStreamFramer
-	parser *H264VideoStreamParser
-    nextPresentationTime Timeval
-    lastSeenSPS []byte
-    lastSeenPPS []byte
-    lastSeenSPSSize uint
-    lastSeenPPSSize uint
-	frameRate float64
+	parser               *H264VideoStreamParser
+	nextPresentationTime Timeval
+	lastSeenSPS          []byte
+	lastSeenPPS          []byte
+	lastSeenSPSSize      uint
+	lastSeenPPSSize      uint
+	frameRate            float64
 }
 
 func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer {
@@ -57,28 +59,29 @@ func (this *H264VideoStreamFramer) getNextFrame(buffTo []byte, maxSize uint, aft
 
 func (this *H264VideoStreamFramer) setSPSandPPS(sPropParameterSetsStr string) {
 	sPropRecords, numSPropRecords := parseSPropParameterSets(sPropParameterSetsStr)
-    for i:=0; i<numSPropRecords; i++ {
-        if sPropRecords[i].sPropLength == 0 {
-            continue
-        }
+	var i uint
+	for i = 0; i < numSPropRecords; i++ {
+		if sPropRecords[i].sPropLength == 0 {
+			continue
+		}
 
-        nalUnitType := (sPropRecords[i].sPropBytes[0])&0x1F
-        if nalUnitType == 7 {   /* SPS */
-            this.saveCopyOfSPS(sPropRecords[i].sPropBytes, sPropRecords[i].sPropLength)
-        } else if nalUnitType == 8 {    /* PPS */
-            this.saveCopyOfPPS(sPropRecords[i].sPropBytes, sPropRecords[i].sPropLength)
-        }
-    }
+		nalUnitType := (sPropRecords[i].sPropBytes[0]) & 0x1F
+		if nalUnitType == 7 { /* SPS */
+			this.saveCopyOfSPS(sPropRecords[i].sPropBytes, sPropRecords[i].sPropLength)
+		} else if nalUnitType == 8 { /* PPS */
+			this.saveCopyOfPPS(sPropRecords[i].sPropBytes, sPropRecords[i].sPropLength)
+		}
+	}
 }
 
 func (this *H264VideoStreamFramer) saveCopyOfSPS(from []byte, size uint) {
-    this.lastSeenSPS = make([]byte, size)
-    this.lastSeenSPS = from
-    this.lastSeenSPSSize = size
+	this.lastSeenSPS = make([]byte, size)
+	this.lastSeenSPS = from
+	this.lastSeenSPSSize = size
 }
 
 func (this *H264VideoStreamFramer) saveCopyOfPPS(from []byte, size uint) {
-    this.lastSeenPPS = make([]byte, size)
-    this.lastSeenPPS = from
-    this.lastSeenPPSSize = size
+	this.lastSeenPPS = make([]byte, size)
+	this.lastSeenPPS = from
+	this.lastSeenPPSSize = size
 }

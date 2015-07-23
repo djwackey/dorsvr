@@ -6,22 +6,56 @@ import (
 	"strings"
 )
 
+//////// MediaSession ////////
 type MediaSession struct {
-	controlPath  string
-	absStartTime string
-	absEndTime   string
+	controlPath      string
+	absStartTime     string
+	absEndTime       string
+	subSessionNum    int
+	subSessionIndex  int
+	mediaSubSessions []*MediaSubSession
 }
 
 func NewMediaSession(sdpDesc string) *MediaSession {
 	mediaSession := new(MediaSession)
+	mediaSession.mediaSubSessions = make([]*MediaSubSession, 1024)
 	mediaSession.InitWithSDP(sdpDesc)
 	return mediaSession
 }
 
+func (this *MediaSession) InitWithSDP(sdpDesc string) {
+	subsession := NewMediaSubSession()
+	//this.mediaSubSessions = append(this.mediaSubSessions, subsession)
+	this.mediaSubSessions[this.subSessionNum] = subsession
+	this.subSessionNum++
+}
+
+func (this *MediaSession) ControlPath() string {
+	return this.controlPath
+}
+
+func (this *MediaSession) AbsStartTime() string {
+	return this.absStartTime
+}
+
+func (this *MediaSession) AbsEndTime() string {
+	return this.absEndTime
+}
+
+func (this *MediaSession) HasSubSessions() bool {
+	return len(this.mediaSubSessions) > 0
+}
+
+func (this *MediaSession) SubSession() *MediaSubSession {
+	this.subSessionIndex++
+	return this.mediaSubSessions[this.subSessionIndex-1]
+}
+
+//////// MediaSubSession ////////
 type MediaSubSession struct {
 	rtpSocket             *GroupSock
 	rtcpSocket            *GroupSock
-	Sink                  *MediaSink
+	Sink                  IMediaSink
 	rtpSource             *RTPSource
 	readSource            IFramedSource
 	rtcpInstance          *RTCPInstance
@@ -38,23 +72,6 @@ func NewMediaSubSession() *MediaSubSession {
 	return subsession
 }
 
-func (this *MediaSession) InitWithSDP(sdpDesc string) {
-	//subsession := NewMediaSubSession()
-}
-
-func (this *MediaSession) ControlPath() string {
-	return this.controlPath
-}
-
-func (this *MediaSession) AbsStartTime() string {
-	return this.absStartTime
-}
-
-func (this *MediaSession) AbsEndTime() string {
-	return this.absEndTime
-}
-
-// MediaSubSession Implementation
 func (this *MediaSubSession) Initiate() bool {
 	if len(this.codecName) <= 0 {
 		fmt.Println("Codec is unspecified")

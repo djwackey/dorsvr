@@ -53,7 +53,6 @@ func openURL(appName, rtspURL string) bool {
 	rtspClientCount++
 
 	sendBytes := rtspClient.SendDescribeCommand(continueAfterDESCRIBE)
-	fmt.Println("sendBytes: ", sendBytes)
 	if sendBytes == 0 {
 		return false
 	}
@@ -69,7 +68,6 @@ func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr str
 		}
 
 		sdpDesc := resultStr
-		fmt.Println(fmt.Sprintf("Got a SDP Description: %s", sdpDesc))
 
 		scs := rtspClient.SCS()
 		// Create a media session object from this SDP description
@@ -77,7 +75,7 @@ func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr str
 		if scs.Session == nil {
 			fmt.Println("Failed to create a MediaSession object from the sdp Description.")
 			break
-		} else {
+		} else if !scs.Session.HasSubSessions() {
 			fmt.Println("This session has no media subsessions (i.e., no \"-m\" lines)")
 			break
 		}
@@ -104,8 +102,8 @@ func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string
 	}
 
 	scs.Subsession.Sink.StartPlaying()
-	if scs.Subsession.rtcpInstance() != nil {
-		scs.Subsession.rtcpInstance().setByeHandler(subsessionByeHandler, scs.subsession)
+	if scs.Subsession.RtcpInstance() != nil {
+		scs.Subsession.RtcpInstance().SetByeHandler(subsessionByeHandler, scs.Subsession)
 	}
 
 	// Set up the next subsession, if any:
@@ -140,12 +138,14 @@ func shutdownStream(rtspClient *RTSPClient) {
 
 func setupNextSubSession(rtspClient *RTSPClient) {
 	scs := rtspClient.SCS()
-	//scs.Subsession = scs.next()
-	if !scs.Subsession.Initiate() {
-		fmt.Println("Failed to initiate the subsession.")
-		setupNextSubSession(rtspClient)
-	} else {
-		rtspClient.SendSetupCommand(continueAfterSETUP)
+	scs.Subsession = scs.Next()
+	if scs.Subsession != nil {
+		if !scs.Subsession.Initiate() {
+			fmt.Println("Failed to initiate the subsession.")
+			setupNextSubSession(rtspClient)
+		} else {
+			rtspClient.SendSetupCommand(continueAfterSETUP)
+		}
 	}
 
 	//if scs.Subsession.absStartTime() != nil {
@@ -157,4 +157,7 @@ func setupNextSubSession(rtspClient *RTSPClient) {
 
 func NewDummySink() *DummySink {
 	return new(DummySink)
+}
+
+func (this *DummySink) StartPlaying() {
 }

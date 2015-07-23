@@ -9,3 +9,7 @@ func NewStreamClientState() *StreamClientState {
 	streamClientState := new(StreamClientState)
 	return streamClientState
 }
+
+func (this *StreamClientState) Next() *MediaSubSession {
+	return this.Session.SubSession()
+}

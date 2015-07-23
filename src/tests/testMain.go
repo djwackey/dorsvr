@@ -48,43 +48,45 @@ func test() {
 }
 
 func parse(reqStr string, reqStrSize int) bool {
-    cmdName := make([]byte, 10)
+	cmdName := make([]byte, 10)
 
-    // Read everything up to the first space as the command name:
-    var parseSucceeded bool
-    i := 0
-    for i=0; i<reqStrSize; i++ {
-        c := string(reqStr[i])
-        if c == " " || c == "\t" {
-            parseSucceeded = true
-            break
-        }
-        cmdName[i] = reqStr[i]
-    }
+	// Read everything up to the first space as the command name:
+	var parseSucceeded bool
+	i := 0
+	for i = 0; i < reqStrSize; i++ {
+		c := string(reqStr[i])
+		if c == " " || c == "\t" {
+			parseSucceeded = true
+			break
+		}
+		cmdName[i] = reqStr[i]
+	}
 
-    if !parseSucceeded { return false }
+	if !parseSucceeded {
+		return false
+	}
 
-    // skip over any additional white space
-    j := i + 1
-    for ; j<reqStrSize; j++ {
-        c := string(reqStr[i])
-        if c != " " && c != "\t" {
-            break
-        }
-    }
+	// skip over any additional white space
+	j := i + 1
+	for ; j < reqStrSize; j++ {
+		c := string(reqStr[i])
+		if c != " " && c != "\t" {
+			break
+		}
+	}
 
-    // Look for "CSeq:"
+	// Look for "CSeq:"
 
-    // Look for "Session:"
+	// Look for "Session:"
 
-    // Also: Look for "Content-Length:" (optional, case insensitive)
+	// Also: Look for "Content-Length:" (optional, case insensitive)
 
-    fmt.Println(string(cmdName))
-    return true
+	fmt.Println(string(cmdName))
+	return true
 }
 
 func main() {
-    parse(DESCRIPTION_COMMAND, len(DESCRIPTION_COMMAND))
+	parse(DESCRIPTION_COMMAND, len(DESCRIPTION_COMMAND))
 	/*
 		for i := 0; i < 10; i++ {
 			fmt.Println(i)

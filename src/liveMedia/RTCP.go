@@ -33,16 +33,16 @@ var maxRTCPPacketSize uint = 1450
 var preferredPacketSize uint = 1000 // bytes
 
 type RTCPInstance struct {
-	typeOfEvent   int
-	totSessionBW  uint
-	CNAME         *SDESItem
-	Sink          *RTPSink
-	Source        *RTPSource
-	outBuf        *OutPacketBuffer
-	rtcpInterface *RTPInterface
-    ByeHandlerTask interface{}
-    SRHandlerTask interface{}
-    RRHandlerTask interface{}
+	typeOfEvent    int
+	totSessionBW   uint
+	CNAME          *SDESItem
+	Sink           *RTPSink
+	Source         *RTPSource
+	outBuf         *OutPacketBuffer
+	rtcpInterface  *RTPInterface
+	ByeHandlerTask interface{}
+	SRHandlerTask  interface{}
+	RRHandlerTask  interface{}
 }
 
 func NewSDESItem(tag int, value string) *SDESItem {
@@ -80,7 +80,7 @@ func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPIn
 func (this *RTCPInstance) setSpecificRRHandler() {
 }
 
-func (this *RTCPInstance) setByeHandler(handlerTask interface{}, clientData interface{}) {
+func (this *RTCPInstance) SetByeHandler(handlerTask interface{}, clientData interface{}) {
 	//this.byeHandlerTask = handlerTask
 	//this.byeHandlerClientData = clientData
 }

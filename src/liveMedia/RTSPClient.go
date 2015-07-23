@@ -266,15 +266,17 @@ func (this *RTSPClient) incomingDataHandler() {
 }
 
 func (this *RTSPClient) handleResponseBytes() {
+	defer this.tcpConn.Close()
+
 	buffer := make([]byte, 1024)
 	for {
 		readBytes, err := this.tcpConn.Read(buffer)
 		if err != nil {
 			fmt.Println("handleResponseBytes")
 			fmt.Println(err)
+			break
 		}
 
-		//fmt.Println("handleResponseBytes")
 		fmt.Println(string(buffer), readBytes)
 	}
 }
@@ -336,7 +338,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 	if err != nil {
 		fmt.Println("RTSPClient::sendRequst", err, writeBytes)
 	}
-	fmt.Println(cmd, writeBytes)
+	//fmt.Println(cmd, writeBytes)
 
 	this.handleRequestError(request)
 	return writeBytes

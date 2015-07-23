@@ -7,7 +7,7 @@ import (
 
 //////// StreamState ////////
 type StreamState struct {
-    master         IServerMediaSubSession
+	master         IServerMediaSubSession
 	rtpSink        IRTPSink
 	udpSink        *BasicUDPSink
 	rtpGS          *GroupSock
@@ -16,14 +16,14 @@ type StreamState struct {
 	mediaSource    IFramedSource
 	serverRTPPort  uint
 	serverRTCPPort uint
-	totalBW        int
+	totalBW        uint
 }
 
-func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW int, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
+func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW uint, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
 	streamState := new(StreamState)
 	streamState.rtpGS = rtpGS
 	streamState.rtcpGS = rtcpGS
-    streamState.master = master
+	streamState.master = master
 	streamState.rtpSink = rtpSink
 	streamState.udpSink = udpSink
 	streamState.totalBW = totalBW
@@ -34,19 +34,19 @@ func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort
 }
 
 func (this *StreamState) startPlaying() {
-    if this.rtcpInstance == nil && this.rtpSink != nil {
-        this.rtcpInstance = NewRTCPInstance(this.rtcpGS, this.totalBW, this.master.CNAME())
-    }
+	if this.rtcpInstance == nil && this.rtpSink != nil {
+		this.rtcpInstance = NewRTCPInstance(this.rtcpGS, this.totalBW, this.master.CNAME())
+	}
 
-    if dests.isTCP() {
-        if this.rtcpInstance != nil {
-        }
-    } else {
-    }
+	//if dests.isTCP() {
+	//    if this.rtcpInstance != nil {
+	//    }
+	//} else {
+	//}
 
-    if this.rtcpInstance != nil {
-        this.rtcpInstance.setSpecificRRHandler()
-    }
+	if this.rtcpInstance != nil {
+		this.rtcpInstance.setSpecificRRHandler()
+	}
 
 	if this.rtpSink != nil {
 		this.rtpSink.startPlaying(this.mediaSource)
@@ -76,26 +76,25 @@ func (this *StreamState) ServerRTCPPort() uint {
 }
 
 func (this *StreamState) afterPlayingStreamState() {
-    this.reclaim()
+	this.reclaim()
 }
 
 func (this *StreamState) reclaim() {
 }
 
-
 //////// Destinations ////////
 type Destinations struct {
-    isTCP bool
-    rtpPort int
-    rtcpPort int
-    rtpChannelId uint
-    rtcpChannelId uint
+	isTCP         bool
+	rtpPort       int
+	rtcpPort      int
+	rtpChannelId  uint
+	rtcpChannelId uint
 }
 
 func NewDestinations(rtpDestPort, rtcpDestPort int) *Destinations {
-    dests := new(Destinations)
-    dests.isTCP = false
-    dests.rtpPort = rtpDestPort
-    dests.rtcpPort = rtcpDestPort
-    return dests
+	dests := new(Destinations)
+	dests.isTCP = false
+	dests.rtpPort = rtpDestPort
+	dests.rtcpPort = rtcpDestPort
+	return dests
 }

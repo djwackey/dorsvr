@@ -6,5 +6,9 @@ type FramedFilter struct {
 }
 
 func (this *FramedFilter) InitFramedFilter(inputSource IFramedSource) {
-    this.inputSource = inputSource
+	this.inputSource = inputSource
+}
+
+func (this *FramedFilter) reAssignInputSource(newInputSource IFramedSource) {
+	this.inputSource = newInputSource
 }

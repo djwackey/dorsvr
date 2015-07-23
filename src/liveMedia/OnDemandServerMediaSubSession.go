@@ -2,13 +2,13 @@ package liveMedia
 
 import (
 	"fmt"
-    "os"
 	. "groupsock"
+	"os"
 )
 
 type OnDemandServerMediaSubSession struct {
 	ServerMediaSubSession
-    cname           string
+	cname           string
 	sdpLines        string
 	portNumForSDP   int
 	initialPortNum  uint
@@ -28,7 +28,7 @@ type StreamParameter struct {
 
 func (this *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession(isubsession IServerMediaSubSession) {
 	this.initialPortNum = 6970
-    this.cname, _ = os.Hostname()
+	this.cname, _ = os.Hostname()
 	this.InitServerMediaSubSession(isubsession)
 }
 
@@ -47,7 +47,7 @@ func (this *OnDemandServerMediaSubSession) SDPLines() string {
 }
 
 func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId int) *StreamParameter {
-	streamBitrate := 500
+	var streamBitrate uint = 500
 
 	sp := new(StreamParameter)
 
@@ -72,8 +72,8 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtc
 
 		udpSink := NewBasicUDPSink(rtpGroupSock)
 
-		this.lastStreamToken = NewStreamState(this,
-            serverRTPPort,
+		this.lastStreamToken = NewStreamState(this.isubsession,
+			serverRTPPort,
 			serverRTCPPort,
 			rtpSink,
 			udpSink,
@@ -133,7 +133,7 @@ func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink *RTPSink) strin
 }
 
 func (this *OnDemandServerMediaSubSession) CNAME() string {
-    return this.cname
+	return this.cname
 }
 
 func (this *OnDemandServerMediaSubSession) startStream(streamState *StreamState) {

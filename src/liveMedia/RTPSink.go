@@ -7,8 +7,8 @@ import (
 
 type RTPSink struct {
 	MediaSink
-    ssrc                  uint
-    seqNo                 uint
+	ssrc                  uint
+	seqNo                 uint
 	rtpPayloadType        uint
 	rtpTimestampFrequency uint
 	rtpPayloadFormatName  string
@@ -33,7 +33,7 @@ func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType
 }
 
 func (this *RTPSink) SSRC() uint {
-    return this.ssrc
+	return this.ssrc
 }
 
 func (this *RTPSink) AuxSDPLine() string {
