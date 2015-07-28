@@ -24,7 +24,7 @@ func closeSocket() {
 func readSocket() {
 }
 
-func writeSocket(address string, port int, buffer []byte, bufferSize int) bool {
+func writeSocket(address string, port int, buffer []byte, bufferSize uint) bool {
 	addr := fmt.Sprintf("%s:%d", address, port)
 	udpAddr, _ := net.ResolveUDPAddr("udp", addr)
 

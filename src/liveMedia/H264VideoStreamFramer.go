@@ -54,6 +54,7 @@ func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 }
 
 func (this *H264VideoStreamFramer) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
+	fmt.Println("H264VideoStreamFramer::getNextFrame")
 	this.inputSource.getNextFrame(buffTo, maxSize, afterGettingFunc)
 }
 

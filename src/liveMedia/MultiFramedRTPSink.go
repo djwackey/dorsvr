@@ -62,23 +62,24 @@ func (this *MultiFramedRTPSink) packFrame() {
 		if this.source == nil {
 			return
 		}
+		fmt.Println("packFrame", this.afterGettingFrame)
 		this.source.getNextFrame(this.outBuf.curPtr(), this.outBuf.totalBytesAvailable(), this.afterGettingFrame)
 	}
 }
 
 func (this *MultiFramedRTPSink) afterGettingFrame() {
+	fmt.Println("MultiFramedRTPSink::afterGettingFrame")
 	this.sendPacketIfNecessary()
 }
 
 func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
-	for {
-		if !this.rtpInterface.sendPacket(this.outBuf.packet(), this.outBuf.curPacketSize()) {
-			// if failure handler has been specified, call it
-		}
-
-		fmt.Println("sendPacketIfNecessary")
-		//time.Sleep(2 * time.Second)
+	//fmt.Println("sendPacketIfNecessary", this.outBuf.packet(), this.outBuf.curPacketSize())
+	if !this.rtpInterface.sendPacket(this.outBuf.packet(), this.outBuf.curPacketSize()) {
+		// if failure handler has been specified, call it
 	}
+
+	//time.Sleep(2 * time.Second)
+	this.packFrame()
 }
 
 func (this *MultiFramedRTPSink) SpecialHeaderSize() uint {

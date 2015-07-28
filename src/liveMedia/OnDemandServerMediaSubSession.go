@@ -34,11 +34,11 @@ func (this *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession(isu
 
 func (this *OnDemandServerMediaSubSession) SDPLines() string {
 	if this.sdpLines == "" {
-		inputSource := this.isubsession.CreateNewStreamSource()
+		inputSource := this.isubsession.createNewStreamSource()
 
 		rtpPayloadType := 96 + this.TrackNumber() - 1
 		dummyGroupSock := NewGroupSock(0)
-		dummyRTPSink := this.isubsession.CreateNewRTPSink(dummyGroupSock, rtpPayloadType)
+		dummyRTPSink := this.isubsession.createNewRTPSink(dummyGroupSock, rtpPayloadType)
 
 		this.setSDPLinesFromRTPSink(dummyRTPSink, inputSource, 500)
 	}
@@ -51,30 +51,30 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtc
 
 	sp := new(StreamParameter)
 
-	var serverRTPPort, serverRTCPPort, rtpPayloadType uint
+	var rtpPayloadType uint
 	if this.lastStreamToken != nil {
 		streamState := this.lastStreamToken
-		serverRTPPort = streamState.ServerRTPPort()
-		serverRTCPPort = streamState.ServerRTCPPort()
+		sp.serverRTPPort = streamState.ServerRTPPort()
+		sp.serverRTCPPort = streamState.ServerRTCPPort()
 
 		sp.streamToken = this.lastStreamToken
 	} else {
 		serverPortNum := this.initialPortNum
 
-		serverRTPPort = serverPortNum
-		serverRTCPPort = serverPortNum + 1
+		sp.serverRTPPort = serverPortNum
+		sp.serverRTCPPort = serverPortNum + 1
 
-		rtpGroupSock := NewGroupSock(serverRTPPort)
-		rtcpGroupSock := NewGroupSock(serverRTCPPort)
+		rtpGroupSock := NewGroupSock(sp.serverRTPPort)
+		rtcpGroupSock := NewGroupSock(sp.serverRTCPPort)
 
-		mediaSource := this.isubsession.CreateNewStreamSource()
-		rtpSink := this.isubsession.CreateNewRTPSink(rtpGroupSock, rtpPayloadType)
+		mediaSource := this.isubsession.createNewStreamSource()
+		rtpSink := this.isubsession.createNewRTPSink(rtpGroupSock, rtpPayloadType)
 
 		udpSink := NewBasicUDPSink(rtpGroupSock)
 
 		this.lastStreamToken = NewStreamState(this.isubsession,
-			serverRTPPort,
-			serverRTCPPort,
+			sp.serverRTPPort,
+			sp.serverRTCPPort,
 			rtpSink,
 			udpSink,
 			streamBitrate,

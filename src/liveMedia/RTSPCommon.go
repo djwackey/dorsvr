@@ -18,7 +18,7 @@ type RTSPRequestInfo struct {
 	sessionIdStr  string
 	urlPreSuffix  string
 	urlSuffix     string
-	contentLength uint
+	contentLength string
 }
 
 type TransportHeader struct {
@@ -45,134 +45,116 @@ const (
 	RAW_UDP
 )
 
-func ParseRTSPRequestString(buf []byte) (*RTSPRequestInfo, bool) {
-	reqStr := string(buf)
-
-	var result bool
+func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bool) {
 	reqInfo := new(RTSPRequestInfo)
 
-	array := strings.Split(reqStr, "\r\n")
-	length := len(array)
-	if length <= 1 {
-		fmt.Println("Failed to Split \\r\\n")
-		return nil, false
+	// Read everything up to the first space as the command name:
+	i := 0
+	for i = 0; i < reqStrSize && reqStr[i] != ' ' && reqStr[i] != '\t'; i++ {
+		reqInfo.cmdName += string(reqStr[i])
+	}
+	if i >= reqStrSize {
+		return nil, false // parse failed
 	}
 
-	result = parseCommandName(array[0], reqInfo)
-	if !result {
-		fmt.Println("Failed to Parse Command Name")
-		return nil, false
+	// skip over any additional white space
+	j := i + 1
+	for ; j < reqStrSize && reqStr[j] == ' ' && reqStr[j] == '\t'; j++ {
 	}
-
-	for i := 1; i < length; i++ {
-		Parse(array[i], reqInfo)
-	}
-
-	// Parse URL Suffix
-	/*
-		reqInfo.cseq, result = parseRequestCSeq(reqStr[len(reqInfo.cmdName):])
-		if !result {
-			return nil, false
+	for ; j < reqStrSize-8; j++ {
+		if (reqStr[j+0] == 'r' || reqStr[j+0] == 'R') &&
+			(reqStr[j+1] == 't' || reqStr[j+1] == 'T') &&
+			(reqStr[j+2] == 's' || reqStr[j+2] == 'S') &&
+			(reqStr[j+3] == 'p' || reqStr[j+3] == 'P') &&
+			reqStr[j+4] == ':' && reqStr[j+5] == '/' {
+			j += 6
+			if reqStr[j] == '/' {
+				j++
+				for ; j < reqStrSize && reqStr[j] != '/' && reqStr[j] != ' '; j++ {
+				}
+			} else {
+				j--
+			}
+			i = j
+			break
 		}
-	*/
-
-	return reqInfo, result
-}
-
-func Parse(reqStr string, reqInfo *RTSPRequestInfo) bool {
-	array := strings.Split(reqStr, " ")
-	length := len(array)
-	if length <= 1 {
-		return false
 	}
 
-	length = len(array[0])
-	switch array[0] {
-	case "CSeq:":
-		reqInfo.cseq = array[1]
-	case "Session:":
-		reqInfo.sessionIdStr = array[1]
+	// Look for the URL suffix
+	for k := i + 1; k < reqStrSize-5; k++ {
+		if reqStr[k+0] == 'R' &&
+			reqStr[k+1] == 'T' &&
+			reqStr[k+2] == 'S' &&
+			reqStr[k+3] == 'P' &&
+			reqStr[k+4] == '/' {
+			for k--; k >= i && reqStr[k] == ' '; k-- {
+			}
+			k1 := k
+			for ; k1 > i && reqStr[k1] != '/'; k1-- {
+			}
+
+			k2 := k1 + 1
+			if i <= k {
+				for ; k2 <= k; k2++ {
+					reqInfo.urlSuffix += string(reqStr[k2])
+					//n++
+				}
+			}
+			k2 = i + 1
+			if i <= k {
+				for ; k2 <= k1-1; k2++ {
+					reqInfo.urlPreSuffix += string(reqStr[k2])
+					//n++
+				}
+			}
+
+			i = k + 7
+			break
+		}
 	}
 
-	return true
+	// Look for "CSeq:"
+	for j = i; j < reqStrSize-5; j++ {
+		if strings.EqualFold("CSeq:", reqStr[j:j+5]) {
+			j += 5
+			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
+			}
+			for ; reqStr[j] != '\r' && reqStr[j] != '\n'; j++ {
+				reqInfo.cseq += string(reqStr[j])
+			}
+		}
+	}
+
+	// Look for "Session:"
+	for j = i; j < reqStrSize-8; j++ {
+		if strings.EqualFold("Session:", reqStr[j:j+8]) {
+			j += 8
+			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
+			}
+			for ; reqStr[j] != '\r' && reqStr[j] != '\n'; j++ {
+				reqInfo.sessionIdStr += string(reqStr[j])
+			}
+		}
+	}
+
+	// Also: Look for "Content-Length:" (optional, case insensitive)
+	for j = i; j < reqStrSize-15; j++ {
+		if strings.EqualFold("Content-Length:", reqStr[j:j+15]) {
+			j += 15
+			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
+			}
+			if num, _ := fmt.Sscanf(reqStr[j:j+15], "%d", reqInfo.contentLength); num == 1 {
+				break
+			}
+		}
+	}
+
+	return reqInfo, true
 }
 
 func ParseHTTPRequestString() (*RTSPRequestInfo, bool) {
 	reqInfo := new(RTSPRequestInfo)
 	return reqInfo, true
-}
-
-func parseCommandName(reqStr string, reqInfo *RTSPRequestInfo) bool {
-	array := strings.Split(reqStr, " ")
-	//fmt.Println("parseCommandName", reqStr, len(array))
-	if len(array) != 3 {
-		array = strings.Split(reqStr, "\t")
-		if len(array) != 3 {
-			return false
-		}
-	}
-
-	reqInfo.cmdName = array[0]
-	switch reqInfo.cmdName {
-	case "DESCRIBE":
-		s := array[1]
-		l := strings.Split(s, "/")
-		t := l[len(l)-1]
-		l = strings.Split(t, ".")
-		if len(l) != 2 {
-			return false
-		}
-
-		reqInfo.urlPreSuffix = l[0]
-		reqInfo.urlSuffix = l[1]
-		//fmt.Println("yanfei: ", l[0], l[1])
-		//version := array[2]
-		//fmt.Println("parseCommandName: " + version)
-	case "SETUP":
-	}
-
-	return true
-}
-
-/*
-func parseCommandName(reqStr string) (string, bool) {
-	var result bool
-	var cmdName string
-	for _, value := range allowedCommandNames {
-		if strings.HasPrefix(string(reqStr), value) {
-			cmdName, result = value, true
-			break
-		}
-	}
-
-	return cmdName, result
-}*/
-
-func parseRequestCSeq(reqStr string) (string, bool) {
-	cseqIndex := strings.Index(reqStr, "CSeq:")
-
-	ok := false
-	index := 0
-	for {
-		if cseqIndex+1 >= len(reqStr) {
-			break
-		}
-
-		if reqStr[cseqIndex] == '\r' && reqStr[cseqIndex+1] == '\n' {
-			ok = true
-			break
-		}
-
-		index += 1
-		cseqIndex += 1
-	}
-
-	var cseq string
-	if ok {
-		cseq = strings.Trim(reqStr[cseqIndex-index+5:cseqIndex], " ")
-	}
-
-	return cseq, true
 }
 
 func parseTransportHeader(reqStr string) *TransportHeader {

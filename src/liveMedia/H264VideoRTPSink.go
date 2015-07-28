@@ -51,17 +51,18 @@ func NewH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264F
 }
 
 func (this *H264FUAFragmenter) doGetNextFrame() {
+}
+
+func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
+	fmt.Println("H264FUAFragmenter::getNextFrame")
 	if this.numValidDataBytes == 1 {
-		this.inputSource.getNextFrame(this.buffTo, this.maxSize, nil)
+		this.inputSource.getNextFrame(this.buffTo, this.maxSize, afterGettingFunc)
 	} else {
 		if this.maxSize < this.maxOutputPacketSize {
 		} else {
 			this.maxSize = this.maxOutputPacketSize
 		}
 	}
-}
-
-func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
 }
 
 func (this *H264FUAFragmenter) afterGettingFrame(frameSize uint) {

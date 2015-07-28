@@ -22,6 +22,8 @@ func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
 	fileSource := new(ByteStreamFileSource)
 	fileSource.fid = fid
 
+	fileSource.buffTo = make([]byte, 20000)
+
 	stat, _ := fid.Stat()
 	fileSource.fileSize = stat.Size()
 	fileSource.InitFramedFileSource(fileSource)
@@ -30,23 +32,26 @@ func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
 
 func (this *ByteStreamFileSource) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
 	this.maxSize = maxSize
-	this.buffTo = make([]byte, maxSize)
 	//this.buffTo = buffTo
+	fmt.Println("BSFS", afterGettingFunc, this.maxSize)
 
-	this.doReadFromFile()
+	if this.doReadFromFile() {
+		afterGettingFunc.(func())()
+	}
 }
 
-func (this *ByteStreamFileSource) doReadFromFile() {
+func (this *ByteStreamFileSource) doReadFromFile() bool {
 	//defer this.fid.Close()
 	readBytes, err := this.fid.Read(this.buffTo)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 
 	fmt.Println(readBytes)
-	fmt.Println(this.buffTo)
+	//fmt.Println(this.buffTo)
 	GetTimeOfDay(&this.presentationTime)
+	return true
 }
 
 func (this *ByteStreamFileSource) FileSize() int64 {

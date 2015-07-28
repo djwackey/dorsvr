@@ -6,8 +6,8 @@ import (
 )
 
 type IServerMediaSubSession interface {
-	CreateNewStreamSource() IFramedSource
-	CreateNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
+	createNewStreamSource() IFramedSource
+	createNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
 	getStreamParameters(rtpChannelId, rtcpChannelId int) *StreamParameter
 	IncrTrackNumber()
 	SDPLines() string

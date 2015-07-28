@@ -49,15 +49,16 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 	this.clientOutputSocket.Close()
 }
 
-func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
-	fmt.Println("HandleRequestBytes", string(buf[:len]))
+func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, length int) {
+	fmt.Println("HandleRequestBytes", string(buf[:length]))
 
 	var existed bool
 	var clientSession *RTSPClientSession
-	requestString, parseSucceeded := ParseRTSPRequestString(buf)
+	requestString, parseSucceeded := ParseRTSPRequestString(string(buf), length)
 	if parseSucceeded {
 		this.currentCSeq = requestString.cseq
 		sessionIdStr := requestString.sessionIdStr
+		fmt.Println(requestString)
 		switch requestString.cmdName {
 		case "OPTIONS":
 			this.handleCommandOptions()
@@ -118,7 +119,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, len int) {
 		}
 	}
 
-	//fmt.Println(this.responseBuffer)
+	fmt.Println(this.responseBuffer)
 
 	sendBytes, err := this.clientOutputSocket.Write([]byte(this.responseBuffer))
 	if err != nil {
@@ -154,8 +155,8 @@ func (this *RTSPClientConnection) HandleCommandUnsupportedTransport() {
 }
 
 func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fullRequestStr string) {
-	urlTotalSuffix := urlPreSuffix + "." + urlSuffix
-	//fmt.Println("handleCommandDescribe", urlTotalSuffix)
+	urlTotalSuffix := urlSuffix
+	fmt.Println("handleCommandDescribe", urlTotalSuffix)
 
 	this.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
 

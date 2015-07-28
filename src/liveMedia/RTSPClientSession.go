@@ -90,6 +90,8 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 	clientRTPPort := streamParameter.clientRTPPort
 	clientRTCPPort := streamParameter.clientRTCPPort
 
+	fmt.Println("RTSPClientSession::getStreamParameters", streamParameter, transportHeader)
+
 	this.streamStates.streamToken = streamParameter.streamToken
 
 	if this.isMulticast {

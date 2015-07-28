@@ -2,14 +2,14 @@ package liveMedia
 
 import (
 	"fmt"
-    "os"
 	. "groupsock"
+	"os"
 	"strings"
 )
 
 //////// MediaSession ////////
 type MediaSession struct {
-    cname            string
+	cname            string
 	controlPath      string
 	absStartTime     string
 	absEndTime       string
@@ -27,124 +27,135 @@ func NewMediaSession(sdpDesc string) *MediaSession {
 }
 
 func (this *MediaSession) InitWithSDP(sdpDesc string) bool {
-    if len(sdpDesc) < 1 {
-        return false
-    }
+	sdpLine := sdpDesc
+	if len(sdpLine) < 1 {
+		return false
+	}
 
-    for {
-        nextSDPLine, result := this.parseSDPLine(sdpDesc)
-        if !result {
-            return false
-        }
+	// var result bool
+	//var nextSDPLine string
+	for {
+		//nextSDPLine, result = this.parseSDPLine(sdpLine)
+		//if !result {
+		//    return false
+		//}
 
-        if sdpDesc[0] == "m" {
-            break
-        }
+		if sdpDesc[0] == 'm' {
+			break
+		}
 
-        // Check for various special SDP lines that we understand:
-        if this.parseSDPLine_s(sdpLine) {
-            continue
-        }
-        if this.parseSDPLine_i(sdpLine) {
-            continue
-        }
-        if this.parseSDPLine_c(sdpLine) {
-            continue
-        }
-        if this.parseSDPAttribute_control(sdpLine) {
-            continue
-        }
-        if this.parseSDPAttribute_range(sdpLine) {
-            continue
-        }
-        if this.parseSDPAttribute_type(sdpLine) {
-            continue
-        }
-        if this.parseSDPAttribute_source_filter(sdpLine) {
-            continue
-        }
-    }
+		// Check for various special SDP lines that we understand:
+		//if this.parseSDPLine_s(sdpLine) {
+		//    continue
+		//}
+		//if this.parseSDPLine_i(sdpLine) {
+		//    continue
+		//}
+		//if this.parseSDPLine_c(sdpLine) {
+		//    continue
+		//}
+		//if this.parseSDPAttribute_control(sdpLine) {
+		//    continue
+		//}
+		//if this.parseSDPAttribute_range(sdpLine) {
+		//    continue
+		//}
+		//if this.parseSDPAttribute_type(sdpLine) {
+		//    continue
+		//}
+		//if this.parseSDPAttribute_source_filter(sdpLine) {
+		//    continue
+		//}
+	}
 
-    var num int
-    var mediumName, protocolName, payloadFormat string
-    for {
-	    subsession := NewMediaSubSession()
-        if subsession == nil {
-            fmt.Println("Unable to create new MediaSubsession")
-            return false
-        }
+	//var num int
+	var payloadFormat uint
+	var mediumName, protocolName string
+	for {
+		subsession := NewMediaSubSession()
+		if subsession == nil {
+			fmt.Println("Unable to create new MediaSubsession")
+			return false
+		}
+		/*
+		   if (num, _ = fmt.Sscanf(sdpLine, "m=%s %d RTP/AVP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3 || num, _ = fmt.Sscanf(sdpLine, "m=%s %d/%*d RTP/AVP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3) && int(payloadFormat) <= 127 {
+		       protocolName = "RTP"
+		   } else if (num, _ = fmt.Sscanf(sdpLine, "m=%s %d UDP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3 ||
+		              num, _ = fmt.Sscanf(sdpLine, "m=%s %d udp %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3 ||
+		              num, _ = fmt.Sscanf(sdpLine, "m=%s %d RAW/RAW/UDP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3) && int(payloadFormat) <= 127 {
+		       // This is a RAW UDP source
+		       protocolName = "UDP"
+		   } else {
+		   }
+		*/
+		// Insert this subsession at the end of the list:
+		//this.mediaSubSessions = append(this.mediaSubSessions, subsession)
+		this.mediaSubSessions[this.subSessionNum] = subsession
+		this.subSessionNum++
 
-        if (num, _ = fmt.Sscanf(sdpLine, "m=%s %d RTP/AVP %d",     mediumName, subsession.clientPortNum, payloadFormat); num == 3 ||
-            num, _ = fmt.Sscanf(sdpLine, "m=%s %d/%*d RTP/AVP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3) && int(payloadFormat) <= 127 {
-            protocolName = "RTP"
-        } else if (num, _ = fmt.Sscanf(sdpLine, "m=%s %d UDP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3 ||
-                   num, _ = fmt.Sscanf(sdpLine, "m=%s %d udp %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3 ||
-                   num, _ = fmt.Sscanf(sdpLine, "m=%s %d RAW/RAW/UDP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3) && int(payloadFormat) <= 127 {
-            // This is a RAW UDP source
-            protocolName = "UDP"
-        } else {
-        }
+		subsession.serverPortNum = subsession.clientPortNum
+		subsession.savedSDPLines = sdpLine
+		subsession.mediumName = mediumName
+		subsession.protocolName = protocolName
+		subsession.rtpPayloadFormat = payloadFormat
 
-        // Insert this subsession at the end of the list:
-	    //this.mediaSubSessions = append(this.mediaSubSessions, subsession)
-	    this.mediaSubSessions[this.subSessionNum] = subsession
-	    this.subSessionNum++
+		// Process the following SDP lines, up until the next "m=":
+		//        for {
+		//            sdpLine = nextSDPLine
+		//            if len(sdpLine) < 1 {
+		//                break; // we've reached the end
+		//            }
+		//            if !this.parseSDPLine(sdpLine, nextSDPLine) {
+		//                return false
+		//            }
+		//
+		//            if sdpLine[0] == 'm' {
+		//                break // we've reached the next subsession
+		//            }
+		//
+		//            // Check for various special SDP lines that we understand:
+		//            if subsession.parseSDPLine_c(sdpLine) {
+		//                continue
+		//            }
+		//            if subsession.parseSDPLine_b(sdpLine) {
+		//                continue
+		//            }
+		//            if subsession.parseSDPAttribute_rtpmap(sdpLine) {
+		//                continue
+		//            }
+		//            if subsession.parseSDPAttribute_control(sdpLine) {
+		//                continue
+		//            }
+		//            if subsession.parseSDPAttribute_range(sdpLine) {
+		//                continue
+		//            }
+		//            if subsession.parseSDPAttribute_fmtp(sdpLine) {
+		//                continue
+		//            }
+		//            if subsession.parseSDPAttribute_source_filter(sdpLine) {
+		//                continue
+		//            }
+		//            if subsession.parseSDPAttribute_x_dimensions(sdpLine) {
+		//                continue
+		//            }
+		//            if subsession.parseSDPAttribute_framerate(sdpLine) {
+		//                continue
+		//            }
+		//            // (Later, check for malformed lines, and other valid SDP lines#####)
+		//        }
+		//
+		if len(subsession.codecName) < 1 {
+			//subsession.codecName = this.lookupPayloadFormat(subsession.rtpPayloadFormat, subsession.rtpTimestampFrequency, subsession.numChannels)
+		}
 
-        subsession.serverPortNum = subsession.clientPortNum
-        subsession.savedSDPLines = sdpLine
-        subsession.mediumName = mediumName
-        subsession.protocolName = protocolName
-        subsession.rtpPayloadFormat = payloadFormat
-
-        // Process the following SDP lines, up until the next "m=":
-        for {
-            sdpLine = nextSDPLine
-            if len(sdpLine) < 1 {
-                break; // we've reached the end
-            }
-            if !parseSDPLine(sdpLine, nextSDPLine)
-                return false
-
-            if sdpLine[0] == "m" {
-                break // we've reached the next subsession
-            }
-
-            // Check for various special SDP lines that we understand:
-            if subsession->parseSDPLine_c(sdpLine) {
-                continue
-            }
-            if subsession->parseSDPLine_b(sdpLine) {
-                continue
-            }
-            if subsession->parseSDPAttribute_rtpmap(sdpLine) {
-                continue
-            }
-            if subsession->parseSDPAttribute_control(sdpLine) {
-                continue
-            }
-            if subsession->parseSDPAttribute_range(sdpLine) {
-                continue
-            }
-            if subsession->parseSDPAttribute_fmtp(sdpLine)) continue
-                                                                                        if subsession->parseSDPAttribute_source_filter(sdpLine)) continue
-                                                                                              if subsession->parseSDPAttribute_x_dimensions(sdpLine)) continue;
-                                                                                                    if (subsession->parseSDPAttribute_framerate(sdpLine)) continue;
-
-                                                                                                          // (Later, check for malformed lines, and other valid SDP lines#####)
-                                                                                                              }
-
-        if len(this.codecName) < 1 {
-            subsession.codecName = this.lookupPayloadFormat(subsession.rtpPayloadFormat, subsession.rtpTimestampFrequency, subsession.numChannels)
-        }
-
-        // If we don't yet know this subsession's RTP timestamp frequency
-        // (because it uses a dynamic payload type and the corresponding
-        // SDP "rtpmap" attribute erroneously didn't specify it),
-        // then guess it now:
-        if subsession.rtpTimestampFrequency == 0 {
-            subsession.rtpTimestampFrequency = this.guessRTPTimestampFrequency(subsession.mediumName, subsession.codecName)
-        }
-    }
+		// If we don't yet know this subsession's RTP timestamp frequency
+		// (because it uses a dynamic payload type and the corresponding
+		// SDP "rtpmap" attribute erroneously didn't specify it),
+		// then guess it now:
+		if subsession.rtpTimestampFrequency == 0 {
+			//subsession.rtpTimestampFrequency = this.guessRTPTimestampFrequency(subsession.mediumName, subsession.codecName)
+		}
+	}
 }
 
 func (this *MediaSession) ControlPath() string {
@@ -169,45 +180,47 @@ func (this *MediaSession) SubSession() *MediaSubSession {
 }
 
 func (this *MediaSession) parseSDPLine(inputLine string) (string, bool) {
-    // Begin by finding the start of the next line (if any):
-    var nextLine string
-    var result bool
-    for i:=0; i<len(inputLine); i++ {
-        if inputLine[i] == "\r" || inputLine[i] == "\n" {
-            for {
-                if inputLine[i] != "\r" && inputLine[i] != "\n" {
-                    break
-                }
-                i++
-            }
-            nextLine, result = inputLine[i:], true
-            break
-        }
-    }
+	// Begin by finding the start of the next line (if any):
+	var nextLine string
+	for i := 0; i < len(inputLine); i++ {
+		if inputLine[i] == '\r' || inputLine[i] == '\n' {
+			for {
+				if inputLine[i] != '\r' && inputLine[i] != '\n' {
+					break
+				}
+				i++
+			}
+			nextLine = inputLine[i:]
+			break
+		}
+	}
 
-    // Then, check that this line is a SDP line of the form <char>=<etc>
-    // (However, we also accept blank lines in the input.)
-    if inputLine[0] == "\r" || inputLine[0] == "\n" {
-        return nextLine, true
-    }
-    if len(inputLine) < 2 || inputLine[1] != "=" || inputLine[0] < "a" || inputLine[0] > "z" {
-        fmt.Println("Invalid SDP line: ", inputLine)
-        return nextLine, false
-    }
+	// Then, check that this line is a SDP line of the form <char>=<etc>
+	// (However, we also accept blank lines in the input.)
+	if inputLine[0] == '\r' || inputLine[0] == '\n' {
+		return nextLine, true
+	}
+	if len(inputLine) < 2 || inputLine[1] != '=' || inputLine[0] < 'a' || inputLine[0] > 'z' {
+		fmt.Println("Invalid SDP line: ", inputLine)
+		return nextLine, false
+	}
 
-    return nextLine, true
+	return nextLine, true
 }
 
 func (this *MediaSession) parseCLine() {
 }
 
 func (this *MediaSession) parseSDPLine_s(inputLine string) bool {
+	return true
 }
 
 func (this *MediaSession) parseSDPLine_i(inputLine string) bool {
+	return true
 }
 
 func (this *MediaSession) parseSDPLine_c(inputLine string) bool {
+	return true
 }
 
 func (this *MediaSession) parseSDPAttribute_type(sdpLine string) {
@@ -237,7 +250,6 @@ func (this *MediaSession) guessRTPTimestampFrequency() {
 func (this *MediaSession) initiateByMediaType() {
 }
 
-
 //////// MediaSubSession ////////
 type MediaSubSession struct {
 	rtpSocket             *GroupSock
@@ -247,10 +259,14 @@ type MediaSubSession struct {
 	readSource            IFramedSource
 	rtcpInstance          *RTCPInstance
 	rtpTimestampFrequency uint
-	rtpPayloadFormat      int
+	rtpPayloadFormat      uint
 	clientPortNum         uint
+	serverPortNum         uint
+	numChannels           uint
 	protocolName          string
 	controlPath           string
+	savedSDPLines         string
+	mediumName            string
 	codecName             string
 }
 
