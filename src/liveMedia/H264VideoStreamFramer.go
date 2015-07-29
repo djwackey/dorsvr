@@ -21,7 +21,9 @@ func (this *H264VideoStreamParser) parse(data []byte) {
 	if !this.haveSeenFirstStartCode {
 		first4Bytes := this.test4Bytes(data)
 
-		if first4Bytes == 0x00000001 {
+		for ; first4Bytes != 0x00000001 {
+            get1Byte()
+            setParseState()
 			fmt.Println("parse", first4Bytes)
 		}
 

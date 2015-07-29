@@ -6,6 +6,7 @@ import (
 
 type IFramedSource interface {
 	getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{})
+    afterGetting()
 	//stopGettingFrames()
 }
 
@@ -15,6 +16,7 @@ type FramedSource struct {
 	source           IFramedSource
 	buffTo           []byte
 	maxSize          uint
+    durationInMicroseconds uint
 }
 
 func (this *FramedSource) InitFramedSource(source IFramedSource) {
@@ -22,4 +24,7 @@ func (this *FramedSource) InitFramedSource(source IFramedSource) {
 }
 
 func (this *FramedSource) afterGetting() {
+}
+
+func (this *FramedSource) stopGettingFrames() {
 }
