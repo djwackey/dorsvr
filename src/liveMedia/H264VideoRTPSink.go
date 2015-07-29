@@ -64,7 +64,7 @@ func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGe
 		}
 
         if this.curDataOffset == 1 {
-            if this.numValidDataBytes - 1 <= this.maxSize) { // case 1
+            if this.numValidDataBytes - 1 <= this.maxSize { // case 1
                 memmove(this.buffTo, &this.inputBuffer[1], this.numValidDataBytes - 1)
                 this.frameSize = this.numValidDataBytes - 1
                 this.curDataOffset = this.numValidDataBytes
@@ -81,7 +81,7 @@ func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGe
             }
         } else {
             this.inputBuffer[this.curDataOffset-2] = this.inputBuffer[0]        // FU indicator
-            this.inputBuffer[this.curDataOffset-1] = this.inputBuffer[1]&~0x80  // FU header (no S bit)
+            this.inputBuffer[this.curDataOffset-1] = this.inputBuffer[1]&^0x80  // FU header (no S bit)
             numBytesToSend := 2 + this.numValidDataBytes - this.curDataOffset;
             if (numBytesToSend > fMaxSize) {
                 // We can't send all of the remaining data this time:
@@ -100,7 +100,8 @@ func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGe
 
     if this.curDataOffset >= this.numValidDataBytes {
         // We're done with this data.  Reset the pointers for receiving new data:
-        this.numValidDataBytes = this.curDataOffset = 1
+        this.numValidDataBytes = 1
+        this.curDataOffset = 1
     }
 
     // Complete delivery to the client:

@@ -49,7 +49,9 @@ type MPEGVideoStreamParser struct {
 
 
 func (this *MPEGVideoStreamParser) registerReadInterest(to []byte, maxSize uint) {
-    fStartOfFrame = fTo = fSavedTo = to
+    fStartOfFrame = fTo
+    fSavedTo = to
     fLimit = to + maxSize
-    fNumTruncatedBytes = fSavedNumTruncatedBytes = 0
+    fNumTruncatedBytes = 0
+    fSavedNumTruncatedBytes = 0
 }
