@@ -16,7 +16,7 @@ func (this *MPEGVideoStreamFramer) doGetNextFrame() {
 
 func (this *MPEGVideoStreamFramer) continueReadProcessing() {
     acquiredFrameSize := this.parser.parse()
-    if (acquiredFrameSize > 0) {
+    if acquiredFrameSize > 0 {
         // We were able to acquire a frame from the input.
         // It has already been copied to the reader's space.
         this.frameSize = acquiredFrameSize

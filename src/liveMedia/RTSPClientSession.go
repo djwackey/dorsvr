@@ -33,8 +33,8 @@ func NewRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionId uint32
 }
 
 func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr string) {
-	streamName := "test.264" //urlPreSuffix
-	//trackId := "track1"         // urlSuffix
+	streamName := urlPreSuffix
+	trackId := urlSuffix
 
 	//this.noteLiveness()
 
@@ -80,11 +80,13 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 
 	subsession := this.streamStates.subsession
 
-	var destAddrStr string
-	var sourceAddrStr string
-	var streamingModeStr string
-	var serverRTPPort int
-	var serverRTCPPort int
+	var destAddrStr, sourceAddrStr, streamingModeStr string
+	var serverRTPPort, serverRTCPPort int
+
+    var tcpSocketNum net.Conn
+    if streamingMode == RTP_TCP {
+        tcpSocketNum = this.rtspClientConn.clientOutputSocket
+    }
 
 	streamParameter := subsession.getStreamParameters(rtpChannelId, rtcpChannelId)
 	clientRTPPort := streamParameter.clientRTPPort

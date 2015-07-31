@@ -24,6 +24,8 @@ func (this *FramedSource) InitFramedSource(source IFramedSource) {
 }
 
 func (this *FramedSource) afterGetting() {
+    if this.afterGettingFunc {
+    }
 }
 
 func (this *FramedSource) stopGettingFrames() {
