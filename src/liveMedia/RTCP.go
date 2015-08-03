@@ -22,6 +22,9 @@ const (
 	RTCP_SDES_TOOL  = 6
 	RTCP_SDES_NOTE  = 7
 	RTCP_SDES_PRIV  = 8
+
+    // overhead (bytes) of IP and UDP hdrs
+    IP_UDP_HDR_SIZE = 28
 )
 
 type SDESItem struct {
@@ -53,13 +56,13 @@ func NewSDESItem(tag int, value string) *SDESItem {
 		length = 0xFF // maximum data length for a SDES item
 	}
 
-	//item.data[0] = tag
-	//item.data[1] = (byte) length
+	item.data[0] = tag
+	item.data[1] = (byte) length
 	return item
 }
 
 func (this *SDESItem) totalSize() uint {
-	return 2 //+ (uint) this.data[1]
+	return 2 + (uint) this.data[1]
 }
 
 func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPInstance {
@@ -92,4 +95,50 @@ func (this *RTCPInstance) setRRHandler() {
 }
 
 func (this *RTCPInstance) incomingReportHandler() {
+}
+
+func (this *RTCPInstance) onReceive() {
+}
+
+func (this *RTCPInstance) sendReport() {
+    // Begin by including a SR and/or RR report:
+    this.addReport()
+
+    // Then, include a SDES:
+    this.addSDES()
+
+    // Send the report:
+    this.sendBuiltPacket()
+}
+
+func (this *RTCPInstance) sendBuiltPacket() {
+    reportSize := this.outBuf.curPacketSize()
+    this.rtcpInterface.sendPacket(this.outBuf.packet(), reportSize)
+    this.outBuf->resetOffset()
+
+    this.lastSentSize = IP_UDP_HDR_SIZE + reportSize
+    this.haveJustSentPacket = true
+    this.lastPacketSentSize = reportSize
+}
+
+func (this *RTCPInstance) addReport() {
+    if this.sink != nil {
+        if this.sink.enableRTCPReports() {
+            return
+        }
+
+        if this.sink.nextTimestampHasBeenPreset() {
+            return
+        }
+
+        this.addSR()
+    } else if this.source != nil {
+        this.addRR()
+    }
+}
+
+func (this *RTCPInstance) addSR() {
+}
+
+func (this *RTCPInstance) addRR() {
 }

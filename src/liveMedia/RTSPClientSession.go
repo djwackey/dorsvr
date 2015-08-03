@@ -83,9 +83,9 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 	var destAddrStr, sourceAddrStr, streamingModeStr string
 	var serverRTPPort, serverRTCPPort int
 
-    var tcpSocketNum net.Conn
+    var tcpSocketNum *net.Conn
     if streamingMode == RTP_TCP {
-        tcpSocketNum = this.rtspClientConn.clientOutputSocket
+        tcpSocketNum = &this.rtspClientConn.clientOutputSocket
     }
 
 	streamParameter := subsession.getStreamParameters(rtpChannelId, rtcpChannelId)
@@ -178,6 +178,44 @@ func (this *RTSPClientSession) HandleCommandWithinSession(cmdName, urlPreSuffix,
 	this.noteLiveness()
 
 	var subsession *ServerMediaSubSession
+
+    if this.ourServerMediaSession == nil { // There wasn't a previous SETUP!
+        this.rtspClientConn.handleCommandNotSupported()
+        return
+    } else if (urlSuffix[0] != '\0' && strcmp(this.serverMediaSession.StreamName(), urlPreSuffix) == 0) {
+        // Non-aggregated operation.
+        // Look up the media subsession whose track id is "urlSuffix":
+        ServerMediaSubsessionIterator iter(*fOurServerMediaSession)
+        for ((subsession = iter.next()) != NULL) {
+            if (strcmp(subsession.TrackId(), urlSuffix) == 0) {
+                break // success
+            }
+        }
+
+        if (subsession == NULL) { // no such track!
+            this.rtspClientConn.handleCommandNotFound()
+            return
+        }
+    } else if strcmp(this.serverMediaSession.StreamName(), urlSuffix) == 0 ||
+             (urlSuffix[0] == '\0' && strcmp(this.serverMediaSession.StreamName(), urlPreSuffix) == 0) {
+        // Aggregated operation
+        subsession = nil
+    } else if (urlPreSuffix[0] != '\0' && urlSuffix[0] != '\0') {
+        // Aggregated operation, if <urlPreSuffix>/<urlSuffix> is the session (stream) name:
+        urlPreSuffixLen := strlen(urlPreSuffix)
+        if strncmp(this.serverMediaSession.StreamName(), urlPreSuffix, urlPreSuffixLen) == 0 &&
+            this.serverMediaSession.StreamName()[urlPreSuffixLen] == '/' &&
+            strcmp(&(this.ourServerMediaSession.StreamName())[urlPreSuffixLen+1], urlSuffix) == 0 {
+            subsession = nil
+        } else {
+            this.rtspClientConn.handleCommandNotFound()
+            return
+        }
+    } else { // the request doesn't match a known stream and/or track at all!
+        this.rtspClientConn.handleCommandNotFound()
+        return
+    }
+
 	switch cmdName {
 	case "TEARDOWN":
 		this.HandleCommandTearDown(subsession)

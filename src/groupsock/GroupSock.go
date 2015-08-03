@@ -19,6 +19,7 @@ func (this *OutputSocket) sourcePortNum() uint {
 
 type GroupSock struct {
 	OutputSocket
+    dests []destRecord
 	portNum uint
 	ttl     uint
 }
@@ -40,4 +41,10 @@ func (this *GroupSock) handleRead() {
 
 func (this *GroupSock) TTL() uint {
 	return this.ttl
+}
+
+
+type destRecord struct {
+    addrStr string
+    portNum uint
 }
