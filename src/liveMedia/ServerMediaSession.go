@@ -80,10 +80,11 @@ func (this *ServerMediaSession) GenerateSDPDescription() string {
 		this.miscSDPLines)
 
 	// Then, add the (media-level) lines for each subsession:
-	for i := 0; i < this.subsessionCounter; i++ {
-		sdpLines := this.subSessions[i].SDPLines()
-		sdp += sdpLines
-	}
+	/*
+		for i := 0; i < this.subsessionCounter; i++ {
+			sdpLines := this.subSessions[i].SDPLines()
+			sdp += sdpLines
+		}*/
 
 	return sdp
 }
