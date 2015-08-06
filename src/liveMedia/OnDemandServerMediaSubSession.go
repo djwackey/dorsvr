@@ -13,6 +13,7 @@ type OnDemandServerMediaSubSession struct {
 	portNumForSDP   int
 	initialPortNum  uint
 	lastStreamToken *StreamState
+    destinations []Destinations
 }
 
 type StreamParameter struct {
@@ -46,7 +47,7 @@ func (this *OnDemandServerMediaSubSession) SDPLines() string {
 	return this.sdpLines
 }
 
-func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtcpChannelId int) *StreamParameter {
+func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net.Conn, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *StreamParameter {
 	var streamBitrate uint = 500
 
 	sp := new(StreamParameter)
@@ -84,7 +85,19 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(rtpChannelId, rtc
 		sp.streamToken = this.lastStreamToken
 	}
 
+    var destAddr string
+    dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
+    this.destinations.append(dests)
+
 	return sp
+}
+
+func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink IRTPSink) interface{} {
+	if rtpSink == nil {
+		return nil
+	}
+
+	return rtpSink.AuxSDPLine()
 }
 
 func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink IRTPSink, inputSource IFramedSource, estBitrate uint) {
@@ -92,12 +105,12 @@ func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink IRTPSi
 		return
 	}
 
+	mediaType      := rtpSink.SdpMediaType()
+	rtpmapLine     := rtpSink.RtpmapLine()
 	rtpPayloadType := rtpSink.RtpPayloadType()
-	mediaType := rtpSink.SdpMediaType()
-	rtpmapLine := rtpSink.RtpmapLine()
-	rangeLine := "" //this.rangeSDPLine()
 
-	auxSDPLine := "" //this.getAuxSDPLine()
+	rangeLine := this.rangeSDPLine()
+	auxSDPLine := this.getAuxSDPLine(rtpSink)
 	if auxSDPLine == "" {
 		auxSDPLine = ""
 	}
@@ -146,4 +159,27 @@ func (this *OnDemandServerMediaSubSession) pauseStream(streamState *StreamState)
 
 func (this *OnDemandServerMediaSubSession) deleteStream(streamState *StreamState) {
 	streamState.endPlaying()
+}
+
+
+//////// Destinations ////////
+type Destinations struct {
+    isTCP bool
+    addr string
+    rtpPort int
+    rtcpPort int
+    rtpChannelId int
+    rtcpChannelId int
+    tcpSocketNum *net.Conn
+}
+
+func NewDestinations(tcpSockNum *net.Conn, destAddr string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *Destinations {
+    destinations := new(Destinations)
+    destinations.tcpSockNum = tcpSockNum
+    destinations.addr = destAddr
+    destinations.rtpPort = clientRTPPort
+    destinations.rtcpPort = clientRTCPPort
+    destinations.rtpChannelId = rtpChannelId
+    destinations.rtcpChannelId = rtcpChannelId
+    return destinations
 }

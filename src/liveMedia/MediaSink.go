@@ -47,6 +47,10 @@ func (this *OutPacketBuffer) curPacketSize() uint {
 	return this.curOffset
 }
 
+func (this *OutPacketBuffer) totalBufferSize() uint {
+    return this.limit
+}
+
 func (this *OutPacketBuffer) increment(numBytes uint) {
 	this.curOffset += numBytes
 }
@@ -136,4 +140,7 @@ func (this *MediaSink) stopPlaying() {
 	if this.source != nil {
 		//this.source.stopGettingFrames()
 	}
+}
+
+func (this *MediaSink) onSourceClosure() {
 }

@@ -17,6 +17,7 @@ type StreamState struct {
 	serverRTPPort  uint
 	serverRTCPPort uint
 	totalBW        uint
+    areCurrentlyPlaying bool
 }
 
 func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW uint, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
@@ -48,11 +49,15 @@ func (this *StreamState) startPlaying() {
 		this.rtcpInstance.setSpecificRRHandler()
 	}
 
-	if this.rtpSink != nil {
-		this.rtpSink.startPlaying(this.mediaSource)
-	} else if this.udpSink != nil {
-		this.udpSink.startPlaying(this.mediaSource)
-	}
+    if !this.areCurrentlyPlaying && this.mediaSource != nil {
+	    if this.rtpSink != nil {
+		    this.rtpSink.startPlaying(this.mediaSource)
+            this.areCurrentlyPlaying = true
+	    } else if this.udpSink != nil {
+            this.areCurrentlyPlaying = true
+		    this.udpSink.startPlaying(this.mediaSource)
+	    }
+    }
 }
 
 func (this *StreamState) pause() {
@@ -62,9 +67,16 @@ func (this *StreamState) pause() {
 	if this.udpSink != nil {
 		this.udpSink.stopPlaying()
 	}
+    this.areCurrentlyPlaying = false
 }
 
-func (this *StreamState) endPlaying() {
+func (this *StreamState) endPlaying(dests *Destinations) {
+    if this.rtpSink != nil {
+        this.rtpSink.removeStreamSocket()
+    }
+    if this.rtcpInstance != nil {
+        this.rtcpInstance.unsetSpecificRRHandler()
+    }
 }
 
 func (this *StreamState) ServerRTPPort() uint {
@@ -80,21 +92,4 @@ func (this *StreamState) afterPlayingStreamState() {
 }
 
 func (this *StreamState) reclaim() {
-}
-
-//////// Destinations ////////
-type Destinations struct {
-	isTCP         bool
-	rtpPort       int
-	rtcpPort      int
-	rtpChannelId  uint
-	rtcpChannelId uint
-}
-
-func NewDestinations(rtpDestPort, rtcpDestPort int) *Destinations {
-	dests := new(Destinations)
-	dests.isTCP = false
-	dests.rtpPort = rtpDestPort
-	dests.rtcpPort = rtcpDestPort
-	return dests
 }

@@ -5,16 +5,7 @@ import (
 	. "groupsock"
 )
 
-type RTPSink struct {
-	MediaSink
-	ssrc                  uint
-	seqNo                 uint
-	rtpPayloadType        uint
-	rtpTimestampFrequency uint
-	rtpPayloadFormatName  string
-	rtpInterface          *RTPInterface
-}
-
+//////// RTPSink ////////
 type IRTPSink interface {
 	RtpPayloadType() uint
 	RtpmapLine() string
@@ -22,6 +13,20 @@ type IRTPSink interface {
 	startPlaying(source IFramedSource) bool
 	stopPlaying()
 	continuePlaying()
+}
+
+type RTPSink struct {
+	MediaSink
+	ssrc                  uint
+	seqNo                 uint
+    octetCount            uint
+    packetCount           uint  // incl RTP hdr
+    totalOctetCount       uint
+	rtpPayloadType        uint
+	rtpTimestampFrequency uint
+	rtpPayloadFormatName  string
+	rtpInterface          *RTPInterface
+    transmissionStatsDB   *RTPTransmissionStatsDB
 }
 
 func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
@@ -68,4 +73,14 @@ func (this *RTPSink) RtpPayloadFormatName() string {
 
 func (this *RTPSink) RtpTimestampFrequency() uint {
 	return this.rtpTimestampFrequency
+}
+
+
+//////// RTPTransmissionStatsDB ////////
+type RTPTransmissionStatsDB struct {
+}
+
+
+//////// RTPTransmissionStats ////////
+type RTPTransmissionStats struct {
 }

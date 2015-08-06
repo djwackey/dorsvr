@@ -56,8 +56,8 @@ func NewSDESItem(tag int, value string) *SDESItem {
 		length = 0xFF // maximum data length for a SDES item
 	}
 
-	//item.data[0] = tag
-	//item.data[1] = length
+	item.data[0] = byte(tag)
+	item.data[1] = byte(length)
 	return item
 }
 

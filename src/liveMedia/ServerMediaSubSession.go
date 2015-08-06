@@ -43,14 +43,6 @@ func (this *ServerMediaSubSession) IncrTrackNumber() {
 	this.trackNumber++
 }
 
-func rangeSDPLine() string {
+func (this *ServerMediaSubSession) rangeSDPLine() string {
 	return "a=range:npt=0-\r\n"
-}
-
-func getAuxSDPLine(rtpSink *RTPSink) interface{} {
-	if rtpSink == nil {
-		return nil
-	}
-
-	return rtpSink.AuxSDPLine()
 }

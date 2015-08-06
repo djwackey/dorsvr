@@ -20,8 +20,8 @@ func NewH264VideoStreamParser() *H264VideoStreamParser {
 func (this *H264VideoStreamParser) parse(data []byte) {
 	if !this.haveSeenFirstStartCode {
 		for first4Bytes := this.test4Bytes(data); first4Bytes != 0x00000001; {
-			//this.get1Byte()
-			//this.setParseState()
+			this.get1Byte()
+			this.setParseState()
 			fmt.Println("parse", first4Bytes)
 		}
 
@@ -29,10 +29,10 @@ func (this *H264VideoStreamParser) parse(data []byte) {
 		this.haveSeenFirstStartCode = true
 	}
 
-	//if this.outputStartCodeSize > 0 && curFrameSize() == 0 && !haveSeenEOF() {
-	// Include a start code in the output:
-	//this.save4Bytes(0x00000001)
-	//}
+    if this.outputStartCodeSize > 0 && this.curFrameSize() == 0 && !this.haveSeenEOF() {
+	    // Include a start code in the output:
+	    this.save4Bytes(0x00000001)
+	}
 	/*
 	       if (haveSeenEOF()) {
 	         // We hit EOF the last time that we tried to parse this data, so we know that any remaining unparsed data
@@ -204,6 +204,7 @@ func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	h264VideoStreamFramer.parser = NewH264VideoStreamParser()
 	h264VideoStreamFramer.inputSource = inputSource
 	h264VideoStreamFramer.frameRate = 25.0
+    h264VideoStreamFramer.InitMPEGVideoStreamFramer(h264VideoStreamFramer.parser)
 	return h264VideoStreamFramer
 }
 

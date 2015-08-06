@@ -14,3 +14,10 @@
 \> make fmt
 ### Testing ###
 \> make test
+### Inheritance ###
+ServerMediaSubSession <- OnDemandServerMediaSubSession <- FileServerMediaSubSession <- H264FileMediaSubSession
+
+FramedSource <- FramedFilter <- MPEGVideoStreamFramer <- H264VideoStreamFramer
+             <- FramedFileSource <- ByteStreamFileSource
+
+MediaSink <- RTPSink <- MultiFramedRTPSink <- VideoRTPSink <- H264VideoRTPSink

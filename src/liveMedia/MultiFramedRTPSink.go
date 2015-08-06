@@ -13,11 +13,14 @@ type MultiFramedRTPSink struct {
 	RTPSink
 	outBuf                *OutPacketBuffer
 	nextSendTime          Timeval
+    noFramesLeft          bool
 	isFirstPacket         bool
 	ourMaxPacketSize      uint
 	timestampPosition     uint
 	specialHeaderSize     uint
+    numFramesUsedSoFar    uint
 	specialHeaderPosition uint
+    totalFrameSpecificHeaderSizes uint
 	onSendErrorFunc       interface{}
 }
 
@@ -35,10 +38,12 @@ func (this *MultiFramedRTPSink) setPacketSizes(preferredPacketSize, maxPacketSiz
 
 func (this *MultiFramedRTPSink) multiFramedPlaying() {
 	fmt.Println("MultiFramedRTPSink::continuePlaying")
-	this.buildAndSendPacket()
+	this.buildAndSendPacket(true)
 }
 
-func (this *MultiFramedRTPSink) buildAndSendPacket() {
+func (this *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
+    this.isFirstPacket = isFirstPacket
+
 	var rtpHdr uint = 0x80000000
 	rtpHdr |= this.rtpPayloadType << 16
 	rtpHdr |= this.seqNo
@@ -54,6 +59,11 @@ func (this *MultiFramedRTPSink) buildAndSendPacket() {
 	this.specialHeaderPosition = this.outBuf.curPacketSize()
 	this.specialHeaderSize = this.SpecialHeaderSize()
 	this.outBuf.skipBytes(this.specialHeaderSize)
+
+    // Begin packing as many (complete) frames into the packet as we can:
+    this.noFramesLeft = false
+    this.numFramesUsedSoFar = 0
+    this.totalFrameSpecificHeaderSizes = 0
 
 	this.packFrame()
 }
@@ -71,13 +81,15 @@ func (this *MultiFramedRTPSink) packFrame() {
 	}
 }
 
-func (this *MultiFramedRTPSink) afterGettingFrame() {
+func (this *MultiFramedRTPSink) afterGettingFrame(frameSize uint) {
 	fmt.Println("MultiFramedRTPSink::afterGettingFrame")
 	if this.isFirstPacket {
 		// Record the fact that we're starting to play now:
 		GetTimeOfDay(&this.nextSendTime)
 	}
-	/*
+
+    numFrameBytesToUse := frameSize
+
 	   if numFrameBytesToUse == 0 && frameSize > 0 {
 	       // Send our packet now, because we have filled it up:
 	       this.sendPacketIfNecessary()
@@ -88,7 +100,7 @@ func (this *MultiFramedRTPSink) afterGettingFrame() {
 	       // do this now, in case "doSpecialFrameHandling()" calls "setFramePadding()" to append padding bytes
 
 	       // Here's where any payload format specific processing gets done:
-	       doSpecialFrameHandling(curFragmentationOffset, frameStart, numFrameBytesToUse, presentationTime, overflowBytes)
+	       this.doSpecialFrameHandling(curFragmentationOffset, numFrameBytesToUse, overflowBytes, frameStart, presentationTime)
 
 	       this.numFramesUsedSoFar++
 
@@ -118,21 +130,19 @@ func (this *MultiFramedRTPSink) afterGettingFrame() {
 	           //this.packFrame()
 	       //}
 	   }
-	*/
 }
 
 func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 	//fmt.Println("sendPacketIfNecessary", this.outBuf.packet(), this.outBuf.curPacketSize())
-	/*
 	    if this.numFramesUsedSoFar > 0 {
 	        if !this.rtpInterface.sendPacket(this.outBuf.packet(), this.outBuf.curPacketSize()) {
 			    // if failure handler has been specified, call it
-	            if onSendErrorFunc != nil {}
+	            if this.onSendErrorFunc != nil {}
 	        }
 
 	        this.packetCount++
 	        this.totalOctetCount += this.outBuf.curPacketSize()
-	        this.OctetCount += this.outBuf.curPacketSize() - rtpHeaderSize - this.specialHeaderSize - this.totalFrameSpecificHeaderSizes
+	        this.octetCount += this.outBuf.curPacketSize() - rtpHeaderSize - this.specialHeaderSize - this.totalFrameSpecificHeaderSizes
 
 	        this.seqNo++ // for next time
 	    }
@@ -143,7 +153,7 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 	       // the overflow data (allowing for the RTP header and special headers),
 	       // so that we probably don't have to "memmove()" the overflow data
 	       // into place when building the next packet:
-	       newPacketStart = this.outBuf.curPacketSize() - (rtpHeaderSize + this.specialHeaderSize + frameSpecificHeaderSize())
+	       newPacketStart = this.outBuf.curPacketSize() - (rtpHeaderSize + this.specialHeaderSize + this.frameSpecificHeaderSize())
 	       this.outBuf.adjustPacketStart(newPacketStart)
 	   } else {
 	       // Normal case: Reset the packet start pointer back to the start:
@@ -171,14 +181,21 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 	       // Delay this amount of time:
 	       sendNext()
 	   }
-	*/
 }
 
 func (this *MultiFramedRTPSink) sendNext() {
-	this.buildAndSendPacket()
+	this.buildAndSendPacket(false)
 }
 
 func (this *MultiFramedRTPSink) SpecialHeaderSize() uint {
 	// default implementation: Assume no special header:
 	return 0
+}
+
+func (this *MultiFramedRTPSink) frameSpecificHeaderSize() uint {
+    // default implementation: Assume no frame-specific header:
+    return 0
+}
+
+func (this *MultiFramedRTPSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint, frameStart string, framePresentationTime Timeval) {
 }
