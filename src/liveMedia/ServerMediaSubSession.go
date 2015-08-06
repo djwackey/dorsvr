@@ -3,12 +3,13 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
+    "net"
 )
 
 type IServerMediaSubSession interface {
 	createNewStreamSource() IFramedSource
 	createNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
-	getStreamParameters(rtpChannelId, rtcpChannelId int) *StreamParameter
+	getStreamParameters(tcpSocketNum *net.Conn, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *StreamParameter
 	IncrTrackNumber()
 	SDPLines() string
 	CNAME() string

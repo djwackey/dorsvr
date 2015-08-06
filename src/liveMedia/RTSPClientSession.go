@@ -77,8 +77,8 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		rtcpChannelId = this.TCPStreamIdCount + 2
 	}
 
-	clientRTPPort := transportHeader.clientRTPPort
-	clientRTCPPort := transportHeader.clientRTCPPort
+	clientRTPPort := transportHeader.clientRTPPortNum
+	clientRTCPPort := transportHeader.clientRTCPPortNum
 
 	parseRangeHeader(reqStr)
 	parsePlayNowHeader(reqStr)

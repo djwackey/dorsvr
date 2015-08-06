@@ -19,10 +19,11 @@ func NewTimeCode() *TimeCode {
 
 type MPEGVideoStreamFramer struct {
 	FramedFilter
+	frameRate    uint
     tcSecsBase   uint
 	pictureCount uint
-	frameRate    float32
-    pictureTimeBase float32
+    pictureTimeBase uint
+    picturesAdjustment uint
     curGOPTimeCode TimeCode
     preGOPTimeCode TimeCode
     presentationTimeBase Timeval
@@ -43,7 +44,7 @@ func (this *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures
     // time_code, along with the "numAdditionalPictures" parameter:
     tc := this.curGOPTimeCode
 
-    var pictureTime float32
+    var pictureTime uint
     tcSecs := (((tc.days*24)+tc.hours)*60+tc.minutes)*60+tc.seconds - this.tcSecsBase
     if this.frameRate == 0.0 {
         pictureTime = 0.0
@@ -61,15 +62,15 @@ func (this *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures
     if pictureTime < 0.0 {
         pictureTime = 0.0; // sanity check
     }
-    pictureSeconds = pictureTime
-    pictureFractionOfSecond = pictureTime - pictureSeconds
+    pictureSeconds := pictureTime
+    pictureFractionOfSecond := pictureTime - pictureSeconds
 
     this.presentationTime = this.presentationTimeBase
-    this.presentationTime.tv_sec += tcSecs + pictureSeconds
-    this.presentationTime.tv_usec += (pictureFractionOfSecond*1000000.0)
-    if this.presentationTime.tv_usec >= 1000000 {
-        this.presentationTime.tv_usec -= 1000000
-        this.presentationTime.tv_sec++
+    this.presentationTime.Tv_sec += int64(tcSecs + pictureSeconds)
+    this.presentationTime.Tv_usec += int64(pictureFractionOfSecond*1000000.0)
+    if this.presentationTime.Tv_usec >= 1000000 {
+        this.presentationTime.Tv_usec -= 1000000
+        this.presentationTime.Tv_sec++
     }
 }
 
@@ -84,7 +85,7 @@ func (this *MPEGVideoStreamFramer) continueReadProcessing() {
         // We were able to acquire a frame from the input.
 	    // It has already been copied to the reader's space.
 	    this.frameSize = acquiredFrameSize
-	    this.numTruncatedBytes = this.parser.numTruncatedBytes()
+	    this.numTruncatedBytes = this.parser.NumTruncatedBytes()
 
 	    // "presentationTime" should have already been computed.
 

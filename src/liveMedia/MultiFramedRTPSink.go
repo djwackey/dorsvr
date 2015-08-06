@@ -11,15 +11,16 @@ var rtpHeaderSize int = 12
 
 type MultiFramedRTPSink struct {
 	RTPSink
-	outBuf                *OutPacketBuffer
-	nextSendTime          Timeval
-    noFramesLeft          bool
-	isFirstPacket         bool
-	ourMaxPacketSize      uint
-	timestampPosition     uint
-	specialHeaderSize     uint
-    numFramesUsedSoFar    uint
-	specialHeaderPosition uint
+	outBuf                 *OutPacketBuffer
+	nextSendTime           Timeval
+    noFramesLeft           bool
+	isFirstPacket          bool
+	ourMaxPacketSize       uint
+	timestampPosition      uint
+	specialHeaderSize      uint
+    numFramesUsedSoFar     uint
+	specialHeaderPosition  uint
+    curFragmentationOffset uint
     totalFrameSpecificHeaderSizes uint
 	onSendErrorFunc       interface{}
 }
@@ -70,7 +71,9 @@ func (this *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 
 func (this *MultiFramedRTPSink) packFrame() {
 	if this.outBuf.haveOverflowData() {
-		this.afterGettingFrame()
+        var frameSize, durationInMicroseconds uint
+        var presentationTime Timeval
+		this.afterGettingFrame(frameSize, durationInMicroseconds, presentationTime)
 	} else {
 		// Normal case: we need to read a new frame from the source
 		if this.source == nil {
@@ -81,26 +84,28 @@ func (this *MultiFramedRTPSink) packFrame() {
 	}
 }
 
-func (this *MultiFramedRTPSink) afterGettingFrame(frameSize uint) {
+func (this *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds uint, presentationTime Timeval) {
 	fmt.Println("MultiFramedRTPSink::afterGettingFrame")
 	if this.isFirstPacket {
 		// Record the fact that we're starting to play now:
 		GetTimeOfDay(&this.nextSendTime)
 	}
 
+    curFragmentationOffset := this.curFragmentationOffset
     numFrameBytesToUse := frameSize
+    var overflowBytes uint
 
 	   if numFrameBytesToUse == 0 && frameSize > 0 {
 	       // Send our packet now, because we have filled it up:
 	       this.sendPacketIfNecessary()
 	   } else {
 	       // Use this frame in our outgoing packet:
-	       frameStart = this.outBuf.curPtr()
+           frameStart := this.outBuf.curPtr()
 	       this.outBuf.increment(numFrameBytesToUse)
 	       // do this now, in case "doSpecialFrameHandling()" calls "setFramePadding()" to append padding bytes
 
 	       // Here's where any payload format specific processing gets done:
-	       this.doSpecialFrameHandling(curFragmentationOffset, numFrameBytesToUse, overflowBytes, frameStart, presentationTime)
+	       this.doSpecialFrameHandling(curFragmentationOffset, numFrameBytesToUse, overflowBytes, string(frameStart), presentationTime)
 
 	       this.numFramesUsedSoFar++
 
@@ -109,9 +114,9 @@ func (this *MultiFramedRTPSink) afterGettingFrame(frameSize uint) {
 	       // However, if this frame has overflow data remaining, then don't
 	       // count its duration yet.
 	       if overflowBytes == 0 {
-	           this.nextSendTime.tv_usec += this.durationInMicroseconds
-	           this.nextSendTime.tv_sec += this.nextSendTime.tv_usec/1000000
-	           this.nextSendTime.tv_usec %= 1000000
+	           this.nextSendTime.Tv_usec += int64(durationInMicroseconds)
+	           this.nextSendTime.Tv_sec += this.nextSendTime.Tv_usec/1000000
+	           this.nextSendTime.Tv_usec %= 1000000
 	       }
 
 	       // Send our packet now if (i) it's already at our preferred size, or
@@ -142,7 +147,7 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 
 	        this.packetCount++
 	        this.totalOctetCount += this.outBuf.curPacketSize()
-	        this.octetCount += this.outBuf.curPacketSize() - rtpHeaderSize - this.specialHeaderSize - this.totalFrameSpecificHeaderSizes
+	        this.octetCount += this.outBuf.curPacketSize() - uint(rtpHeaderSize) - this.specialHeaderSize - this.totalFrameSpecificHeaderSizes
 
 	        this.seqNo++ // for next time
 	    }
@@ -153,7 +158,7 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 	       // the overflow data (allowing for the RTP header and special headers),
 	       // so that we probably don't have to "memmove()" the overflow data
 	       // into place when building the next packet:
-	       newPacketStart = this.outBuf.curPacketSize() - (rtpHeaderSize + this.specialHeaderSize + this.frameSpecificHeaderSize())
+           newPacketStart := this.outBuf.curPacketSize() - (rtpHeaderSize + this.specialHeaderSize + this.frameSpecificHeaderSize())
 	       this.outBuf.adjustPacketStart(newPacketStart)
 	   } else {
 	       // Normal case: Reset the packet start pointer back to the start:
@@ -172,14 +177,14 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 	       // sending the next packet.
 	       var timeNow Timeval
 	       GetTimeOfDay(&timeNow)
-	       secsDiff := this.nextSendTime.tv_sec - timeNow.tv_sec
-	       uSecondsToGo = secsDiff*1000000 + (this.nextSendTime.tv_usec - timeNow.tv_usec)
+	       secsDiff := this.nextSendTime.Tv_sec - timeNow.Tv_sec
+           uSecondsToGo := secsDiff*1000000 + (this.nextSendTime.Tv_usec - timeNow.Tv_usec)
 	       if uSecondsToGo < 0 || secsDiff < 0 { // sanity check: Make sure that the time-to-delay is non-negative:
 	           uSecondsToGo = 0
 	       }
 
 	       // Delay this amount of time:
-	       sendNext()
+	       this.sendNext()
 	   }
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "groupsock"
 	"os"
+    "net"
 )
 
 type OnDemandServerMediaSubSession struct {
@@ -13,7 +14,7 @@ type OnDemandServerMediaSubSession struct {
 	portNumForSDP   int
 	initialPortNum  uint
 	lastStreamToken *StreamState
-    destinations []Destinations
+    destinations []*Destinations
 }
 
 type StreamParameter struct {
@@ -85,9 +86,9 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net
 		sp.streamToken = this.lastStreamToken
 	}
 
-    var destAddr string
-    dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
-    this.destinations.append(dests)
+    //var destAddr string
+    //dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
+    //append(this.destinations, dests)
 
 	return sp
 }
@@ -158,7 +159,7 @@ func (this *OnDemandServerMediaSubSession) pauseStream(streamState *StreamState)
 }
 
 func (this *OnDemandServerMediaSubSession) deleteStream(streamState *StreamState) {
-	streamState.endPlaying()
+	streamState.endPlaying(nil)
 }
 
 

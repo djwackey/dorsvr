@@ -17,9 +17,9 @@ func NewH264VideoStreamParser() *H264VideoStreamParser {
 	return new(H264VideoStreamParser)
 }
 
-func (this *H264VideoStreamParser) parse(data []byte) {
+func (this *H264VideoStreamParser) parse() uint {
 	if !this.haveSeenFirstStartCode {
-		for first4Bytes := this.test4Bytes(data); first4Bytes != 0x00000001; {
+		for first4Bytes := this.test4Bytes(); first4Bytes != 0x00000001; {
 			this.get1Byte()
 			this.setParseState()
 			fmt.Println("parse", first4Bytes)
@@ -29,7 +29,7 @@ func (this *H264VideoStreamParser) parse(data []byte) {
 		this.haveSeenFirstStartCode = true
 	}
 
-    if this.outputStartCodeSize > 0 && this.curFrameSize() == 0 && !this.haveSeenEOF() {
+    if this.outputStartCodeSize > 0 && this.curFrameSize() == 0 && !this.HaveSeenEOF() {
 	    // Include a start code in the output:
 	    this.save4Bytes(0x00000001)
 	}
@@ -181,7 +181,7 @@ func (this *H264VideoStreamParser) parse(data []byte) {
 	       setParseState()
 
 	       return curFrameSize()*/
-	//return 0
+	return 0
 }
 
 func (this *H264VideoStreamParser) analyzeSPSData() {

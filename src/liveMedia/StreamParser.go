@@ -18,12 +18,13 @@ func (sp *StreamParser) get2Bytes() {
 	sp.curParserIndex += 2
 }
 
-func (sp *StreamParser) get1Bytes() {
+func (sp *StreamParser) get1Byte() {
 	sp.curParserIndex++
-	fmt.Println("get1Bytes")
+	fmt.Println("get1Byte")
 }
 
-func (sp *StreamParser) test4Bytes(bytes []byte) byte {
+func (sp *StreamParser) test4Bytes() byte {
+    var bytes []byte
 	return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]
 }
 
@@ -35,7 +36,7 @@ func (sp *StreamParser) curBank() []byte {
     return sp.bank
 }
 
-func (sp *StreamParser) haveSeenEOF() bool {
+func (sp *StreamParser) HaveSeenEOF() bool {
     return sp.haveSeenEOF
 }
 

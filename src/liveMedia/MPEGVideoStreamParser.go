@@ -11,7 +11,7 @@ func (this *MPEGVideoStreamParser) registerReadInterest(to []byte, maxSize uint)
 	//fLimit = to + maxSize
 }
 
-func (this *MPEGVideoStreamParser) numTruncatedBytes() uint {
+func (this *MPEGVideoStreamParser) NumTruncatedBytes() uint {
     return this.numTruncatedBytes
 }
 

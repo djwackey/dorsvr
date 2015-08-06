@@ -2,6 +2,7 @@ package liveMedia
 
 import (
 //"fmt"
+    . "include"
 )
 
 type IFramedSource interface {
@@ -16,7 +17,10 @@ type FramedSource struct {
 	source                 IFramedSource
 	buffTo                 []byte
 	maxSize                uint
+    frameSize              uint
+    numTruncatedBytes      uint
 	durationInMicroseconds uint
+    presentationTime       Timeval
 }
 
 func (this *FramedSource) InitFramedSource(source IFramedSource) {

@@ -73,7 +73,6 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, length int) {
 					for {
 						sessionId = OurRandom32()
 						sessionIdStr = fmt.Sprintf("%08X", sessionId)
-                        this.sessionIdStr = sessionIdStr
 
 						if _, existed = this.rtspServer.clientSessions[sessionIdStr]; !existed {
 							break
@@ -108,7 +107,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, length int) {
 		if parseSucceeded {
 			switch requestString.cmdName {
 			case "GET":
-				this.handleHTTPCommandTunnelingGET()
+				this.handleHTTPCommandTunnelingGET("")
 			case "POST":
 				this.handleHTTPCommandTunnelingPOST()
 			default:
