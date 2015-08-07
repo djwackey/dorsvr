@@ -169,8 +169,7 @@ func parseTransportHeader(reqStr string) *TransportHeader {
 
 	for {
 		// First, find "Transport:"
-		index := strings.Index(reqStr, "Transport:")
-		if index == -1 {
+		if index := strings.Index(reqStr, "Transport:"); index == -1 {
 			break
 		}
 

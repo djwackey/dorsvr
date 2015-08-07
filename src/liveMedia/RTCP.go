@@ -38,6 +38,7 @@ var preferredPacketSize uint = 1000 // bytes
 type RTCPInstance struct {
 	typeOfEvent    int
 	totSessionBW   uint
+    inBuf          []byte
 	CNAME          *SDESItem
 	Sink           *RTPSink
 	Source         *RTPSource
@@ -69,8 +70,10 @@ func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPIn
 	rtcp := new(RTCPInstance)
 	rtcp.typeOfEvent = EVENT_REPORT
 	rtcp.totSessionBW = totSessionBW
-	rtcp.outBuf = NewOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
 	rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
+
+    rtcp.inBuf = make([]byte, maxRTCPPacketSize)
+	rtcp.outBuf = NewOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
 
 	rtcp.rtcpInterface = NewRTPInterface(rtcp, rtcpGS)
 	rtcp.rtcpInterface.startNetworkReading()
@@ -95,6 +98,7 @@ func (this *RTCPInstance) setRRHandler() {
 }
 
 func (this *RTCPInstance) incomingReportHandler() {
+    readResult := this.rtcpInterface.handleRead()
 }
 
 func (this *RTCPInstance) onReceive() {

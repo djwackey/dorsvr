@@ -8,8 +8,12 @@ import (
 
 type ByteStreamFileSource struct {
 	FramedFileSource
-	presentationTime Timeval
-	fileSize         int64
+	presentationTime   Timeval
+	fileSize           int64
+    lastPlayTime       uint
+    playTimePerFrame   uint
+    preferredFrameSize uint
+    haveStartedReading bool
 }
 
 func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
@@ -40,17 +44,43 @@ func (this *ByteStreamFileSource) getNextFrame(buffTo []byte, maxSize uint, afte
 	}
 }
 
-func (this *ByteStreamFileSource) doReadFromFile() bool {
+func (this *ByteStreamFileSource) doStopGettingFrames() {
 	//defer this.fid.Close()
+    this.haveStartedReading = false
+}
+
+func (this *ByteStreamFileSource) doReadFromFile() bool {
 	readBytes, err := this.fid.Read(this.buffTo)
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
 
-	fmt.Println(readBytes)
+    //fmt.Println(readBytes)
 	//fmt.Println(this.buffTo)
-	GetTimeOfDay(&this.presentationTime)
+
+    // Set the 'presentation time':
+    if this.playTimePerFrame > 0 && this.preferredFrameSize > 0) {
+        if this.presentationTime.Tv_sec == 0 && this.presentationTime.Tv_usec == 0) {
+            // This is the first frame, so use the current time:
+            GetTimeOfDay(&this.presentationTime)
+        } else {
+            // Increment by the play time of the previous data:
+            uSeconds := this.presentationTime.Tv_usec + this.lastPlayTime
+            this.presentationTime.tv_sec += uSeconds/1000000
+            this.presentationTime.Tv_usec = uSeconds%1000000
+        }
+
+        // Remember the play time of this data:
+        this.lastPlayTime = (this.playTimePerFrame * this.frameSize)/this.preferredFrameSize
+        this.durationInMicroseconds = this.lastPlayTime
+    } else {
+        // We don't know a specific play time duration for this data,
+        // so just record the current time as being the 'presentation time':
+        GetTimeOfDay(&this.presentationTime)
+    }
+
+    this.afterGetting()
 	return true
 }
 
