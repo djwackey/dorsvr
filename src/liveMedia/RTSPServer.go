@@ -147,13 +147,16 @@ func (this *RTSPServer) AddServerMediaSession(serverMediaSession *ServerMediaSes
 
 	// in case an existing "ServerMediaSession" with this name already exists
 	session, _ := this.serverMediaSessions[sessionName]
-	this.RemoveServerMediaSession(session)
+	if session != nil {
+		this.RemoveServerMediaSession(session)
+	}
 
 	this.serverMediaSessions[sessionName] = serverMediaSession
 }
 
 func (this *RTSPServer) RemoveServerMediaSession(serverMediaSession *ServerMediaSession) {
-	//delete(this.serverMediaSessions, serverMediaSession)
+	sessionName := serverMediaSession.StreamName()
+	delete(this.serverMediaSessions, sessionName)
 }
 
 func (this *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {

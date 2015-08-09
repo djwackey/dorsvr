@@ -2,7 +2,7 @@ package liveMedia
 
 type MPEGVideoStreamParser struct {
 	StreamParser
-    numTruncatedBytes uint
+	numTruncatedBytes uint
 }
 
 func (this *MPEGVideoStreamParser) registerReadInterest(to []byte, maxSize uint) {
@@ -12,16 +12,16 @@ func (this *MPEGVideoStreamParser) registerReadInterest(to []byte, maxSize uint)
 }
 
 func (this *MPEGVideoStreamParser) NumTruncatedBytes() uint {
-    return this.numTruncatedBytes
+	return this.numTruncatedBytes
 }
 
 func (this *MPEGVideoStreamParser) save4Bytes(word uint) {
 }
 
 func (this *MPEGVideoStreamParser) curFrameSize() uint {
-    return 0
+	return 0
 }
 
 func (this *MPEGVideoStreamParser) setParseState() {
-    this.saveParserState()
+	this.saveParserState()
 }

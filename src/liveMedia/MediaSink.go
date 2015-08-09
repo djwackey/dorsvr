@@ -48,7 +48,7 @@ func (this *OutPacketBuffer) curPacketSize() uint {
 }
 
 func (this *OutPacketBuffer) totalBufferSize() uint {
-    return this.limit
+	return this.limit
 }
 
 func (this *OutPacketBuffer) increment(numBytes uint) {

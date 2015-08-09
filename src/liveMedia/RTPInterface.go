@@ -5,9 +5,9 @@ import (
 )
 
 type RTPInterface struct {
-	gs    *GroupSock
-	owner interface{}
-    nextTCPReadStreamSocketNum int
+	gs                         *GroupSock
+	owner                      interface{}
+	nextTCPReadStreamSocketNum int
 }
 
 func NewRTPInterface(owner interface{}, gs *GroupSock) *RTPInterface {
@@ -31,5 +31,6 @@ func (this *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
 	return this.gs.Output(packet, packetSize, this.gs.TTL())
 }
 
-func (this *RTPInterface) handRead() bool {
+func (this *RTPInterface) handleRead() bool {
+	return true
 }

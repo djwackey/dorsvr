@@ -7,17 +7,17 @@ import (
 
 //////// StreamState ////////
 type StreamState struct {
-	master         IServerMediaSubSession
-	rtpSink        IRTPSink
-	udpSink        *BasicUDPSink
-	rtpGS          *GroupSock
-	rtcpGS         *GroupSock
-	rtcpInstance   *RTCPInstance
-	mediaSource    IFramedSource
-	serverRTPPort  uint
-	serverRTCPPort uint
-	totalBW        uint
-    areCurrentlyPlaying bool
+	master              IServerMediaSubSession
+	rtpSink             IRTPSink
+	udpSink             *BasicUDPSink
+	rtpGS               *GroupSock
+	rtcpGS              *GroupSock
+	rtcpInstance        *RTCPInstance
+	mediaSource         IFramedSource
+	serverRTPPort       uint
+	serverRTCPPort      uint
+	totalBW             uint
+	areCurrentlyPlaying bool
 }
 
 func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW uint, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
@@ -49,15 +49,15 @@ func (this *StreamState) startPlaying() {
 		this.rtcpInstance.setSpecificRRHandler()
 	}
 
-    if !this.areCurrentlyPlaying && this.mediaSource != nil {
-	    if this.rtpSink != nil {
-		    this.rtpSink.startPlaying(this.mediaSource)
-            this.areCurrentlyPlaying = true
-	    } else if this.udpSink != nil {
-            this.areCurrentlyPlaying = true
-		    this.udpSink.startPlaying(this.mediaSource)
-	    }
-    }
+	if !this.areCurrentlyPlaying && this.mediaSource != nil {
+		if this.rtpSink != nil {
+			this.rtpSink.startPlaying(this.mediaSource)
+			this.areCurrentlyPlaying = true
+		} else if this.udpSink != nil {
+			this.areCurrentlyPlaying = true
+			this.udpSink.startPlaying(this.mediaSource)
+		}
+	}
 }
 
 func (this *StreamState) pause() {
@@ -67,16 +67,16 @@ func (this *StreamState) pause() {
 	if this.udpSink != nil {
 		this.udpSink.stopPlaying()
 	}
-    this.areCurrentlyPlaying = false
+	this.areCurrentlyPlaying = false
 }
 
 func (this *StreamState) endPlaying(dests *Destinations) {
-    if this.rtpSink != nil {
-        this.rtpSink.removeStreamSocket()
-    }
-    if this.rtcpInstance != nil {
-        this.rtcpInstance.unsetSpecificRRHandler()
-    }
+	if this.rtpSink != nil {
+		//this.rtpSink.removeStreamSocket()
+	}
+	if this.rtcpInstance != nil {
+		this.rtcpInstance.unsetSpecificRRHandler()
+	}
 }
 
 func (this *StreamState) ServerRTPPort() uint {

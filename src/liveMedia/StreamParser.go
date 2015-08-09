@@ -6,8 +6,8 @@ import (
 
 type StreamParser struct {
 	curParserIndex uint
-    haveSeenEOF bool
-    bank []byte
+	haveSeenEOF    bool
+	bank           []byte
 }
 
 func (sp *StreamParser) get4Bytes() {
@@ -24,7 +24,7 @@ func (sp *StreamParser) get1Byte() {
 }
 
 func (sp *StreamParser) test4Bytes() byte {
-    var bytes []byte
+	var bytes []byte
 	return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]
 }
 
@@ -33,11 +33,11 @@ func (sp *StreamParser) skipBytes(numBytes uint) {
 }
 
 func (sp *StreamParser) curBank() []byte {
-    return sp.bank
+	return sp.bank
 }
 
 func (sp *StreamParser) HaveSeenEOF() bool {
-    return sp.haveSeenEOF
+	return sp.haveSeenEOF
 }
 
 func (sp *StreamParser) saveParserState() {

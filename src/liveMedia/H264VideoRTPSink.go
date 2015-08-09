@@ -1,6 +1,7 @@
 package liveMedia
 
 import (
+	"encoding/base64"
 	"fmt"
 	. "groupsock"
 )
@@ -9,8 +10,10 @@ import (
 type H264VideoRTPSink struct {
 	VideoRTPSink
 	ourFragmenter *H264FUAFragmenter
-	SPS           int
-	PPS           int
+	sps           string
+	pps           string
+	spsSize       int
+	ppsSize       int
 }
 
 func NewH264VideoRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) *H264VideoRTPSink {
@@ -30,6 +33,30 @@ func (this *H264VideoRTPSink) continuePlaying() {
 	this.source = this.ourFragmenter
 
 	this.multiFramedPlaying()
+}
+
+func (this *H264VideoRTPSink) AuxSDPLine() string {
+	sps := this.sps
+	pps := this.pps
+	spsSize := this.spsSize
+	//ppsSize := this.ppsSize
+	if sps == "" || pps == "" {
+		if this.ourFragmenter == nil {
+			return ""
+		}
+	}
+
+	spsBase64 := base64.NewEncoding(sps)
+	ppsBase64 := base64.NewEncoding(pps)
+
+	var profileLevelId uint8
+	if spsSize >= 4 {
+		profileLevelId = (sps[1] << 16) | (sps[2] << 8) | sps[3] // profile_idc|constraint_setN_flag|level_idc
+	}
+
+	fmtpFmt := "a=fmtp:%d packetization-mode=1;profile-level-id=%06X;sprop-parameter-sets=%s,%s\r\n"
+	fmt.Sprintf(fmtpFmt, this.RtpPayloadType(), profileLevelId, spsBase64, ppsBase64)
+	return ""
 }
 
 //////// H264FUAFragmenter ////////

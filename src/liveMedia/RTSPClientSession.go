@@ -2,8 +2,8 @@ package liveMedia
 
 import (
 	"fmt"
-	"time"
 	"net"
+	"time"
 )
 
 type RTSPClientSession struct {
@@ -41,8 +41,6 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 
 	var rtpChannelId, rtcpChannelId, streamingMode int
 
-	fmt.Println("LookupServerMediaSession", streamName)
-
 	sms := this.rtspServer.LookupServerMediaSession(streamName)
 	if sms == nil {
 		if this.serverMediaSession == nil {
@@ -52,7 +50,6 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		}
 		return
 	}
-	//fmt.Println("HandleCommandSetup")
 
 	if this.serverMediaSession == nil {
 		this.serverMediaSession = sms
@@ -85,17 +82,21 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 
 	subsession := this.streamStates.subsession
 
-	var destAddrStr, sourceAddrStr, streamingModeStr string
-	var serverRTPPort, serverRTCPPort int
+	var streamingModeStr string
+
+	sourceAddrStr := this.rtspClientConn.localAddr
+	destAddrStr := this.rtspClientConn.remoteAddr
 
 	var tcpSocketNum *net.Conn
 	if streamingMode == RTP_TCP {
-	    tcpSocketNum = &this.rtspClientConn.clientOutputSocket
+		tcpSocketNum = &this.rtspClientConn.clientOutputSocket
 	}
 
 	streamParameter := subsession.getStreamParameters(tcpSocketNum, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
+	serverRTPPort := streamParameter.serverRTPPort
+	serverRTCPPort := streamParameter.serverRTCPPort
 
-	fmt.Println("RTSPClientSession::getStreamParameters", streamParameter, transportHeader)
+	//fmt.Println("RTSPClientSession::getStreamParameters", streamParameter, transportHeader)
 
 	this.streamStates.streamToken = streamParameter.streamToken
 

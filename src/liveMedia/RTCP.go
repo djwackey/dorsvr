@@ -1,6 +1,7 @@
 package liveMedia
 
 import (
+	"fmt"
 	. "groupsock"
 )
 
@@ -38,7 +39,7 @@ var preferredPacketSize uint = 1000 // bytes
 type RTCPInstance struct {
 	typeOfEvent    int
 	totSessionBW   uint
-    inBuf          []byte
+	inBuf          []byte
 	CNAME          *SDESItem
 	Sink           *RTPSink
 	Source         *RTPSource
@@ -57,8 +58,7 @@ func NewSDESItem(tag int, value string) *SDESItem {
 		length = 0xFF // maximum data length for a SDES item
 	}
 
-	item.data[0] = byte(tag)
-	item.data[1] = byte(length)
+	item.data = []byte{byte(tag), byte(length)}
 	return item
 }
 
@@ -72,7 +72,7 @@ func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPIn
 	rtcp.totSessionBW = totSessionBW
 	rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
 
-    rtcp.inBuf = make([]byte, maxRTCPPacketSize)
+	rtcp.inBuf = make([]byte, maxRTCPPacketSize)
 	rtcp.outBuf = NewOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
 
 	rtcp.rtcpInterface = NewRTPInterface(rtcp, rtcpGS)
@@ -98,7 +98,8 @@ func (this *RTCPInstance) setRRHandler() {
 }
 
 func (this *RTCPInstance) incomingReportHandler() {
-    readResult := this.rtcpInterface.handleRead()
+	readResult := this.rtcpInterface.handleRead()
+	fmt.Println(readResult)
 }
 
 func (this *RTCPInstance) onReceive() {
@@ -146,4 +147,7 @@ func (this *RTCPInstance) addSR() {
 }
 
 func (this *RTCPInstance) addRR() {
+}
+
+func (this *RTCPInstance) unsetSpecificRRHandler() {
 }

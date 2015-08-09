@@ -3,8 +3,8 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
+	"net"
 	"os"
-    "net"
 )
 
 type OnDemandServerMediaSubSession struct {
@@ -14,7 +14,7 @@ type OnDemandServerMediaSubSession struct {
 	portNumForSDP   int
 	initialPortNum  uint
 	lastStreamToken *StreamState
-    destinations []*Destinations
+	destinations    []*Destinations
 }
 
 type StreamParameter struct {
@@ -86,16 +86,16 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net
 		sp.streamToken = this.lastStreamToken
 	}
 
-    //var destAddr string
-    //dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
-    //append(this.destinations, dests)
+	//var destAddr string
+	//dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
+	//append(this.destinations, dests)
 
 	return sp
 }
 
-func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink IRTPSink) interface{} {
+func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink IRTPSink) string {
 	if rtpSink == nil {
-		return nil
+		return ""
 	}
 
 	return rtpSink.AuxSDPLine()
@@ -106,8 +106,8 @@ func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink IRTPSi
 		return
 	}
 
-	mediaType      := rtpSink.SdpMediaType()
-	rtpmapLine     := rtpSink.RtpmapLine()
+	mediaType := rtpSink.SdpMediaType()
+	rtpmapLine := rtpSink.RtpmapLine()
 	rtpPayloadType := rtpSink.RtpPayloadType()
 
 	rangeLine := this.rangeSDPLine()
@@ -138,14 +138,6 @@ func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink IRTPSi
 		this.TrackId())
 }
 
-func (this *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink *RTPSink) string {
-	if rtpSink == nil {
-		return ""
-	} else {
-		return rtpSink.AuxSDPLine()
-	}
-}
-
 func (this *OnDemandServerMediaSubSession) CNAME() string {
 	return this.cname
 }
@@ -162,25 +154,24 @@ func (this *OnDemandServerMediaSubSession) deleteStream(streamState *StreamState
 	streamState.endPlaying(nil)
 }
 
-
 //////// Destinations ////////
 type Destinations struct {
-    isTCP bool
-    addr string
-    rtpPort int
-    rtcpPort int
-    rtpChannelId int
-    rtcpChannelId int
-    tcpSocketNum *net.Conn
+	isTCP         bool
+	addr          string
+	rtpPort       int
+	rtcpPort      int
+	rtpChannelId  int
+	rtcpChannelId int
+	tcpSockNum    *net.Conn
 }
 
 func NewDestinations(tcpSockNum *net.Conn, destAddr string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *Destinations {
-    destinations := new(Destinations)
-    destinations.tcpSockNum = tcpSockNum
-    destinations.addr = destAddr
-    destinations.rtpPort = clientRTPPort
-    destinations.rtcpPort = clientRTCPPort
-    destinations.rtpChannelId = rtpChannelId
-    destinations.rtcpChannelId = rtcpChannelId
-    return destinations
+	destinations := new(Destinations)
+	destinations.tcpSockNum = tcpSockNum
+	destinations.addr = destAddr
+	destinations.rtpPort = clientRTPPort
+	destinations.rtcpPort = clientRTCPPort
+	destinations.rtpChannelId = rtpChannelId
+	destinations.rtcpChannelId = rtcpChannelId
+	return destinations
 }

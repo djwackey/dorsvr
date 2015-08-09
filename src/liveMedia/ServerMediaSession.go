@@ -27,6 +27,7 @@ func NewServerMediaSession(description, streamName string) *ServerMediaSession {
 	serverMediaSession := new(ServerMediaSession)
 	serverMediaSession.descSDPStr = description + ", streamed by the Dor Media Server"
 	serverMediaSession.infoSDPStr = streamName
+	serverMediaSession.streamName = streamName
 	serverMediaSession.subSessions = make([]IServerMediaSubSession, 1024*1024)
 	serverMediaSession.ipAddr, _ = OurIPAddress()
 
@@ -81,9 +82,9 @@ func (this *ServerMediaSession) GenerateSDPDescription() string {
 
 	// Then, add the (media-level) lines for each subsession:
 	for i := 0; i < this.subsessionCounter; i++ {
-        sdpLines := this.subSessions[i].SDPLines()
-        sdp += sdpLines
-    }
+		sdpLines := this.subSessions[i].SDPLines()
+		sdp += sdpLines
+	}
 
 	return sdp
 }

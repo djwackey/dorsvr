@@ -169,22 +169,18 @@ func parseTransportHeader(reqStr string) *TransportHeader {
 
 	for {
 		// First, find "Transport:"
-		if index := strings.Index(reqStr, "Transport:"); index == -1 {
+		index := strings.Index(reqStr, "Transport:")
+		if index == -1 {
 			break
 		}
 
-		fields := reqStr[10:]
-		var p1, p2, rtpCid, rtcpCid, ttl string
-		var field string
-		for {
-			num, err := fmt.Sscanf(fields, "%[^;\r\n]", &field)
-			if err != nil {
-				break
-			}
+		var p1, p2, rtpCid, rtcpCid, ttl, num int
 
-			if num != 1 {
-				break
-			}
+		tranStr := reqStr[index+10:]
+		fields := strings.Split(tranStr, ";")
+
+		for _, field := range fields {
+			field = strings.TrimSpace(field)
 
 			if strings.EqualFold(field, "RTP/AVP/TCP") {
 				header.streamingMode = RTP_TCP
@@ -194,37 +190,25 @@ func parseTransportHeader(reqStr string) *TransportHeader {
 				header.streamingModeStr = field
 			} else if strings.Index(field, "destination=") != -1 {
 				header.destinationAddr = field[12:]
-			} else if num, _ = fmt.Sscanf("ttl%d", ttl); num == 1 {
-				header.destinationTTL, _ = strconv.Atoi(ttl)
-			} else if num, _ = fmt.Sscanf("client_port=%d-%d", p1, p2); num == 2 {
-				header.clientRTPPortNum, _ = strconv.Atoi(p1)
+			} else if num, _ = fmt.Sscanf(field, "ttl%d", &ttl); num == 1 {
+				header.destinationTTL = ttl
+			} else if num, _ = fmt.Sscanf(field, "client_port=%d-%d", &p1, &p2); num == 2 {
+				header.clientRTPPortNum = p1
 				if header.streamingMode == RAW_UDP {
 					header.clientRTCPPortNum = 0
 				} else {
-					header.clientRTCPPortNum, _ = strconv.Atoi(p2)
+					header.clientRTCPPortNum = p2
 				}
-			} else if num, _ = fmt.Sscanf("client_port=%s", p1); num == 1 {
-				header.clientRTPPortNum, _ = strconv.Atoi(p1)
+			} else if num, _ = fmt.Sscanf(field, "client_port=%s", &p1); num == 1 {
+				header.clientRTPPortNum = p1
 				if header.streamingMode == RAW_UDP {
 					header.clientRTCPPortNum = 0
 				} else {
-					header.clientRTCPPortNum, _ = strconv.Atoi(p1)
+					header.clientRTCPPortNum = p1
 				}
-			} else if num, _ = fmt.Sscanf("interleaved=%d-%d", rtpCid, rtcpCid); num == 2 {
-				header.rtpChannelId, _ = strconv.Atoi(rtpCid)
-				header.rtcpChannelId, _ = strconv.Atoi(rtcpCid)
-			}
-
-			fields = fields[len(field):]
-			i := 0
-			for {
-				if string(fields[i]) != ";" {
-					break
-				}
-				i++
-			}
-			if string(fields[i]) == "\r" || string(fields[i]) == "\n" {
-				break
+			} else if num, _ = fmt.Sscanf(field, "interleaved=%d-%d", &rtpCid, &rtcpCid); num == 2 {
+				header.rtpChannelId = rtpCid
+				header.rtcpChannelId = rtcpCid
 			}
 		}
 		break
