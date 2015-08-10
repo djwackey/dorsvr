@@ -13,6 +13,7 @@ type MultiFramedRTPSink struct {
 	RTPSink
 	outBuf                        *OutPacketBuffer
 	nextSendTime                  Timeval
+    currentTimestamp              byte
 	noFramesLeft                  bool
 	isFirstPacket                 bool
 	ourMaxPacketSize              uint
@@ -71,8 +72,11 @@ func (this *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 
 func (this *MultiFramedRTPSink) packFrame() {
 	if this.outBuf.haveOverflowData() {
-		var frameSize, durationInMicroseconds uint
-		var presentationTime Timeval
+        // Use this frame before reading a new one from the source
+        frameSize := this.outBuf.overflowDataSize()
+        presentationTime := this.outBuf.overflowPresentationTime()
+        durationInMicroseconds := this.outBuf.overflowDurationInMicroseconds()
+        this.outBuf.useOverflowData()
 		this.afterGettingFrame(frameSize, durationInMicroseconds, presentationTime)
 	} else {
 		// Normal case: we need to read a new frame from the source
@@ -125,15 +129,15 @@ func (this *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseco
 		// (iii) it contains the last fragment of a fragmented frame, and we
 		//      don't allow anything else to follow this or
 		// (iv) one frame per packet is allowed:
-		//if this.outBuf.isPreferredSize() ||
-		//this.outBuf.wouldOverflow(numFrameBytesToUse) ||
-		//this.previousFrameEndedFragmentation && !allowOtherFramesAfterLastFragment() || !frameCanAppearAfterPacketStart(fOutBuf->curPtr() - frameSize, frameSize) {
-		// The packet is ready to be sent now
-		//this.sendPacketIfNecessary()
-		//} else {
-		// There's room for more frames; try getting another:
-		//this.packFrame()
-		//}
+		if this.outBuf.isPreferredSize() ||
+		   this.outBuf.wouldOverflow(numFrameBytesToUse) ||
+		   this.previousFrameEndedFragmentation && !this.allowOtherFramesAfterLastFragment() || !this.frameCanAppearAfterPacketStart(this.outBuf.curPtr() - frameSize, frameSize) {
+		    // The packet is ready to be sent now
+		    this.sendPacketIfNecessary()
+		} else {
+		    // There's room for more frames; try getting another:
+		    this.packFrame()
+		}
 	}
 }
 
@@ -193,6 +197,18 @@ func (this *MultiFramedRTPSink) sendNext() {
 	this.buildAndSendPacket(false)
 }
 
+func (this *MultiFramedRTPSink) isFirstFrameInPacket() {
+    return this.numFramesUsedSoFar == 0
+}
+
+func (this *MultiFramedRTPSink) setTimestamp(framePresentationTime Timeval) {
+    // First, convert the presentation time to a 32-bit RTP timestamp:
+    this.currentTimestamp = this.convertToRTPTimestamp(framePresentationTime)
+
+    // Then, insert it into the RTP packet:
+    this.outBuf.insertWord(this.currentTimestamp, this.timestampPosition)
+}
+
 func (this *MultiFramedRTPSink) SpecialHeaderSize() uint {
 	// default implementation: Assume no special header:
 	return 0
@@ -204,4 +220,7 @@ func (this *MultiFramedRTPSink) frameSpecificHeaderSize() uint {
 }
 
 func (this *MultiFramedRTPSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint, frameStart string, framePresentationTime Timeval) {
+    if this.isFirstFrameInPacket() {
+        this.setTimestamp(framePresentationTime)
+    }
 }

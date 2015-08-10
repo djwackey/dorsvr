@@ -44,6 +44,13 @@ func (this *H264VideoRTPSink) AuxSDPLine() string {
 		if this.ourFragmenter == nil {
 			return ""
 		}
+
+        framerSource := this.ourFragmenter.inputSource()
+        if framerSource == nil {
+            return ""
+        }
+
+        framerSource.getSPSandPPS()
 	}
 
 	spsBase64 := base64.NewEncoding(sps)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+    . "include"
 )
 
 var OutPacketBufferMaxSize uint = 60000 // default
@@ -18,6 +19,7 @@ type OutPacketBuffer struct {
 	maxPacketSize      uint
 	overflowDataSize   uint
 	overflowDataOffset uint
+    overflowPresentationTime Timeval
 }
 
 func NewOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffer {
@@ -27,7 +29,6 @@ func NewOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffe
 
 	maxNumPackets := (OutPacketBufferMaxSize - (maxPacketSize - 1)) / maxPacketSize
 	outPacketBuffer.limit = maxNumPackets * maxPacketSize
-	fmt.Println(outPacketBuffer.limit)
 	outPacketBuffer.buff = make([]byte, outPacketBuffer.limit)
 	outPacketBuffer.resetOffset()
 	outPacketBuffer.resetPacketStart()
@@ -89,6 +90,24 @@ func (this *OutPacketBuffer) enqueueWord(word uint) {
 	buf := bytes.NewBuffer([]byte{})
 	binary.Write(buf, binary.BigEndian, word)
 	this.enqueue(buf.Bytes(), 4)
+}
+
+func (this *OutPacketBuffer) insert(from []byte, numBytes, toPosition uint) {
+    realToPosition := this.packetStart + toPosition
+    if realToPosition + numBytes > this.limit {
+        if realToPosition > this.limit {
+            return    // we can't do this
+        }
+        numBytes = this.limit - realToPosition
+    }
+
+    //memmove(&fBuf[realToPosition], from, numBytes)
+    if toPosition + numBytes > this.curOffset {
+        this.curOffset = toPosition + numBytes
+    }
+}
+
+func (this *OutPacketBuffer) insertWord(word byte, toPosition uint) {
 }
 
 func (this *OutPacketBuffer) skipBytes(numBytes uint) {

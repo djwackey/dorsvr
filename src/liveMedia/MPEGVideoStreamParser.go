@@ -3,6 +3,7 @@ package liveMedia
 type MPEGVideoStreamParser struct {
 	StreamParser
 	numTruncatedBytes uint
+    usingSource       *H264VideoStreamFramer
 }
 
 func (this *MPEGVideoStreamParser) registerReadInterest(to []byte, maxSize uint) {
