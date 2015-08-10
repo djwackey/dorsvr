@@ -8,6 +8,7 @@ import (
 type IFramedSource interface {
 	getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{})
 	afterGetting()
+	//getSPSandPPS()
 	//stopGettingFrames()
 }
 

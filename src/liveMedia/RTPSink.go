@@ -3,6 +3,7 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
+	. "include"
 )
 
 //////// RTPSink ////////
@@ -72,21 +73,21 @@ func (this *RTPSink) RtpTimestampFrequency() uint {
 	return this.rtpTimestampFrequency
 }
 
-func (this *RTPSink) convertToRTPTimestamp(struct timeval tv) {
-    // Begin by converting from "struct timeval" units to RTP timestamp units:
-    timestampIncrement = this.timestampFrequency * tv.Tv_sec
-    timestampIncrement += (2.0*this.timestampFrequency*tv.Tv_usec + 1000000.0)/2000000
+func (this *RTPSink) convertToRTPTimestamp(tv Timeval) {
+	// Begin by converting from "struct timeval" units to RTP timestamp units:
+	timestampIncrement = this.timestampFrequency * tv.Tv_sec
+	timestampIncrement += (2.0*this.timestampFrequency*tv.Tv_usec + 1000000.0) / 2000000
 
-    // Then add this to our 'timestamp base':
-    if this.nextTimestampHasBeenPreset {
-        // Make the returned timestamp the same as the current "fTimestampBase",
-        // so that timestamps begin with the value that was previously preset:
-        this.timestampBase -= timestampIncrement
-        this.nextTimestampHasBeenPreset = false
-    }
+	// Then add this to our 'timestamp base':
+	if this.nextTimestampHasBeenPreset {
+		// Make the returned timestamp the same as the current "fTimestampBase",
+		// so that timestamps begin with the value that was previously preset:
+		this.timestampBase -= timestampIncrement
+		this.nextTimestampHasBeenPreset = false
+	}
 
-    rtpTimestamp = this.timestampBase + timestampIncrement
-    return rtpTimestamp
+	rtpTimestamp = this.timestampBase + timestampIncrement
+	return rtpTimestamp
 }
 
 //////// RTPTransmissionStatsDB ////////

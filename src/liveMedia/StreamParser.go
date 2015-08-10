@@ -18,9 +18,10 @@ func (sp *StreamParser) get2Bytes() {
 	sp.curParserIndex += 2
 }
 
-func (sp *StreamParser) get1Byte() {
+func (sp *StreamParser) get1Byte() byte {
 	sp.curParserIndex++
 	fmt.Println("get1Byte")
+	return 0
 }
 
 func (sp *StreamParser) test4Bytes() byte {
