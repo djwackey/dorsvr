@@ -272,20 +272,32 @@ func parseRangeParam(paramStr string) *RangeHeader {
 	return rangeHeader
 }
 
-func parseRangeHeader(buf string) *RangeHeader {
-	// First, find "Range:"
-	var finded bool
-	for i := 0; i < len(buf); i++ {
-		if strings.EqualFold(buf, "Range: ") {
-			finded = true
-			break
-		}
-	}
-	if !finded {
-		return nil
-	}
+func parseRangeHeader(buf string) (*RangeHeader, bool) {
+    rangeParam := nil
+    var result bool
 
-	return parseRangeParam(buf)
+    for {
+	    // First, find "Range:"
+	    var finded bool
+	    for i := 0; i < len(buf); i++ {
+		    if strings.EqualFold(buf, "Range: ") {
+			    finded = true
+			    break
+		    }
+	    }
+	    if !finded {
+		    break
+	    }
+
+        rangeParam = parseRangeParam(buf)
+        if rangeParam == nil {
+            break
+        }
+        result = true
+        break
+    }
+
+    return rangeParam, result
 }
 
 func parsePlayNowHeader(buf string) bool {
@@ -299,9 +311,10 @@ func parsePlayNowHeader(buf string) bool {
 	return finded
 }
 
-func parseScaleHeader(buf string) float32 {
+func parseScaleHeader(buf string) (float32, bool) {
 	// Initialize the result parameter to a default value:
 	var scale float32 = 1.0
+    var result bool
 	for {
 		index := strings.Index(buf, "Scale:")
 		if index == -1 {
@@ -318,16 +331,18 @@ func parseScaleHeader(buf string) float32 {
 			}
 			i++
 		}
-		var sc string
-		if num, _ := fmt.Sscanf(fields, "%f", sc); num == 1 {
-			f, _ := strconv.ParseFloat(sc, 32)
-			scale = float32(f)
+		var sc float32
+		if num, _ := fmt.Sscanf(fields, "%f", &sc); num == 1 {
+            //f, _ := strconv.ParseFloat(sc, 32)
+			//scale = float32(f)
+			scale = sc
+            result = true
 		}
 
 		break
 	}
 
-	return scale
+	return scale, result
 }
 
 // A "Date:" header that can be used in a RTSP (or HTTP) response

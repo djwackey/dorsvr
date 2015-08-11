@@ -34,20 +34,34 @@ func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort
 	return streamState
 }
 
-func (this *StreamState) startPlaying() {
+func (this *StreamState) startPlaying(dests *Destinations) {
+    if dests == nil {
+        return
+    }
+
 	if this.rtcpInstance == nil && this.rtpSink != nil {
 		this.rtcpInstance = NewRTCPInstance(this.rtcpGS, this.totalBW, this.master.CNAME())
 	}
 
-	//if dests.isTCP() {
-	//    if this.rtcpInstance != nil {
-	//    }
-	//} else {
-	//}
-
-	if this.rtcpInstance != nil {
-		this.rtcpInstance.setSpecificRRHandler()
+	if dests.isTCP {
+        if this.rtpSink != nil {
+            this.rtpSink.addStreamSocket(dests.tcpSocketNum, dests.rtpChannelId)
+            //this.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum, serverRequestAlternativeByteHandler, serverRequestAlternativeByteHandlerClientData)
+        }
+	    if this.rtcpInstance != nil {
+		    this.rtcpInstance.setSpecificRRHandler()
+	    }
+	} else {
+        // Tell the RTP and RTCP 'groupsocks' about this destination
+            // (in case they don't already have it):
+                if (fRTPgs != NULL) fRTPgs->addDestination(dests->addr, dests->rtpPort);
+                    if (fRTCPgs != NULL) fRTCPgs->addDestination(dests->addr, dests->rtcpPort);
+                        if (fRTCPInstance != NULL) {
+                                  fRTCPInstance->setSpecificRRHandler(dests->addr.s_addr, dests->rtcpPort,
+                                                        rtcpRRHandler, rtcpRRHandlerClientData);
+                                                            }
 	}
+
 
 	if !this.areCurrentlyPlaying && this.mediaSource != nil {
 		if this.rtpSink != nil {
@@ -92,4 +106,8 @@ func (this *StreamState) afterPlayingStreamState() {
 }
 
 func (this *StreamState) reclaim() {
+}
+
+func (this *StreamState) RtpSink() IRTPSink {
+    return this.rtpSink
 }

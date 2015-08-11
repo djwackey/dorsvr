@@ -9,6 +9,8 @@ import (
 
 type RTSPClientConnection struct {
 	clientOutputSocket net.Conn
+    localPort          uint
+    remotePort         uint
 	localAddr          string
 	remoteAddr         string
 	currentCSeq        string
@@ -20,8 +22,12 @@ func NewRTSPClientConnection(rtspServer *RTSPServer, socket net.Conn) *RTSPClien
 	rtspClientConn := new(RTSPClientConnection)
 	rtspClientConn.rtspServer = rtspServer
 	rtspClientConn.clientOutputSocket = socket
-	rtspClientConn.localAddr = strings.Split(fmt.Sprintf("%s", socket.LocalAddr()), ":")[0]
-	rtspClientConn.remoteAddr = strings.Split(fmt.Sprintf("%s", socket.RemoteAddr()), ":")[0]
+    localAddr := strings.Split(fmt.Sprintf("%s", socket.LocalAddr()), ":")
+    remoteAddr := strings.Split(fmt.Sprintf("%s", socket.RemoteAddr()), ":")
+	rtspClientConn.localAddr = localAddr[0]
+    rtspClientConn.localPort = localAddr[1]
+	rtspClientConn.remoteAddr = remoteAddr[0]
+    rtspClientConn.remotePort = remotePort[1]
 	return rtspClientConn
 }
 

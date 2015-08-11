@@ -9,12 +9,13 @@ import (
 
 type OnDemandServerMediaSubSession struct {
 	ServerMediaSubSession
-	cname           string
-	sdpLines        string
-	portNumForSDP   int
-	initialPortNum  uint
-	lastStreamToken *StreamState
-	destinations    []*Destinations
+	cname            string
+	sdpLines         string
+	portNumForSDP    int
+	initialPortNum   uint
+	lastStreamToken  *StreamState
+	destinations     []*Destinations
+    destinationsHash map[string]*Destinations
 }
 
 type StreamParameter struct {
@@ -48,7 +49,7 @@ func (this *OnDemandServerMediaSubSession) SDPLines() string {
 	return this.sdpLines
 }
 
-func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net.Conn, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *StreamParameter {
+func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *StreamParameter {
 	var streamBitrate uint = 500
 
 	sp := new(StreamParameter)
@@ -66,8 +67,9 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net
 		sp.serverRTPPort = serverPortNum
 		sp.serverRTCPPort = serverPortNum + 1
 
-		rtpGroupSock := NewGroupSock(sp.serverRTPPort)
-		rtcpGroupSock := NewGroupSock(sp.serverRTCPPort)
+        var dummyAddr string
+		rtpGroupSock := NewGroupSock(dummyAddr, sp.serverRTPPort)
+		rtcpGroupSock := NewGroupSock(dummyAddr, sp.serverRTCPPort)
 
 		mediaSource := this.isubsession.createNewStreamSource()
 		rtpSink := this.isubsession.createNewRTPSink(rtpGroupSock, rtpPayloadType)
@@ -86,9 +88,9 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net
 		sp.streamToken = this.lastStreamToken
 	}
 
-	//var destAddr string
-	//dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
-	//append(this.destinations, dests)
+	dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
+	this.destinations = append(this.destinations, dests)
+    this.destinationsHash[clientSessionId] = dests
 
 	return sp
 }
@@ -142,8 +144,14 @@ func (this *OnDemandServerMediaSubSession) CNAME() string {
 	return this.cname
 }
 
-func (this *OnDemandServerMediaSubSession) startStream(streamState *StreamState) {
+func (this *OnDemandServerMediaSubSession) startStream(clientSessionId uint, streamState *StreamState) {
+    destinations, _ := this.destinationsHash[string(clientSessionId)]
 	streamState.startPlaying()
+
+    if streamState.RtpSink() != nil {
+        rtpSeqNum = streamState.RtpSink().currentSeqNo()
+        rtpTimestamp = streamState.rtpSink().presetNextTimestamp()
+    }
 }
 
 func (this *OnDemandServerMediaSubSession) pauseStream(streamState *StreamState) {

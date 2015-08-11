@@ -47,3 +47,9 @@ func (this *ServerMediaSubSession) IncrTrackNumber() {
 func (this *ServerMediaSubSession) rangeSDPLine() string {
 	return "a=range:npt=0-\r\n"
 }
+
+func (this *ServerMediaSubSession) testScaleFactor(scale *float32) float32 {
+    // default implementation: Support scale = 1 only
+    scale = 1
+    return scale
+}

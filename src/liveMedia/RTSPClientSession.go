@@ -11,7 +11,7 @@ type RTSPClientSession struct {
 	isTimerRunning       bool
 	numStreamStates      int
 	TCPStreamIdCount     int
-	ourSessionId         uint32
+	ourSessionId         uint
 	streamStates         *streamState
 	rtspServer           *RTSPServer
 	rtspClientConn       *RTSPClientConnection
@@ -36,10 +36,6 @@ func NewRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionId uint32
 func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr string) {
 	streamName := urlPreSuffix
 	//trackId := urlSuffix
-
-	//this.noteLiveness()
-
-	var rtpChannelId, rtcpChannelId, streamingMode int
 
 	sms := this.rtspServer.LookupServerMediaSession(streamName)
 	if sms == nil {
@@ -66,23 +62,25 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 	}
 
 	transportHeader := parseTransportHeader(reqStr)
-	if transportHeader.streamingMode == RTP_TCP && transportHeader.rtpChannelId == 0xFF {
+    rtpChannelId := transportHeader.rtpChannelId
+    rtcpChannelId := transportHeader.rtcpChannelId
+    streamingMode := transportHeader.streamingMode
+	clientRTPPort := transportHeader.clientRTPPortNum
+	clientRTCPPort := transportHeader.clientRTCPPortNum
+    streamingModeStr := transportHeader.streamingModeStr
+
+	if streamingMode == RTP_TCP && rtpChannelId == 0xFF {
 		rtpChannelId = this.TCPStreamIdCount
 		rtcpChannelId = this.TCPStreamIdCount + 1
 	}
-	if transportHeader.streamingMode == RTP_TCP {
+	if streamingMode == RTP_TCP {
 		rtcpChannelId = this.TCPStreamIdCount + 2
 	}
 
-	clientRTPPort := transportHeader.clientRTPPortNum
-	clientRTCPPort := transportHeader.clientRTCPPortNum
-
-	parseRangeHeader(reqStr)
-	parsePlayNowHeader(reqStr)
+    rangeHeader := parseRangeHeader(reqStr)
+    nowHeader := parsePlayNowHeader(reqStr)
 
 	subsession := this.streamStates.subsession
-
-	var streamingModeStr string
 
 	sourceAddrStr := this.rtspClientConn.localAddr
 	destAddrStr := this.rtspClientConn.remoteAddr
@@ -92,7 +90,7 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		tcpSocketNum = &this.rtspClientConn.clientOutputSocket
 	}
 
-	streamParameter := subsession.getStreamParameters(tcpSocketNum, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
+	streamParameter := subsession.getStreamParameters(tcpSocketNum, destAddrStr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
 	serverRTPPort := streamParameter.serverRTPPort
 	serverRTCPPort := streamParameter.serverRTCPPort
 
@@ -235,29 +233,61 @@ func (this *RTSPClientSession) HandleCommandWithinSession(cmdName, urlPreSuffix,
 }
 
 func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSession, fullRequestStr string) {
-	//this.rtspServer.RtspURL()
+    rtspURL := this.rtspServer.RtspURL(this.serverMediaSession.StreamName())
 
-	parseScaleHeader(fullRequestStr)
+    // Parse the client's "Scale:" header, if any:
+    scale, sawScaleHeader := parseScaleHeader(fullRequestStr)
 
-	this.streamStates.subsession.startStream(this.streamStates.streamToken)
+    if subsession == nil {
+    } else {
+        subsession.testScaleFactor(&scale)
+    }
 
-	/*
-		for i := 0; i < this.numStreamStates; i++ {
-			this.streamStates[i].subsession.startStream()
-		}*/
+    var buf string
+    if sawScaleHeader {
+        buf = fmt.Sprintf("Scale: %f\r\n", scale)
+    }
+    scaleHeader := buf
+
+    rangeHeader, sawRangeHeader := parseRangeHeader(fullRequestStr)
+    rangeStart := rangeHeader.rangeStart
+    rangeEnd := rangeHeader.rangeEnd
+    absStartTime := rangeHeader.absStartTime
+    absEndTime := rangeHeader.absEndTime
+
+    buf = ""
+    if sawRangeHeader {
+        // We're seeking by 'absolute' time:
+        if absEndTime == "" {
+            buf = fmt.Sprintf("Range: clock=%s-\r\n", absStartTime)
+        } else {
+            buf = fmt.Sprintf("Range: clock=%s-%s\r\n", absStartTime, absEndTime)
+        }
+    } else {
+        // We're seeking by relative (NPT) time:
+        if rangeEnd == 0.0 && scale >= 0.0 {
+            buf = fmt.Sprintf("Range: npt=%.3f-\r\n", rangeStart)
+        } else {
+            buf = fmt.Sprintf("Range: npt=%.3f-%.3f\r\n", rangeStart, rangeEnd)
+        }
+    }
+
+	rangeHeader := buf
+
+	this.streamStates.subsession.startStream(this.ourSessionId, this.streamStates.streamToken)
+
+    rtpSeqNum := 0
+    rtpTimestamp := 0
+    urlSuffix := this.streamStates.subsession.TrackId()
 
 	// Create a "RTP-INFO" line. It will get filled in from each subsession's state:
-	/*
-	   rtpInfoFmt := "%s"+
-	                 "%s"+
-	                 "url=%s/%s"+
-	                 ";seq=%d"+
-	                 ";rtptime=%d"
-	*/
-	rtpInfo := "RTP-INFO: "
+    rtpInfoFmt := "RTP-INFO:"+
+	              "%s"+
+	              "url=%s/%s"+
+	              ";seq=%d"+
+	              ";rtptime=%d"
 
-	scaleHeader := ""
-	rangeHeader := "" //fmt.Sprintf("Range: clock=%s-\r\n", absStart)
+    rtpInfo := fmt.Sprintf(rtpInfo, 0, rtspURL, urlSuffix, rtpSeqNum, rtpTimestamp)
 
 	// Fill in the response:
 	this.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
