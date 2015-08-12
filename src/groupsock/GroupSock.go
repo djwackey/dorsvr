@@ -5,7 +5,7 @@ type OutputSocket struct {
 	lastSentTTL uint
 }
 
-func (this *OutputSocket) write(destAddr string, port int, buffer []byte, bufferSize uint) bool {
+func (this *OutputSocket) write(destAddr string, port uint, buffer []byte, bufferSize uint) bool {
 	if !writeSocket(destAddr, port, buffer, bufferSize) {
 		return false
 	}
@@ -19,7 +19,7 @@ func (this *OutputSocket) sourcePortNum() uint {
 
 type GroupSock struct {
 	OutputSocket
-	dests   []destRecord
+	dests   []*destRecord
 	portNum uint
 	ttl     uint
 }
@@ -34,9 +34,9 @@ func NewGroupSock(addrStr string, portNum uint) *GroupSock {
 
 func (this *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
     var writeSuccess bool
-    for i:=0; i<len(dests); i++ {
-        dest := dests[i]
-	    if this.write(dest.addr, dest.port, buffer, bufferSize) {
+    for i:=0; i<len(this.dests); i++ {
+        dest := this.dests[i]
+	    if this.write(dest.addrStr, dest.portNum, buffer, bufferSize) {
             writeSuccess = true
         }
     }

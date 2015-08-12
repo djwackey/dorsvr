@@ -9,11 +9,11 @@ import (
 type IServerMediaSubSession interface {
 	createNewStreamSource() IFramedSource
 	createNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
-	getStreamParameters(tcpSocketNum *net.Conn, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *StreamParameter
+	getStreamParameters(tcpSocketNum *net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *StreamParameter
 	IncrTrackNumber()
 	SDPLines() string
 	CNAME() string
-	startStream(streamState *StreamState)
+	startStream(clientSessionId uint, streamState *StreamState)
 	pauseStream(streamState *StreamState)
 	//seekStream()
 	deleteStream(streamState *StreamState)

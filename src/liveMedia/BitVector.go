@@ -33,12 +33,12 @@ func (this *BitVector) getBits(numBits uint) uint {
 		numBits = MAX_LENGTH
 	}
 
-	var overflowingBits uint
+	var overflowingBits uint64
 	if numBits > this.totNumBits-this.curBitIndex {
 		overflowingBits = numBits - (this.totNumBits - this.curBitIndex)
 	}
 
-	this.shiftBits(tmpBuf, 0, this.baseByte, this.baseBitOffset+this.curBitIndex, numBits-overflowingBits)
+	this.shiftBits(tmpBuf, this.baseByte, 0, this.baseBitOffset+this.curBitIndex, numBits-overflowingBits)
 	this.curBitIndex += (numBits - overflowingBits)
 
 	result := (tmpBuf[0] << 24) | (tmpBuf[1] << 16) | (tmpBuf[2] << 8) | tmpBuf[3]
@@ -59,6 +59,10 @@ func (this *BitVector) get1Bit() uint {
 		result := (curFromByte >> (7 - (totBitOffset % 8))) & 0x01
 		return uint(result)
 	}
+}
+
+func (this *BitVector) get1BitBoolean() bool {
+    return (this.get1Bit() != 0)
 }
 
 func (this *BitVector) shiftBits(toBaseByte, fromBaseByte []byte, toBitOffset, fromBitOffset, numBits uint) {

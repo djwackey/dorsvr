@@ -90,7 +90,7 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		tcpSocketNum = &this.rtspClientConn.clientOutputSocket
 	}
 
-	streamParameter := subsession.getStreamParameters(tcpSocketNum, destAddrStr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
+	streamParameter := subsession.getStreamParameters(tcpSocketNum, destAddrStr, string(this.ourSessionId), clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
 	serverRTPPort := streamParameter.serverRTPPort
 	serverRTCPPort := streamParameter.serverRTCPPort
 
@@ -247,7 +247,7 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSessi
     if sawScaleHeader {
         buf = fmt.Sprintf("Scale: %f\r\n", scale)
     }
-    scaleHeader := buf
+    scaleHeaderStr := buf
 
     rangeHeader, sawRangeHeader := parseRangeHeader(fullRequestStr)
     rangeStart := rangeHeader.rangeStart
@@ -272,7 +272,7 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSessi
         }
     }
 
-	rangeHeader := buf
+	rangeHeaderStr := buf
 
 	this.streamStates.subsession.startStream(this.ourSessionId, this.streamStates.streamToken)
 
@@ -298,8 +298,8 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSessi
 		"Session: %08X\r\n"+
 		"%s\r\n", this.rtspClientConn.currentCSeq,
 		DateHeader(),
-		scaleHeader,
-		rangeHeader,
+		scaleHeaderStr,
+		rangeHeaderStr,
 		this.ourSessionId,
 		rtpInfo)
 }

@@ -5,8 +5,10 @@ import (
 	. "include"
 )
 
-var SPS_MAX_SIZE = 1000
+var SPS_MAX_SIZE uint = 1000
 var SEI_MAX_SIZE = 5000 // larger than the largest possible SEI NAL unit
+
+var NUM_NEXT_SLICE_HEADER_BYTES_TO_ANALYZE uint = 12
 
 //////// H264VideoStreamParser ////////
 type H264VideoStreamParser struct {
@@ -14,7 +16,7 @@ type H264VideoStreamParser struct {
 	outputStartCodeSize        int
 	haveSeenFirstStartCode     bool
 	haveSeenFirstByteOfNALUnit bool
-	firstByteOfNALUnit         byte
+	firstByteOfNALUnit         uint
 }
 
 func NewH264VideoStreamParser() *H264VideoStreamParser {
@@ -87,8 +89,8 @@ func (this *H264VideoStreamParser) parse() uint {
 		}
 	}
 
-	nal_ref_idc = this.firstByteOfNALUnit & 0x60 >> 5
-	nal_unit_type = this.firstByteOfNALUnit & 0x1F
+    nal_ref_idc := this.firstByteOfNALUnit & 0x60 >> 5
+    nal_unit_type := this.firstByteOfNALUnit & 0x1F
 	this.haveSeenFirstByteOfNALUnit = false // for the next NAL unit that we parse
 
 	switch nal_unit_type {
@@ -97,18 +99,18 @@ func (this *H264VideoStreamParser) parse() uint {
 		this.analyzeSEIData()
 	case 7: // Sequence parameter set
 		// First, save a copy of this NAL unit, in case the downstream object wants to see it:
-		this.UsingSource().saveCopyOfSPS(this.startOfFrame+this.outputStartCodeSize, this.buffTo-this.startOfFrame-this.outputStartCodeSize)
+		//this.UsingSource().saveCopyOfSPS(this.startOfFrame+this.outputStartCodeSize, this.buffTo-this.startOfFrame-this.outputStartCodeSize)
 
 		// Parse this NAL unit to check whether frame rate information is present:
 		//num_units_in_tick, time_scale, fixed_frame_rate_flag
 		//analyze_seq_parameter_set_data(num_units_in_tick, time_scale, fixed_frame_rate_flag)
-		if time_scale > 0 && num_units_in_tick > 0 {
-			this.UsingSource().frameRate = time_scale / (2.0 * num_units_in_tick)
-		} else {
-		}
+		//if time_scale > 0 && num_units_in_tick > 0 {
+		//	this.UsingSource().frameRate = time_scale / (2.0 * num_units_in_tick)
+		//} else {
+		//}
 	case 8: // Picture parameter set
 		// Save a copy of this NAL unit, in case the downstream object wants to see it:
-		this.UsingSource().saveCopyOfPPS(this.startOfFrame+this.outputStartCodeSize, this.buffTo-this.startOfFrame-this.outputStartCodeSize)
+		//this.UsingSource().saveCopyOfPPS(this.startOfFrame+this.outputStartCodeSize, this.buffTo-this.startOfFrame-this.outputStartCodeSize)
 	}
 
 	this.UsingSource().setPresentationTime()
@@ -120,17 +122,25 @@ func (this *H264VideoStreamParser) parse() uint {
 	} else {
 		isVCL := nal_unit_type <= 5 && nal_unit_type > 0 // Would need to include type 20 for SVC and MVC #####
 		if isVCL {
+            var firstByteOfNextNALUnit uint
 			this.testBytes(&firstByteOfNextNALUnit, 1)
-			next_nal_ref_idc = (firstByteOfNextNALUnit & 0x60) >> 5
-			next_nal_unit_type = firstByteOfNextNALUnit & 0x1F
+            next_nal_ref_idc := (firstByteOfNextNALUnit & 0x60) >> 5
+            next_nal_unit_type := firstByteOfNextNALUnit & 0x1F
 			if next_nal_unit_type >= 6 {
 				// The next NAL unit is not a VCL; therefore, we assume that this NAL unit ends the current 'access unit':
 				thisNALUnitEndsAccessUnit = true
 			} else {
 				// The next NAL unit is also a VCL.  We need to examine it a little to figure out if it's a different 'access unit'.
 				// (We use many of the criteria described in section 7.4.1.2.4 of the H.264 specification.)
-				IdrPicFlag = nal_unit_type == 5
-				next_IdrPicFlag = next_nal_unit_type == 5
+                var IdrPicFlag bool
+                if nal_unit_type == 5 {
+                    IdrPicFlag = true
+                }
+				var next_IdrPicFlag bool
+                if next_nal_unit_type == 5 {
+                    next_IdrPicFlag = true
+                }
+
 				if next_IdrPicFlag != IdrPicFlag {
 					// IdrPicFlag differs in value
 					thisNALUnitEndsAccessUnit = true
@@ -146,12 +156,18 @@ func (this *H264VideoStreamParser) parse() uint {
 					// Parse this (for each), to get parameters that we can compare:
 
 					// Current NAL unit's "slice_header":
-					this.analyzeSliceHeader(this.startOfFrame+this.outputStartCodeSize, this.buffTo, nal_unit_type, frame_num, pic_parameter_set_id, idr_pic_id, field_pic_flag, bottom_field_flag)
+					//this.analyzeSliceHeader(this.startOfFrame+this.outputStartCodeSize, this.buffTo, nal_unit_type, frame_num, pic_parameter_set_id, idr_pic_id, field_pic_flag, bottom_field_flag)
 
 					// Next NAL unit's "slice_header":
-					this.testBytes(next_slice_header)
-					this.analyzeSliceHeader(next_slice_header, &next_slice_header[:next_slice_header], next_nal_unit_type, next_frame_num, next_pic_parameter_set_id, next_idr_pic_id, next_field_pic_flag, next_bottom_field_flag)
+                    next_slice_header := make([]byte, NUM_NEXT_SLICE_HEADER_BYTES_TO_ANALYZE)
+					this.testBytes(next_slice_header, NUM_NEXT_SLICE_HEADER_BYTES_TO_ANALYZE)
 
+                    var next_frame_num, next_pic_parameter_set_id, next_idr_pic_id, frame_num, pic_parameter_set_id uint
+                    var next_field_pic_flag bool
+					//this.analyzeSliceHeader(next_slice_header, &next_slice_header[:next_slice_header], next_nal_unit_type, next_frame_num, next_pic_parameter_set_id, next_idr_pic_id, next_field_pic_flag, next_bottom_field_flag)
+
+                    var next_bottom_field_flag, bottom_field_flag, idr_pic_id uint
+                    var field_pic_flag bool
 					if next_frame_num != frame_num {
 						// frame_num differs in value
 						thisNALUnitEndsAccessUnit = true
@@ -164,7 +180,7 @@ func (this *H264VideoStreamParser) parse() uint {
 					} else if next_bottom_field_flag != bottom_field_flag {
 						// bottom_field_flag differs in value
 						thisNALUnitEndsAccessUnit = true
-					} else if next_IdrPicFlag == 1 && next_idr_pic_id != idr_pic_id {
+					} else if next_IdrPicFlag == true && next_idr_pic_id != idr_pic_id {
 						// IdrPicFlag is equal to 1 for both and idr_pic_id differs in value
 						// Note: We already know that IdrPicFlag is the same for both.
 						thisNALUnitEndsAccessUnit = true
@@ -179,10 +195,10 @@ func (this *H264VideoStreamParser) parse() uint {
 		this.UsingSource().pictureCount++
 
 		// Note that the presentation time for the next NAL unit will be different:
-		nextPT = this.UsingSource().nextPresentationTime // alias
+        nextPT := this.UsingSource().nextPresentationTime // alias
 		nextPT = this.UsingSource().presentationTime
-		nextFraction = nextPT.Tv_usec/1000000.0 + 1/this.UsingSource().frameRate
-		nextSecsIncrement = nextFraction
+        nextFraction := nextPT.Tv_usec/1000000.0 + 1/int64(this.UsingSource().frameRate)
+        nextSecsIncrement := nextFraction
 		nextPT.Tv_sec += nextSecsIncrement
 		nextPT.Tv_usec = (nextFraction - nextSecsIncrement) * 1000000
 	}
@@ -192,13 +208,13 @@ func (this *H264VideoStreamParser) parse() uint {
 }
 
 func (this *H264VideoStreamParser) removeEmulationBytes(nalUnitCopy []byte, maxSize uint) uint {
-	nalUnitOrig := this.startOfFrame + this.outputStartCodeSize
-	NumBytesInNALunit := this.buffTo - nalUnitOrig
+	nalUnitOrig := this.startOfFrame //+ this.outputStartCodeSize
+	var NumBytesInNALunit uint //this.buffTo - nalUnitOrig
 	if NumBytesInNALunit > maxSize {
 		return 0
 	}
-	nalUnitCopySize := 0
-	for i := 0; i < NumBytesInNALunit; i++ {
+	var nalUnitCopySize, i uint
+	for i=0; i < NumBytesInNALunit; i++ {
 		if i+2 < NumBytesInNALunit && nalUnitOrig[i] == 0 && nalUnitOrig[i+1] == 0 && nalUnitOrig[i+2] == 3 {
 			nalUnitCopy[nalUnitCopySize] = nalUnitOrig[i]
 			i++
@@ -215,37 +231,46 @@ func (this *H264VideoStreamParser) removeEmulationBytes(nalUnitCopy []byte, maxS
 }
 
 func (this *H264VideoStreamParser) analyzeSliceHeader() {
-	bv := NewBitVector(start, 0, 8*(end-start))
+    var start, end uint
+	bv := new(BitVector)//NewBitVector(start, 0, 8*(end-start))
 
 	// Some of the result parameters might not be present in the header; set them to default values:
-	field_pic_flag = 0
-	bottom_field_flag = 0
+    var field_pic_flag, bottom_field_flag bool
 
 	// Note: We assume that there aren't any 'emulation prevention' bytes here to worry about...
 	bv.skipBits(8) // forbidden_zero_bit; nal_ref_idc; nal_unit_type
-	first_mb_in_slice = bv.get_expGolomb()
-	slice_type = bv.get_expGolomb()
-	pic_parameter_set_id = bv.get_expGolomb()
+    first_mb_in_slice := bv.get_expGolomb()
+    slice_type := bv.get_expGolomb()
+    pic_parameter_set_id := bv.get_expGolomb()
+    var separate_colour_plane_flag bool
 	if separate_colour_plane_flag {
 		bv.skipBits(2) // colour_plane_id
 	}
-	frame_num = bv.getBits(log2_max_frame_num)
+
+    var log2_max_frame_num, nal_unit_type uint
+    var frame_mbs_only_flag bool
+    frame_num := bv.getBits(log2_max_frame_num)
 	if !frame_mbs_only_flag {
 		field_pic_flag = bv.get1BitBoolean()
 		if field_pic_flag {
 			bottom_field_flag = bv.get1BitBoolean()
 		}
 	}
-	IdrPicFlag := nal_unit_type == 5
+
+	var IdrPicFlag bool
+    if nal_unit_type == 5 {
+        IdrPicFlag = true
+    }
+
 	if IdrPicFlag {
-		idr_pic_id = bv.get_expGolomb()
+		/*idr_pic_id =*/ bv.get_expGolomb()
 	}
 }
 
 func (this *H264VideoStreamParser) analyzeSPSData() {
-	time_scale = 0
-	num_units_in_tick = 0
-	fixed_frame_rate_flag = 0 // default values
+    time_scale := 0
+    num_units_in_tick := 0
+    fixed_frame_rate_flag := 0 // default values
 
 	// Begin by making a copy of the NAL unit data, removing any 'emulation prevention' bytes:
 	sps := make([]byte, SPS_MAX_SIZE)
@@ -255,38 +280,39 @@ func (this *H264VideoStreamParser) analyzeSPSData() {
 
 	bv.skipBits(8) // forbidden_zero_bit; nal_ref_idc; nal_unit_type
 	profile_idc := bv.getBits(8)
-	constraint_setN_flag = bv.getBits(8) // also "reserved_zero_2bits" at end
-	level_idc = bv.getBits(8)
-	seq_parameter_set_id = bv.get_expGolomb()
+    constraint_setN_flag := bv.getBits(8) // also "reserved_zero_2bits" at end
+    level_idc := bv.getBits(8)
+    seq_parameter_set_id := bv.get_expGolomb()
 	if profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 244 || profile_idc == 44 || profile_idc == 83 || profile_idc == 86 || profile_idc == 118 || profile_idc == 128 {
 		chroma_format_idc := bv.get_expGolomb()
 		if chroma_format_idc == 3 {
-			separate_colour_plane_flag = bv.get1BitBoolean()
+            eparate_colour_plane_flag := bv.get1BitBoolean()
 		}
 	}
 
 	bv.get_expGolomb() // bit_depth_luma_minus8
 	bv.get_expGolomb() // bit_depth_chroma_minus8
 	bv.skipBits(1)     // qpprime_y_zero_transform_bypass_flag
-	seq_scaling_matrix_present_flag = bv.get1Bit()
-	if seq_scaling_matrix_present_flag {
+    seq_scaling_matrix_present_flag := bv.get1Bit()
+	if seq_scaling_matrix_present_flag != 0 {
 		cond := 12
+        var chroma_format_idc uint
 		if chroma_format_idc != 3 {
 			cond := 8
 		}
 
 		for i := 0; i < cond; i++ {
-			seq_scaling_list_present_flag = bv.get1Bit()
-			if seq_scaling_list_present_flag {
+            seq_scaling_list_present_flag := bv.get1Bit()
+			if seq_scaling_list_present_flag != 0 {
 				sizeOfScalingList := 24
 				if i < 6 {
 					sizeOfScalingList = 16
 				}
-				lastScale = 8
-				nextScale = 8
+                lastScale := 8
+                nextScale := 8
 				for j := 0; j < sizeOfScalingList; j++ {
 					if nextScale != 0 {
-						delta_scale = bv.get_expGolomb()
+                        delta_scale := bv.get_expGolomb()
 						nextScale = (lastScale + delta_scale + 256) % 256
 					}
 					if nextScale != 0 {
@@ -298,16 +324,17 @@ func (this *H264VideoStreamParser) analyzeSPSData() {
 	}
 
 	log2_max_frame_num_minus4 := bv.get_expGolomb()
-	log2_max_frame_num = log2_max_frame_num_minus4 + 4
-	pic_order_cnt_type = bv.get_expGolomb()
+    log2_max_frame_num := log2_max_frame_num_minus4 + 4
+    pic_order_cnt_type := bv.get_expGolomb()
 	if pic_order_cnt_type == 0 {
-		log2_max_pic_order_cnt_lsb_minus4 = bv.get_expGolomb()
+        log2_max_pic_order_cnt_lsb_minus4 := bv.get_expGolomb()
 	} else if pic_order_cnt_type == 1 {
 		bv.skipBits(1)     // delta_pic_order_always_zero_flag
 		bv.get_expGolomb() // offset_for_non_ref_pic
 		bv.get_expGolomb() // offset_for_top_to_bottom_field
-		num_ref_frames_in_pic_order_cnt_cycle = bv.get_expGolomb()
-		for i := 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++ {
+        num_ref_frames_in_pic_order_cnt_cycle := bv.get_expGolomb()
+        var i uint
+		for i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++ {
 			bv.get_expGolomb() // offset_for_ref_frame[i]
 		}
 	}

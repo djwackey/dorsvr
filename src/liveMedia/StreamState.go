@@ -53,13 +53,16 @@ func (this *StreamState) startPlaying(dests *Destinations) {
 	    }
 	} else {
         // Tell the RTP and RTCP 'groupsocks' about this destination
-            // (in case they don't already have it):
-                if (fRTPgs != NULL) fRTPgs->addDestination(dests->addr, dests->rtpPort);
-                    if (fRTCPgs != NULL) fRTCPgs->addDestination(dests->addr, dests->rtcpPort);
-                        if (fRTCPInstance != NULL) {
-                                  fRTCPInstance->setSpecificRRHandler(dests->addr.s_addr, dests->rtcpPort,
-                                                        rtcpRRHandler, rtcpRRHandlerClientData);
-                                                            }
+        // (in case they don't already have it):
+        if this.RTPgs != NULL {
+            this.RTPgs.addDestination(dests.addr, dests.rtpPort)
+        }
+        if this.RTCPgs != NULL {
+            this.RTCPgs.addDestination(dests.addr, dests.rtcpPort)
+        }
+        if this.rtcpInstance != nil {
+            this.rtcpInstance.setSpecificRRHandler(dests.addr, dests.rtcpPort, rtcpRRHandler, rtcpRRHandlerClientData)
+        }
 	}
 
 
