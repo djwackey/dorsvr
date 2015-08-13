@@ -10,7 +10,7 @@ type RTSPClientSession struct {
 	isMulticast          bool
 	isTimerRunning       bool
 	numStreamStates      int
-	TCPStreamIdCount     int
+	TCPStreamIdCount     uint
 	ourSessionId         uint
 	streamStates         *streamState
 	rtspServer           *RTSPServer
@@ -24,7 +24,7 @@ type streamState struct {
 	streamToken *StreamState
 }
 
-func NewRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionId uint32) *RTSPClientSession {
+func NewRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionId uint) *RTSPClientSession {
 	rtspClientSession := new(RTSPClientSession)
 	rtspClientSession.ourSessionId = sessionId
 	rtspClientSession.rtspClientConn = rtspClientConn
@@ -62,12 +62,12 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 	}
 
 	transportHeader := parseTransportHeader(reqStr)
-    rtpChannelId := transportHeader.rtpChannelId
-    rtcpChannelId := transportHeader.rtcpChannelId
-    streamingMode := transportHeader.streamingMode
+	rtpChannelId := transportHeader.rtpChannelId
+	rtcpChannelId := transportHeader.rtcpChannelId
+	streamingMode := transportHeader.streamingMode
 	clientRTPPort := transportHeader.clientRTPPortNum
 	clientRTCPPort := transportHeader.clientRTCPPortNum
-    streamingModeStr := transportHeader.streamingModeStr
+	streamingModeStr := transportHeader.streamingModeStr
 
 	if streamingMode == RTP_TCP && rtpChannelId == 0xFF {
 		rtpChannelId = this.TCPStreamIdCount
@@ -77,8 +77,8 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		rtcpChannelId = this.TCPStreamIdCount + 2
 	}
 
-    rangeHeader := parseRangeHeader(reqStr)
-    nowHeader := parsePlayNowHeader(reqStr)
+	//rangeHeader, _ := parseRangeHeader(reqStr)
+	//nowHeader := parsePlayNowHeader(reqStr)
 
 	subsession := this.streamStates.subsession
 
@@ -233,61 +233,61 @@ func (this *RTSPClientSession) HandleCommandWithinSession(cmdName, urlPreSuffix,
 }
 
 func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSession, fullRequestStr string) {
-    rtspURL := this.rtspServer.RtspURL(this.serverMediaSession.StreamName())
+	rtspURL := this.rtspServer.RtspURL(this.serverMediaSession.StreamName())
 
-    // Parse the client's "Scale:" header, if any:
-    scale, sawScaleHeader := parseScaleHeader(fullRequestStr)
+	// Parse the client's "Scale:" header, if any:
+	scale, sawScaleHeader := parseScaleHeader(fullRequestStr)
 
-    if subsession == nil {
-    } else {
-        subsession.testScaleFactor(&scale)
-    }
+	if subsession == nil {
+	} else {
+		subsession.testScaleFactor(scale)
+	}
 
-    var buf string
-    if sawScaleHeader {
-        buf = fmt.Sprintf("Scale: %f\r\n", scale)
-    }
-    scaleHeaderStr := buf
+	var buf string
+	if sawScaleHeader {
+		buf = fmt.Sprintf("Scale: %f\r\n", scale)
+	}
+	scaleHeaderStr := buf
 
-    rangeHeader, sawRangeHeader := parseRangeHeader(fullRequestStr)
-    rangeStart := rangeHeader.rangeStart
-    rangeEnd := rangeHeader.rangeEnd
-    absStartTime := rangeHeader.absStartTime
-    absEndTime := rangeHeader.absEndTime
+	rangeHeader, sawRangeHeader := parseRangeHeader(fullRequestStr)
+	rangeStart := rangeHeader.rangeStart
+	rangeEnd := rangeHeader.rangeEnd
+	absStartTime := rangeHeader.absStartTime
+	absEndTime := rangeHeader.absEndTime
 
-    buf = ""
-    if sawRangeHeader {
-        // We're seeking by 'absolute' time:
-        if absEndTime == "" {
-            buf = fmt.Sprintf("Range: clock=%s-\r\n", absStartTime)
-        } else {
-            buf = fmt.Sprintf("Range: clock=%s-%s\r\n", absStartTime, absEndTime)
-        }
-    } else {
-        // We're seeking by relative (NPT) time:
-        if rangeEnd == 0.0 && scale >= 0.0 {
-            buf = fmt.Sprintf("Range: npt=%.3f-\r\n", rangeStart)
-        } else {
-            buf = fmt.Sprintf("Range: npt=%.3f-%.3f\r\n", rangeStart, rangeEnd)
-        }
-    }
+	buf = ""
+	if sawRangeHeader {
+		// We're seeking by 'absolute' time:
+		if absEndTime == "" {
+			buf = fmt.Sprintf("Range: clock=%s-\r\n", absStartTime)
+		} else {
+			buf = fmt.Sprintf("Range: clock=%s-%s\r\n", absStartTime, absEndTime)
+		}
+	} else {
+		// We're seeking by relative (NPT) time:
+		if rangeEnd == 0.0 && scale >= 0.0 {
+			buf = fmt.Sprintf("Range: npt=%.3f-\r\n", rangeStart)
+		} else {
+			buf = fmt.Sprintf("Range: npt=%.3f-%.3f\r\n", rangeStart, rangeEnd)
+		}
+	}
 
 	rangeHeaderStr := buf
 
 	this.streamStates.subsession.startStream(this.ourSessionId, this.streamStates.streamToken)
 
-    rtpSeqNum := 0
-    rtpTimestamp := 0
-    urlSuffix := this.streamStates.subsession.TrackId()
+	rtpSeqNum := 0
+	rtpTimestamp := 0
+	urlSuffix := this.streamStates.subsession.TrackId()
 
 	// Create a "RTP-INFO" line. It will get filled in from each subsession's state:
-    rtpInfoFmt := "RTP-INFO:"+
-	              "%s"+
-	              "url=%s/%s"+
-	              ";seq=%d"+
-	              ";rtptime=%d"
+	rtpInfoFmt := "RTP-INFO:" +
+		"%s" +
+		"url=%s/%s" +
+		";seq=%d" +
+		";rtptime=%d"
 
-    rtpInfo := fmt.Sprintf(rtpInfo, 0, rtspURL, urlSuffix, rtpSeqNum, rtpTimestamp)
+	rtpInfo := fmt.Sprintf(rtpInfoFmt, "0", rtspURL, urlSuffix, rtpSeqNum, rtpTimestamp)
 
 	// Fill in the response:
 	this.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+

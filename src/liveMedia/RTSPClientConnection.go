@@ -9,8 +9,8 @@ import (
 
 type RTSPClientConnection struct {
 	clientOutputSocket net.Conn
-    localPort          uint
-    remotePort         uint
+	localPort          string
+	remotePort         string
 	localAddr          string
 	remoteAddr         string
 	currentCSeq        string
@@ -22,12 +22,12 @@ func NewRTSPClientConnection(rtspServer *RTSPServer, socket net.Conn) *RTSPClien
 	rtspClientConn := new(RTSPClientConnection)
 	rtspClientConn.rtspServer = rtspServer
 	rtspClientConn.clientOutputSocket = socket
-    localAddr := strings.Split(fmt.Sprintf("%s", socket.LocalAddr()), ":")
-    remoteAddr := strings.Split(fmt.Sprintf("%s", socket.RemoteAddr()), ":")
+	localAddr := strings.Split(fmt.Sprintf("%s", socket.LocalAddr()), ":")
+	remoteAddr := strings.Split(fmt.Sprintf("%s", socket.RemoteAddr()), ":")
 	rtspClientConn.localAddr = localAddr[0]
-    rtspClientConn.localPort = localAddr[1]
+	rtspClientConn.localPort = localAddr[1]
 	rtspClientConn.remoteAddr = remoteAddr[0]
-    rtspClientConn.remotePort = remotePort[1]
+	rtspClientConn.remotePort = remoteAddr[1]
 	return rtspClientConn
 }
 
@@ -81,7 +81,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, length int) {
 		case "SETUP":
 			{
 				if sessionIdStr == "" {
-					var sessionId uint32
+					var sessionId uint
 					for {
 						sessionId = OurRandom32()
 						sessionIdStr = fmt.Sprintf("%08X", sessionId)
@@ -241,7 +241,7 @@ func (this *RTSPClientConnection) setRTSPResponse(responseStr string) {
 		responseStr, this.currentCSeq, DateHeader())
 }
 
-func (this *RTSPClientConnection) setRTSPResponseWithSessionId(responseStr string, sessionId uint32) {
+func (this *RTSPClientConnection) setRTSPResponseWithSessionId(responseStr string, sessionId uint) {
 	this.responseBuffer = fmt.Sprintf("RTSP/1.0 %s\r\n"+
 		"CSeq: %s\r\n"+
 		"%s\r\n"+
@@ -253,6 +253,6 @@ func (this *RTSPClientConnection) AuthenticationOK(cmdName, urlSuffix, fullReque
 	return true
 }
 
-func (this *RTSPClientConnection) NewClientSession(sessionId uint32) *RTSPClientSession {
+func (this *RTSPClientConnection) NewClientSession(sessionId uint) *RTSPClientSession {
 	return NewRTSPClientSession(this, sessionId)
 }

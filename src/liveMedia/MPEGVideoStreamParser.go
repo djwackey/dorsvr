@@ -2,8 +2,8 @@ package liveMedia
 
 type MPEGVideoStreamParser struct {
 	StreamParser
-    buffTo            []byte
-    startOfFrame      []byte
+	buffTo            []byte
+	startOfFrame      []byte
 	numTruncatedBytes uint
 	usingSource       *H264VideoStreamFramer
 }

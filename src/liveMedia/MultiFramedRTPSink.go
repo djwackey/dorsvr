@@ -11,19 +11,20 @@ var rtpHeaderSize uint = 12
 
 type MultiFramedRTPSink struct {
 	RTPSink
-	outBuf                        *OutPacketBuffer
-	nextSendTime                  Timeval
-	currentTimestamp              byte
-	noFramesLeft                  bool
-	isFirstPacket                 bool
-	ourMaxPacketSize              uint
-	timestampPosition             uint
-	specialHeaderSize             uint
-	numFramesUsedSoFar            uint
-	specialHeaderPosition         uint
-	curFragmentationOffset        uint
-	totalFrameSpecificHeaderSizes uint
-	onSendErrorFunc               interface{}
+	outBuf                          *OutPacketBuffer
+	nextSendTime                    Timeval
+	noFramesLeft                    bool
+	isFirstPacket                   bool
+	currentTimestamp                uint
+	ourMaxPacketSize                uint
+	timestampPosition               uint
+	specialHeaderSize               uint
+	numFramesUsedSoFar              uint
+	specialHeaderPosition           uint
+	curFragmentationOffset          uint
+	totalFrameSpecificHeaderSizes   uint
+	previousFrameEndedFragmentation bool
+	onSendErrorFunc                 interface{}
 }
 
 func (this *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IRTPSink, rtpGroupSock *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
@@ -73,9 +74,9 @@ func (this *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 func (this *MultiFramedRTPSink) packFrame() {
 	if this.outBuf.haveOverflowData() {
 		// Use this frame before reading a new one from the source
-		frameSize := this.outBuf.overflowDataSize()
-		presentationTime := this.outBuf.overflowPresentationTime()
-		durationInMicroseconds := this.outBuf.overflowDurationInMicroseconds()
+		frameSize := this.outBuf.OverflowDataSize()
+		presentationTime := this.outBuf.OverflowPresentationTime()
+		durationInMicroseconds := this.outBuf.OverflowDurationInMicroseconds()
 		this.outBuf.useOverflowData()
 		this.afterGettingFrame(frameSize, durationInMicroseconds, presentationTime)
 	} else {
@@ -131,7 +132,7 @@ func (this *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseco
 		// (iv) one frame per packet is allowed:
 		if this.outBuf.isPreferredSize() ||
 			this.outBuf.wouldOverflow(numFrameBytesToUse) ||
-			this.previousFrameEndedFragmentation && !this.allowOtherFramesAfterLastFragment() || !this.frameCanAppearAfterPacketStart(this.outBuf.curPtr()-frameSize, frameSize) {
+			this.previousFrameEndedFragmentation && !this.allowOtherFramesAfterLastFragment() || !this.frameCanAppearAfterPacketStart(this.outBuf.curPtr(), frameSize) {
 			// The packet is ready to be sent now
 			this.sendPacketIfNecessary()
 		} else {
@@ -197,7 +198,7 @@ func (this *MultiFramedRTPSink) sendNext() {
 	this.buildAndSendPacket(false)
 }
 
-func (this *MultiFramedRTPSink) isFirstFrameInPacket() {
+func (this *MultiFramedRTPSink) isFirstFrameInPacket() bool {
 	return this.numFramesUsedSoFar == 0
 }
 
@@ -206,7 +207,7 @@ func (this *MultiFramedRTPSink) setTimestamp(framePresentationTime Timeval) {
 	this.currentTimestamp = this.convertToRTPTimestamp(framePresentationTime)
 
 	// Then, insert it into the RTP packet:
-	this.outBuf.insertWord(this.currentTimestamp, this.timestampPosition)
+	this.outBuf.insertWord(byte(this.currentTimestamp), this.timestampPosition)
 }
 
 func (this *MultiFramedRTPSink) SpecialHeaderSize() uint {
@@ -217,6 +218,14 @@ func (this *MultiFramedRTPSink) SpecialHeaderSize() uint {
 func (this *MultiFramedRTPSink) frameSpecificHeaderSize() uint {
 	// default implementation: Assume no frame-specific header:
 	return 0
+}
+
+func (this *MultiFramedRTPSink) allowOtherFramesAfterLastFragment() bool {
+	return false
+}
+
+func (this *MultiFramedRTPSink) frameCanAppearAfterPacketStart(frameStart []byte, numBytesInFrame uint) bool {
+	return true
 }
 
 func (this *MultiFramedRTPSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint, frameStart string, framePresentationTime Timeval) {

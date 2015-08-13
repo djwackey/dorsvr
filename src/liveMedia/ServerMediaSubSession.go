@@ -9,8 +9,9 @@ import (
 type IServerMediaSubSession interface {
 	createNewStreamSource() IFramedSource
 	createNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
-	getStreamParameters(tcpSocketNum *net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *StreamParameter
+	getStreamParameters(tcpSocketNum *net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *StreamParameter
 	IncrTrackNumber()
+	TrackId() string
 	SDPLines() string
 	CNAME() string
 	startStream(clientSessionId uint, streamState *StreamState)
@@ -48,8 +49,8 @@ func (this *ServerMediaSubSession) rangeSDPLine() string {
 	return "a=range:npt=0-\r\n"
 }
 
-func (this *ServerMediaSubSession) testScaleFactor(scale *float32) float32 {
-    // default implementation: Support scale = 1 only
-    scale = 1
-    return scale
+func (this *ServerMediaSubSession) testScaleFactor(scale float32) float32 {
+	// default implementation: Support scale = 1 only
+	scale = 1.0
+	return scale
 }

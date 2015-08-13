@@ -12,25 +12,28 @@ type IRTPSink interface {
 	AuxSDPLine() string
 	RtpmapLine() string
 	SdpMediaType() string
+	currentSeqNo() uint
 	startPlaying(source IFramedSource) bool
 	stopPlaying()
 	continuePlaying()
+	//presetNextTimestamp() uint
 }
 
 type RTPSink struct {
 	MediaSink
-	ssrc                  uint
-	seqNo                 uint
-	octetCount            uint
-	packetCount           uint // incl RTP hdr
-    timestampBase         uint
-	totalOctetCount       uint
-	rtpPayloadType        uint
-	rtpTimestampFrequency uint
-	rtpPayloadFormatName  string
-    nextTimestampHasBeenPreset bool
-	rtpInterface          *RTPInterface
-	transmissionStatsDB   *RTPTransmissionStatsDB
+	ssrc                       uint
+	seqNo                      uint
+	octetCount                 uint
+	packetCount                uint // incl RTP hdr
+	timestampBase              uint
+	totalOctetCount            uint
+	rtpPayloadType             uint
+	rtpTimestampFrequency      uint
+	timestampFrequency         uint
+	rtpPayloadFormatName       string
+	nextTimestampHasBeenPreset bool
+	rtpInterface               *RTPInterface
+	transmissionStatsDB        *RTPTransmissionStatsDB
 }
 
 func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
@@ -46,7 +49,7 @@ func (this *RTPSink) SSRC() uint {
 }
 
 func (this *RTPSink) currentSeqNo() uint {
-    return this.seqNo
+	return this.seqNo
 }
 
 func (this *RTPSink) SdpMediaType() string {
@@ -79,21 +82,21 @@ func (this *RTPSink) RtpTimestampFrequency() uint {
 	return this.rtpTimestampFrequency
 }
 
-func (this *RTPSink) presetNextTimestamp() {
-    var timeNow Timeval
-    GetTimeOfDay(&timeNow)
+func (this *RTPSink) presetNextTimestamp() uint {
+	var timeNow Timeval
+	GetTimeOfDay(&timeNow)
 
-    tsNow = this.convertToRTPTimestamp(timeNow)
-    this.timestampBase = tsNow
-    this.nextTimestampHasBeenPreset = true
+	tsNow := this.convertToRTPTimestamp(timeNow)
+	this.timestampBase = tsNow
+	this.nextTimestampHasBeenPreset = true
 
-    return tsNow
+	return tsNow
 }
 
 func (this *RTPSink) convertToRTPTimestamp(tv Timeval) uint {
 	// Begin by converting from "struct timeval" units to RTP timestamp units:
-	timestampIncrement = this.timestampFrequency * tv.Tv_sec
-	timestampIncrement += (2.0*this.timestampFrequency*tv.Tv_usec + 1000000.0) / 2000000
+	timestampIncrement := this.timestampFrequency * uint(tv.Tv_sec)
+	timestampIncrement += (2.0*this.timestampFrequency*uint(tv.Tv_usec) + 1000000.0) / 2000000
 
 	// Then add this to our 'timestamp base':
 	if this.nextTimestampHasBeenPreset {
@@ -103,7 +106,7 @@ func (this *RTPSink) convertToRTPTimestamp(tv Timeval) uint {
 		this.nextTimestampHasBeenPreset = false
 	}
 
-	rtpTimestamp = this.timestampBase + timestampIncrement
+	rtpTimestamp := this.timestampBase + timestampIncrement
 	return rtpTimestamp
 }
 

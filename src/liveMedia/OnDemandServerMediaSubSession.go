@@ -15,7 +15,7 @@ type OnDemandServerMediaSubSession struct {
 	initialPortNum   uint
 	lastStreamToken  *StreamState
 	destinations     []*Destinations
-    destinationsHash map[string]*Destinations
+	destinationsHash map[string]*Destinations
 }
 
 type StreamParameter struct {
@@ -40,7 +40,9 @@ func (this *OnDemandServerMediaSubSession) SDPLines() string {
 		inputSource := this.isubsession.createNewStreamSource()
 
 		rtpPayloadType := 96 + this.TrackNumber() - 1
-		dummyGroupSock := NewGroupSock(0)
+
+		var dummyAddr string
+		dummyGroupSock := NewGroupSock(dummyAddr, 0)
 		dummyRTPSink := this.isubsession.createNewRTPSink(dummyGroupSock, rtpPayloadType)
 
 		this.setSDPLinesFromRTPSink(dummyRTPSink, inputSource, 500)
@@ -49,7 +51,7 @@ func (this *OnDemandServerMediaSubSession) SDPLines() string {
 	return this.sdpLines
 }
 
-func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *StreamParameter {
+func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *StreamParameter {
 	var streamBitrate uint = 500
 
 	sp := new(StreamParameter)
@@ -67,7 +69,7 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net
 		sp.serverRTPPort = serverPortNum
 		sp.serverRTCPPort = serverPortNum + 1
 
-        var dummyAddr string
+		var dummyAddr string
 		rtpGroupSock := NewGroupSock(dummyAddr, sp.serverRTPPort)
 		rtcpGroupSock := NewGroupSock(dummyAddr, sp.serverRTCPPort)
 
@@ -90,7 +92,7 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net
 
 	dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
 	this.destinations = append(this.destinations, dests)
-    this.destinationsHash[clientSessionId] = dests
+	this.destinationsHash[clientSessionId] = dests
 
 	return sp
 }
@@ -145,13 +147,13 @@ func (this *OnDemandServerMediaSubSession) CNAME() string {
 }
 
 func (this *OnDemandServerMediaSubSession) startStream(clientSessionId uint, streamState *StreamState) {
-    destinations, _ := this.destinationsHash[string(clientSessionId)]
-	streamState.startPlaying()
+	destinations, _ := this.destinationsHash[string(clientSessionId)]
+	streamState.startPlaying(destinations)
 
-    if streamState.RtpSink() != nil {
-        rtpSeqNum = streamState.RtpSink().currentSeqNo()
-        rtpTimestamp = streamState.rtpSink().presetNextTimestamp()
-    }
+	if streamState.RtpSink() != nil {
+		//rtpSeqNum := streamState.RtpSink().currentSeqNo()
+		//rtpTimestamp := streamState.rtpSink().presetNextTimestamp()
+	}
 }
 
 func (this *OnDemandServerMediaSubSession) pauseStream(streamState *StreamState) {
@@ -166,14 +168,14 @@ func (this *OnDemandServerMediaSubSession) deleteStream(streamState *StreamState
 type Destinations struct {
 	isTCP         bool
 	addr          string
-	rtpPort       int
-	rtcpPort      int
-	rtpChannelId  int
-	rtcpChannelId int
+	rtpPort       uint
+	rtcpPort      uint
+	rtpChannelId  uint
+	rtcpChannelId uint
 	tcpSockNum    *net.Conn
 }
 
-func NewDestinations(tcpSockNum *net.Conn, destAddr string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId int) *Destinations {
+func NewDestinations(tcpSockNum *net.Conn, destAddr string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *Destinations {
 	destinations := new(Destinations)
 	destinations.tcpSockNum = tcpSockNum
 	destinations.addr = destAddr

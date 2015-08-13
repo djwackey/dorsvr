@@ -518,12 +518,14 @@ func (this *MediaSubSession) Initiate() bool {
 		return false
 	}
 
+	tempAddr := ""
+
 	protocolIsRTP := strings.EqualFold(this.protocolName, "RTP")
 	if protocolIsRTP {
 		this.clientPortNum = this.clientPortNum &^ 1
 	}
 
-	this.rtpSocket = NewGroupSock(this.clientPortNum)
+	this.rtpSocket = NewGroupSock(tempAddr, this.clientPortNum)
 	if this.rtpSocket == nil {
 		fmt.Println("Failed to create RTP socket")
 		return false
@@ -532,7 +534,7 @@ func (this *MediaSubSession) Initiate() bool {
 	if protocolIsRTP {
 		// Set our RTCP port to be the RTP Port +1
 		rtcpPortNum := this.clientPortNum | 1
-		this.rtcpSocket = NewGroupSock(rtcpPortNum)
+		this.rtcpSocket = NewGroupSock(tempAddr, rtcpPortNum)
 	}
 
 	var totSessionBandwidth uint

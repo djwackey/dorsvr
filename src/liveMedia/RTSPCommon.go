@@ -22,12 +22,12 @@ type RTSPRequestInfo struct {
 }
 
 type TransportHeader struct {
-	streamingMode     int
-	clientRTPPortNum  int
-	clientRTCPPortNum int
-	rtpChannelId      int
-	rtcpChannelId     int
-	destinationTTL    int
+	streamingMode     uint
+	clientRTPPortNum  uint
+	clientRTCPPortNum uint
+	rtpChannelId      uint
+	rtcpChannelId     uint
+	destinationTTL    uint
 	destinationAddr   string
 	streamingModeStr  string
 }
@@ -174,7 +174,8 @@ func parseTransportHeader(reqStr string) *TransportHeader {
 			break
 		}
 
-		var p1, p2, rtpCid, rtcpCid, ttl, num int
+		var num int
+		var p1, p2, rtpCid, rtcpCid, ttl uint
 
 		tranStr := reqStr[index+10:]
 		fields := strings.Split(tranStr, ";")
@@ -273,31 +274,31 @@ func parseRangeParam(paramStr string) *RangeHeader {
 }
 
 func parseRangeHeader(buf string) (*RangeHeader, bool) {
-    rangeParam := nil
-    var result bool
+	var rangeParam *RangeHeader
+	var result bool
 
-    for {
-	    // First, find "Range:"
-	    var finded bool
-	    for i := 0; i < len(buf); i++ {
-		    if strings.EqualFold(buf, "Range: ") {
-			    finded = true
-			    break
-		    }
-	    }
-	    if !finded {
-		    break
-	    }
+	for {
+		// First, find "Range:"
+		var finded bool
+		for i := 0; i < len(buf); i++ {
+			if strings.EqualFold(buf, "Range: ") {
+				finded = true
+				break
+			}
+		}
+		if !finded {
+			break
+		}
 
-        rangeParam = parseRangeParam(buf)
-        if rangeParam == nil {
-            break
-        }
-        result = true
-        break
-    }
+		rangeParam = parseRangeParam(buf)
+		if rangeParam == nil {
+			break
+		}
+		result = true
+		break
+	}
 
-    return rangeParam, result
+	return rangeParam, result
 }
 
 func parsePlayNowHeader(buf string) bool {
@@ -314,7 +315,7 @@ func parsePlayNowHeader(buf string) bool {
 func parseScaleHeader(buf string) (float32, bool) {
 	// Initialize the result parameter to a default value:
 	var scale float32 = 1.0
-    var result bool
+	var result bool
 	for {
 		index := strings.Index(buf, "Scale:")
 		if index == -1 {
@@ -333,10 +334,10 @@ func parseScaleHeader(buf string) (float32, bool) {
 		}
 		var sc float32
 		if num, _ := fmt.Sscanf(fields, "%f", &sc); num == 1 {
-            //f, _ := strconv.ParseFloat(sc, 32)
+			//f, _ := strconv.ParseFloat(sc, 32)
 			//scale = float32(f)
 			scale = sc
-            result = true
+			result = true
 		}
 
 		break

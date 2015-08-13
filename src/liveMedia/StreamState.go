@@ -35,36 +35,37 @@ func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort
 }
 
 func (this *StreamState) startPlaying(dests *Destinations) {
-    if dests == nil {
-        return
-    }
+	if dests == nil {
+		return
+	}
 
 	if this.rtcpInstance == nil && this.rtpSink != nil {
 		this.rtcpInstance = NewRTCPInstance(this.rtcpGS, this.totalBW, this.master.CNAME())
 	}
 
 	if dests.isTCP {
-        if this.rtpSink != nil {
-            this.rtpSink.addStreamSocket(dests.tcpSocketNum, dests.rtpChannelId)
-            //this.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum, serverRequestAlternativeByteHandler, serverRequestAlternativeByteHandlerClientData)
-        }
-	    if this.rtcpInstance != nil {
-		    this.rtcpInstance.setSpecificRRHandler()
-	    }
+		if this.rtpSink != nil {
+			//this.rtpSink.addStreamSocket(dests.tcpSocketNum, dests.rtpChannelId)
+			//this.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum, serverRequestAlternativeByteHandler, serverRequestAlternativeByteHandlerClientData)
+		}
+		if this.rtcpInstance != nil {
+			this.rtcpInstance.setSpecificRRHandler()
+		}
 	} else {
-        // Tell the RTP and RTCP 'groupsocks' about this destination
-        // (in case they don't already have it):
-        if this.RTPgs != NULL {
-            this.RTPgs.addDestination(dests.addr, dests.rtpPort)
-        }
-        if this.RTCPgs != NULL {
-            this.RTCPgs.addDestination(dests.addr, dests.rtcpPort)
-        }
-        if this.rtcpInstance != nil {
-            this.rtcpInstance.setSpecificRRHandler(dests.addr, dests.rtcpPort, rtcpRRHandler, rtcpRRHandlerClientData)
-        }
+		// Tell the RTP and RTCP 'groupsocks' about this destination
+		// (in case they don't already have it):
+		if this.rtpGS != nil {
+			this.rtpGS.AddDestination(dests.addr, dests.rtpPort)
+		}
+		if this.rtcpGS != nil {
+			this.rtcpGS.AddDestination(dests.addr, dests.rtcpPort)
+		}
+		if this.rtcpInstance != nil {
+			//rtcpRRHandler := ""
+			//rtcpRRHandlerClientData := ""
+			//this.rtcpInstance.setSpecificRRHandler(dests.addr, dests.rtcpPort, rtcpRRHandler, rtcpRRHandlerClientData)
+		}
 	}
-
 
 	if !this.areCurrentlyPlaying && this.mediaSource != nil {
 		if this.rtpSink != nil {
@@ -112,5 +113,5 @@ func (this *StreamState) reclaim() {
 }
 
 func (this *StreamState) RtpSink() IRTPSink {
-    return this.rtpSink
+	return this.rtpSink
 }

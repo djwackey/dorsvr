@@ -1,78 +1,79 @@
 package liveMedia
 
 import (
-	"fmt"
+//"fmt"
 )
 
-var BANK_SIZE = 150000
-var NO_MORE_BUFFERED_INPUT = 1
+var BANK_SIZE uint = 150000
+var NO_MORE_BUFFERED_INPUT uint = 1
 
 type StreamParser struct {
-    curBankNum            uint
-	curParserIndex        uint
-    totNumValidBytes      uint
-    savedParserIndex      uint
-    remainingUnparsedBits uint
-    savedRemainingUnparsedBits uint
-	haveSeenEOF           bool
-    inputSouce            *FramedSource
-	bank                  []byte
+	curBankNum                 uint
+	curParserIndex             uint
+	totNumValidBytes           uint
+	savedParserIndex           uint
+	remainingUnparsedBits      uint
+	savedRemainingUnparsedBits uint
+	haveSeenEOF                bool
+	inputSource                *FramedSource
+	bank                       []byte
+	curBank                    []byte
 }
 
 func (sp *StreamParser) InitStreamParser() {
 }
 
 func (sp *StreamParser) get4Bytes() uint {
-    result := this.test4Bytes()
+	result := sp.test4Bytes()
 	sp.curParserIndex += 4
-    sp.remainingUnparsedBits = 0
-    return result
+	sp.remainingUnparsedBits = 0
+	return result
 }
 
 func (sp *StreamParser) get2Bytes() uint {
-    sp.ensureValidBytes(2)
+	sp.ensureValidBytes(2)
 
-    ptr := sp.nextToParse()
-    result := (ptr[0]<<8) | ptr[1]
+	ptr := sp.nextToParse()
+	result := (ptr[0] << 8) | ptr[1]
 
 	sp.curParserIndex += 2
-    sp.remainingUnparsedBits = 0
-    return result
+	sp.remainingUnparsedBits = 0
+	return uint(result)
 }
 
-func (sp *StreamParser) get1Byte() byte {
-    sp.ensureValidBytes(1)
+func (sp *StreamParser) get1Byte() uint {
+	sp.ensureValidBytes(1)
 	sp.curParserIndex++
-    return this.curBank()[sp.curParserIndex:]
+	return uint(sp.CurBank()[sp.curParserIndex])
 }
 
 func (sp *StreamParser) test4Bytes() uint {
-    sp.ensureValidBytes(4)
+	sp.ensureValidBytes(4)
 
-    ptr := this.nextToParse()
-	return (ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3]
+	ptr := sp.nextToParse()
+	return uint((ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3])
 }
 
 func (sp *StreamParser) testBytes(to []byte, numBytes uint) {
-    sp.ensureValidBytes(numBytes)
-    to = this.nextToParse()[:numBytes]
+	sp.ensureValidBytes(numBytes)
+	to = sp.nextToParse()[:numBytes]
 }
 
 func (sp *StreamParser) skipBytes(numBytes uint) {
-    sp.ensureValidBytes(numBytes)
+	sp.ensureValidBytes(numBytes)
 	sp.curParserIndex += numBytes
 }
 
-func (sp *StreamParser) curBank() []byte {
-	return sp.bank
+func (sp *StreamParser) CurBank() []byte {
+	return sp.curBank
 }
 
 func (sp *StreamParser) nextToParse() []byte {
-    return this.curBank()[this.curParserIndex]
+	return sp.CurBank()[sp.curParserIndex:]
 }
 
 func (sp *StreamParser) curOffset() uint {
-    return sp.curParserIndex
+	return sp.curParserIndex
 }
 
 func (sp *StreamParser) HaveSeenEOF() bool {
@@ -80,46 +81,46 @@ func (sp *StreamParser) HaveSeenEOF() bool {
 }
 
 func (sp *StreamParser) saveParserState() {
-    this.savedParserIndex = this.curParserIndex
-    this.savedRemainingUnparsedBits = this.remainingUnparsedBits
+	sp.savedParserIndex = sp.curParserIndex
+	sp.savedRemainingUnparsedBits = sp.remainingUnparsedBits
 }
 
 func (sp *StreamParser) TotNumValidBytes() uint {
-    return sp.totNumValidBytes
+	return sp.totNumValidBytes
 }
 
 func (sp *StreamParser) ensureValidBytes(numBytesNeeded uint) {
-    if this.curParserIndex + numBytesNeeded <= this.totNumValidBytes {
-        return
-    }
+	if sp.curParserIndex+numBytesNeeded <= sp.totNumValidBytes {
+		return
+	}
 
-    this.ensureValidBytes1(numBytesNeeded)
+	sp.ensureValidBytes1(numBytesNeeded)
 }
 
 func (sp *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
-    maxInputFrameSize := this.inputSource.maxFrameSize()
-    if maxInputFrameSize > numBytesNeeded {
-        numBytesNeeded = maxInputFrameSize
-    }
+	maxInputFrameSize := sp.inputSource.maxFrameSize()
+	if maxInputFrameSize > numBytesNeeded {
+		numBytesNeeded = maxInputFrameSize
+	}
 
-    if this.curParserIndex + numBytesNeeded > BANK_SIZE {
-        numBytesToSave = this.totNumValidBytes + this.savedParserIndex
-        from := this.curBank()
+	if sp.curParserIndex+numBytesNeeded > BANK_SIZE {
+		numBytesToSave := sp.totNumValidBytes + sp.savedParserIndex
+		//from := sp.CurBank()
 
-        this.curBankNum = (this.curBankNum + 1) % 2
-        this.curBank = this.bank[this.curBandNum:]
+		sp.curBankNum = (sp.curBankNum + 1) % 2
+		sp.curBank = sp.bank[sp.curBankNum:]
 
-        this.curParserIndex -= this.savedParserIndex
-        this.savedParserIndex = 0
-        this.totNumValidBytes = numBytesToSave
-    }
+		sp.curParserIndex -= sp.savedParserIndex
+		sp.savedParserIndex = 0
+		sp.totNumValidBytes = numBytesToSave
+	}
 
-    if this.curParserIndex + numBytesNeeded > BANK_SIZE {
-        panic("StreamParser Internal error")
-    }
+	if sp.curParserIndex+numBytesNeeded > BANK_SIZE {
+		panic("StreamParser Internal error")
+	}
 
-    // Try to read as many new bytes as will fit in the current bank:
-    maxNumBytesToRead = BANK_SIZE - this.totNumValidBytes
-    this.inputSource.getNextFrame()
-    return NO_MORE_BUFFERED_INPUT
+	// Try to read as many new bytes as will fit in the current bank:
+	//maxNumBytesToRead := BANK_SIZE - sp.totNumValidBytes
+	//sp.inputSource.getNextFrame()
+	return NO_MORE_BUFFERED_INPUT
 }

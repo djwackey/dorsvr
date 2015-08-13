@@ -23,7 +23,7 @@ type MPEGVideoStreamFramer struct {
 	pictureCount         uint
 	pictureTimeBase      uint
 	picturesAdjustment   uint
-    pictureEndMarker     bool
+	pictureEndMarker     bool
 	curGOPTimeCode       TimeCode
 	preGOPTimeCode       TimeCode
 	presentationTimeBase Timeval

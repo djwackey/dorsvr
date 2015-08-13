@@ -37,5 +37,5 @@ func (this *FramedSource) stopGettingFrames() {
 }
 
 func (this *FramedSource) maxFrameSize() uint {
-    return 0
+	return 0
 }

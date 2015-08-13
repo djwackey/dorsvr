@@ -50,7 +50,7 @@ func (this *H264VideoRTPSink) AuxSDPLine() string {
 			return ""
 		}
 
-		framerSource.getSPSandPPS()
+		//framerSource.getSPSandPPS()
 	}
 
 	spsBase64 := base64.NewEncoding(sps)

@@ -41,10 +41,10 @@ func (this *BitVector) getBits(numBits uint) uint {
 	this.shiftBits(tmpBuf, this.baseByte, 0, this.baseBitOffset+this.curBitIndex, numBits-overflowingBits)
 	this.curBitIndex += (numBits - overflowingBits)
 
-	result := (tmpBuf[0] << 24) | (tmpBuf[1] << 16) | (tmpBuf[2] << 8) | tmpBuf[3]
+	result := uint((tmpBuf[0] << 24) | (tmpBuf[1] << 16) | (tmpBuf[2] << 8) | tmpBuf[3])
 	result >>= (MAX_LENGTH - numBits)         // move into low-order part of word
 	result &= (0xFFFFFFFF << overflowingBits) // so any overflow bits are 0
-	return uint(result)
+	return result
 }
 
 func (this *BitVector) get1Bit() uint {
@@ -62,7 +62,7 @@ func (this *BitVector) get1Bit() uint {
 }
 
 func (this *BitVector) get1BitBoolean() bool {
-    return (this.get1Bit() != 0)
+	return (this.get1Bit() != 0)
 }
 
 func (this *BitVector) shiftBits(toBaseByte, fromBaseByte []byte, toBitOffset, fromBitOffset, numBits uint) {
@@ -71,9 +71,9 @@ func (this *BitVector) shiftBits(toBaseByte, fromBaseByte []byte, toBitOffset, f
 	}
 
 	/* Note that from and to may overlap, if from>to */
-	fromBytePtr := fromBaseByte + fromBitOffset/8
+	//fromBytePtr := fromBaseByte[fromBitOffset/8:]
 	fromBitRem := fromBitOffset % 8
-	toByte := toBaseByte + toBitOffset/8
+	//toByte := toBaseByte[toBitOffset/8:]
 	toBitRem := toBitOffset % 8
 
 	for numBits > 0 {
@@ -82,13 +82,13 @@ func (this *BitVector) shiftBits(toBaseByte, fromBaseByte []byte, toBitOffset, f
 		toBitMask := singleBitMask[toBitRem]
 		var toBytePtr byte
 		if fromBit != 0 {
-			toByte |= toBitMask
+			//toByte |= toBitMask
 		} else {
 			toBytePtr &= ^toBitMask
 		}
 
 		if fromBitRem == 8 {
-			fromBytePtr++
+			//fromBytePtr++
 			fromBitRem = 0
 		}
 		fromBitRem++

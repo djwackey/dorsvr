@@ -28,18 +28,18 @@ func NewGroupSock(addrStr string, portNum uint) *GroupSock {
 	gs := new(GroupSock)
 	gs.ttl = 255
 	gs.portNum = portNum
-    gs.addDestination(addrStr, portNum)
+	gs.AddDestination(addrStr, portNum)
 	return gs
 }
 
 func (this *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
-    var writeSuccess bool
-    for i:=0; i<len(this.dests); i++ {
-        dest := this.dests[i]
-	    if this.write(dest.addrStr, dest.portNum, buffer, bufferSize) {
-            writeSuccess = true
-        }
-    }
+	var writeSuccess bool
+	for i := 0; i < len(this.dests); i++ {
+		dest := this.dests[i]
+		if this.write(dest.addrStr, dest.portNum, buffer, bufferSize) {
+			writeSuccess = true
+		}
+	}
 	return writeSuccess
 }
 
@@ -50,8 +50,8 @@ func (this *GroupSock) TTL() uint {
 	return this.ttl
 }
 
-func (this *GroupSock) addDestination(addr string, port uint) {
-    this.dests = append(this.dests, NewDestRecord(addr, port))
+func (this *GroupSock) AddDestination(addr string, port uint) {
+	this.dests = append(this.dests, NewDestRecord(addr, port))
 }
 
 func (this *GroupSock) delDestination(addr string, port uint) {
@@ -63,8 +63,8 @@ type destRecord struct {
 }
 
 func NewDestRecord(addr string, port uint) *destRecord {
-    dest := new(destRecord)
-    dest.addrStr = addr
-    dest.portNum = port
-    return dest
+	dest := new(destRecord)
+	dest.addrStr = addr
+	dest.portNum = port
+	return dest
 }

@@ -11,15 +11,16 @@ var OutPacketBufferMaxSize uint = 60000 // default
 
 //////// OutPacketBuffer ////////
 type OutPacketBuffer struct {
-	buff                     []byte
-	limit                    uint
-	preferred                uint
-	curOffset                uint
-	packetStart              uint
-	maxPacketSize            uint
-	overflowDataSize         uint
-	overflowDataOffset       uint
-	overflowPresentationTime Timeval
+	buff                           []byte
+	limit                          uint
+	preferred                      uint
+	curOffset                      uint
+	packetStart                    uint
+	maxPacketSize                  uint
+	overflowDataSize               uint
+	overflowDataOffset             uint
+	overflowDurationInMicroseconds uint
+	overflowPresentationTime       Timeval
 }
 
 func NewOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffer {
@@ -58,6 +59,26 @@ func (this *OutPacketBuffer) increment(numBytes uint) {
 
 func (this *OutPacketBuffer) haveOverflowData() bool {
 	return this.overflowDataSize > 0
+}
+
+func (this *OutPacketBuffer) isPreferredSize() bool {
+	return this.curOffset >= this.preferred
+}
+
+func (this *OutPacketBuffer) useOverflowData() {
+	this.enqueue(this.buff[(this.packetStart+this.overflowDataOffset):], this.overflowDataSize)
+}
+
+func (this *OutPacketBuffer) OverflowDataSize() uint {
+	return this.overflowDataSize
+}
+
+func (this *OutPacketBuffer) OverflowPresentationTime() Timeval {
+	return this.overflowPresentationTime
+}
+
+func (this *OutPacketBuffer) OverflowDurationInMicroseconds() uint {
+	return this.overflowDurationInMicroseconds
 }
 
 func (this *OutPacketBuffer) adjustPacketStart(numBytes uint) {
@@ -108,6 +129,10 @@ func (this *OutPacketBuffer) insert(from []byte, numBytes, toPosition uint) {
 }
 
 func (this *OutPacketBuffer) insertWord(word byte, toPosition uint) {
+}
+
+func (this *OutPacketBuffer) wouldOverflow(numBytes uint) bool {
+	return (this.curOffset + numBytes) > this.maxPacketSize
 }
 
 func (this *OutPacketBuffer) skipBytes(numBytes uint) {
