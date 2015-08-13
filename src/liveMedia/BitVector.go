@@ -33,7 +33,7 @@ func (this *BitVector) getBits(numBits uint) uint {
 		numBits = MAX_LENGTH
 	}
 
-	var overflowingBits uint64
+	var overflowingBits uint
 	if numBits > this.totNumBits-this.curBitIndex {
 		overflowingBits = numBits - (this.totNumBits - this.curBitIndex)
 	}
