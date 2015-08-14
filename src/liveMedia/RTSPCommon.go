@@ -21,6 +21,13 @@ type RTSPRequestInfo struct {
 	contentLength string
 }
 
+type HTTPRequestInfo struct {
+	urlPreSuffix  string
+	urlSuffix     string
+    acceptStr     string
+    sessionCookie string
+}
+
 type TransportHeader struct {
 	streamingMode     uint
 	clientRTPPortNum  uint
@@ -152,8 +159,8 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 	return reqInfo, true
 }
 
-func ParseHTTPRequestString() (*RTSPRequestInfo, bool) {
-	reqInfo := new(RTSPRequestInfo)
+func ParseHTTPRequestString() (*HTTPRequestInfo, bool) {
+	reqInfo := new(HTTPRequestInfo)
 	return reqInfo, true
 }
 

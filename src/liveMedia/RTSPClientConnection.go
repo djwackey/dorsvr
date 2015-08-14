@@ -119,7 +119,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, length int) {
 		if parseSucceeded {
 			switch requestString.cmdName {
 			case "GET":
-				this.handleHTTPCommandTunnelingGET("")
+				this.handleHTTPCommandTunnelingGET(requestString.sessionCookie)
 			case "POST":
 				this.handleHTTPCommandTunnelingPOST()
 			default:

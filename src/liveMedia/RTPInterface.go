@@ -7,6 +7,7 @@ import (
 type RTPInterface struct {
 	gs                         *GroupSock
 	owner                      interface{}
+    tcpStreams                 *TCPStreamRecord
 	nextTCPReadStreamSocketNum int
 }
 
@@ -27,10 +28,25 @@ func (this *RTPInterface) GS() *GroupSock {
 	return this.gs
 }
 
+func (this *RTPInterface) addStreamSocket() {
+    this.tcpStreams = NewTCPStreamRecord()
+}
+
+func (this *RTPInterface) delStreamSocket() {
+}
+
 func (this *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
 	return this.gs.Output(packet, packetSize, this.gs.TTL())
 }
 
 func (this *RTPInterface) handleRead() bool {
 	return true
+}
+
+
+type TCPStreamRecord struct {
+}
+
+func NewTCPStreamRecord() *TCPStreamRecord {
+    return new(TCPStreamRecord)
 }
