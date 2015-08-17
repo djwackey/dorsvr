@@ -1,6 +1,10 @@
 package groupsock
 
+type Socket struct {
+}
+
 type OutputSocket struct {
+    Socket
 	sourcePort  uint
 	lastSentTTL uint
 }

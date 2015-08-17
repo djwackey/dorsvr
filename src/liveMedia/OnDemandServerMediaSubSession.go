@@ -146,14 +146,22 @@ func (this *OnDemandServerMediaSubSession) CNAME() string {
 	return this.cname
 }
 
-func (this *OnDemandServerMediaSubSession) startStream(clientSessionId uint, streamState *StreamState) {
+func (this *OnDemandServerMediaSubSession) startStream(clientSessionId uint, streamState *StreamState) (uint, uint) {
 	destinations, _ := this.destinationsHash[string(clientSessionId)]
 	streamState.startPlaying(destinations)
 
+    var rtpSeqNum, rtpTimestamp uint
 	if streamState.RtpSink() != nil {
-		//rtpSeqNum := streamState.RtpSink().currentSeqNo()
-		//rtpTimestamp := streamState.rtpSink().presetNextTimestamp()
+		rtpSeqNum = streamState.RtpSink().currentSeqNo()
+		rtpTimestamp = streamState.rtpSink().presetNextTimestamp()
 	}
+    return rtpSeqNum, rtpTimestamp
+}
+
+func (this *OnDemandServerMediaSubSession) seekStream() {
+    if this.reuseFirstSource {
+        return
+    }
 }
 
 func (this *OnDemandServerMediaSubSession) pauseStream(streamState *StreamState) {
@@ -167,7 +175,7 @@ func (this *OnDemandServerMediaSubSession) deleteStream(streamState *StreamState
 //////// Destinations ////////
 type Destinations struct {
 	isTCP         bool
-	addr          string
+	addrStr       string
 	rtpPort       uint
 	rtcpPort      uint
 	rtpChannelId  uint
@@ -178,7 +186,7 @@ type Destinations struct {
 func NewDestinations(tcpSockNum *net.Conn, destAddr string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *Destinations {
 	destinations := new(Destinations)
 	destinations.tcpSockNum = tcpSockNum
-	destinations.addr = destAddr
+	destinations.addrStr = destAddr
 	destinations.rtpPort = clientRTPPort
 	destinations.rtcpPort = clientRTCPPort
 	destinations.rtpChannelId = rtpChannelId

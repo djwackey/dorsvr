@@ -39,7 +39,7 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 	defer this.clientOutputSocket.Close()
 
 	isclose := false
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 20000)
 	for {
 		length, err := this.clientOutputSocket.Read(buffer[:1024])
 
@@ -115,7 +115,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, length int) {
 			this.handleCommandBad()
 		}
 	} else {
-		requestString, parseSucceeded := ParseHTTPRequestString()
+		requestString, parseSucceeded := ParseHTTPRequestString(reqStr, length)
 		if parseSucceeded {
 			switch requestString.cmdName {
 			case "GET":

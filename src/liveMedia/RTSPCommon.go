@@ -70,9 +70,9 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 	}
 	for ; j < reqStrSize-8; j++ {
 		if (reqStr[j+0] == 'r' || reqStr[j+0] == 'R') &&
-			(reqStr[j+1] == 't' || reqStr[j+1] == 'T') &&
-			(reqStr[j+2] == 's' || reqStr[j+2] == 'S') &&
-			(reqStr[j+3] == 'p' || reqStr[j+3] == 'P') &&
+		   (reqStr[j+1] == 't' || reqStr[j+1] == 'T') &&
+		   (reqStr[j+2] == 's' || reqStr[j+2] == 'S') &&
+		   (reqStr[j+3] == 'p' || reqStr[j+3] == 'P') &&
 			reqStr[j+4] == ':' && reqStr[j+5] == '/' {
 			j += 6
 			if reqStr[j] == '/' {
@@ -90,10 +90,10 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 	// Look for the URL suffix
 	for k := i + 1; k < reqStrSize-5; k++ {
 		if reqStr[k+0] == 'R' &&
-			reqStr[k+1] == 'T' &&
-			reqStr[k+2] == 'S' &&
-			reqStr[k+3] == 'P' &&
-			reqStr[k+4] == '/' {
+		   reqStr[k+1] == 'T' &&
+		   reqStr[k+2] == 'S' &&
+		   reqStr[k+3] == 'P' &&
+		   reqStr[k+4] == '/' {
 			for k--; k >= i && reqStr[k] == ' '; k-- {
 			}
 			k1 := k
@@ -104,19 +104,17 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 			if i <= k {
 				for ; k2 <= k; k2++ {
 					reqInfo.urlSuffix += string(reqStr[k2])
-					//n++
 				}
 			}
 			k2 = i + 1
 			if i <= k {
 				for ; k2 <= k1-1; k2++ {
 					reqInfo.urlPreSuffix += string(reqStr[k2])
-					//n++
 				}
 			}
 
 			i = k + 7
-			break
+		    break
 		}
 	}
 
@@ -159,9 +157,51 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 	return reqInfo, true
 }
 
-func ParseHTTPRequestString() (*HTTPRequestInfo, bool) {
+func ParseHTTPRequestString(reqStr string, reqStrSize int) (*HTTPRequestInfo, bool) {
 	reqInfo := new(HTTPRequestInfo)
+
+    i := 0
+	for i = 0; i < reqStrSize && reqStr[i] != ' ' && reqStr[i] != '\t'; i++ {
+		reqInfo.cmdName += string(reqStr[i])
+	}
+	if i >= reqStrSize {
+		return nil, false // parse failed
+	}
+
+    // Look for the string "HTTP/", before the first \r or \n:
+    for ; i < reqStrSize && reqStr[i] == "\r" && reqStr[i] == "\n"; i++ {
+        if reqStr[i] == "H" &&
+           reqStr[i+1] == "T" &&
+           reqStr[i+2] == "T" &&
+           reqStr[i+3] == "P" &&
+           reqStr[i+4] == "/" {
+               i += 5
+               break
+           }
+    }
+
+    // Look for various headers that we're interested in:
+    reqInfo.sessionCookie = lookForHeader("x-sessioncookie", reqStr[i], reqStrSize-i)
+    reqInfo.acceptStr = lookForHeader("Accept", reqStr[i], reqStrSize-i)
 	return reqInfo, true
+}
+
+func lookForHeader(headerName string, source []byte, sourceLen int) (string, int) {
+    headerNameLen := len(headerName)
+    var resultStr string
+    var resultMaxSize int
+    for i := 0; i < (sourceLen - headerNameLen); i++ {
+        if strings.EqualFold(source[i:], headerName) && source[i + headerNameLen] == ':' {
+            for i += headerNameLen+1; i < sourceLen && (source[i] == ' ' || source[i] == '\t'); i++ {}
+            for j := i; j < sourceLen; j++ {
+                if source[j] == '\r' || source[j] == '\n' {
+                    resultStr = string(source[i:])
+                    break
+                }
+            }
+        }
+    }
+    return resultStr, resultMaxSize
 }
 
 func parseTransportHeader(reqStr string) *TransportHeader {

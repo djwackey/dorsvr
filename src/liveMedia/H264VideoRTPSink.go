@@ -31,7 +31,6 @@ func (this *H264VideoRTPSink) continuePlaying() {
 	}
 
 	this.source = this.ourFragmenter
-
 	this.multiFramedPlaying()
 }
 
@@ -97,7 +96,7 @@ func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGe
 			this.maxSize = this.maxOutputPacketSize
 		}
 
-		//if this.curDataOffset == 1 {
+		if this.curDataOffset == 1 {
 		//    if this.numValidDataBytes - 1 <= this.maxSize { // case 1
 		//        memmove(this.buffTo, &this.inputBuffer[1], this.numValidDataBytes - 1)
 		//        this.frameSize = this.numValidDataBytes - 1
@@ -113,7 +112,7 @@ func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGe
 		//        this.curDataOffset += this.maxSize - 1
 		//        this.lastFragmentCompletedNALUnit = false
 		//    }
-		//} else {
+		} else {
 		//    this.inputBuffer[this.curDataOffset-2] = this.inputBuffer[0]        // FU indicator
 		//    this.inputBuffer[this.curDataOffset-1] = this.inputBuffer[1]&^0x80  // FU header (no S bit)
 		//    numBytesToSend := 2 + this.numValidDataBytes - this.curDataOffset;
@@ -129,14 +128,14 @@ func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGe
 		//    memmove(this.buffTo, &this.inputBuffer[this.curDataOffset-2], numBytesToSend)
 		//    this.frameSize = numBytesToSend
 		//    this.curDataOffset += numBytesToSend - 2
-		//}
+		}
 	}
 
-	//if this.curDataOffset >= this.numValidDataBytes {
-	//    // We're done with this data.  Reset the pointers for receiving new data:
-	//    this.numValidDataBytes = 1
-	//    this.curDataOffset = 1
-	//}
+	if this.curDataOffset >= this.numValidDataBytes {
+	    // We're done with this data.  Reset the pointers for receiving new data:
+	    this.numValidDataBytes = 1
+	    this.curDataOffset = 1
+	}
 
 	// Complete delivery to the client:
 	this.inputSource.afterGetting()

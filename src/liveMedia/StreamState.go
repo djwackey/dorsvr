@@ -45,8 +45,8 @@ func (this *StreamState) startPlaying(dests *Destinations) {
 
 	if dests.isTCP {
 		if this.rtpSink != nil {
-			//this.rtpSink.addStreamSocket(dests.tcpSocketNum, dests.rtpChannelId)
-			//this.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum, serverRequestAlternativeByteHandler, serverRequestAlternativeByteHandlerClientData)
+			this.rtpSink.addStreamSocket(dests.tcpSocketNum, dests.rtpChannelId)
+			//this.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum)
 		}
 		if this.rtcpInstance != nil {
 			this.rtcpInstance.setSpecificRRHandler()
@@ -90,7 +90,7 @@ func (this *StreamState) pause() {
 
 func (this *StreamState) endPlaying(dests *Destinations) {
 	if this.rtpSink != nil {
-		//this.rtpSink.removeStreamSocket()
+        this.rtpSink.delStreamSocket()
 	}
 	if this.rtcpInstance != nil {
 		this.rtcpInstance.unsetSpecificRRHandler()

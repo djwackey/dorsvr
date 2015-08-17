@@ -39,13 +39,13 @@ func (this *MediaSession) InitWithSDP(sdpDesc string) bool {
 		return false
 	}
 
-	// var result bool
-	//var nextSDPLine string
+	var result bool
+	var nextSDPLine string
 	for {
-		//nextSDPLine, result = this.parseSDPLine(sdpLine)
-		//if !result {
-		//    return false
-		//}
+		nextSDPLine, result = this.parseSDPLine(sdpLine)
+		if !result {
+		    return false
+		}
 
 		if sdpDesc[0] == 'm' {
 			break

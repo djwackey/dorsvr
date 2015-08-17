@@ -16,7 +16,7 @@ type IServerMediaSubSession interface {
 	CNAME() string
 	startStream(clientSessionId uint, streamState *StreamState)
 	pauseStream(streamState *StreamState)
-	//seekStream()
+	seekStream()
 	deleteStream(streamState *StreamState)
 }
 

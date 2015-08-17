@@ -16,7 +16,8 @@ type IRTPSink interface {
 	startPlaying(source IFramedSource) bool
 	stopPlaying()
 	continuePlaying()
-	//presetNextTimestamp() uint
+    addStreamSocket(sockNum *net.Conn, streamChannelId uint)
+	presetNextTimestamp() uint
 }
 
 type RTPSink struct {
@@ -46,6 +47,14 @@ func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType
 
 func (this *RTPSink) SSRC() uint {
 	return this.ssrc
+}
+
+func (this *RTPSink) addStreamSocket(sockNum *net.Conn, streamChannelId uint) {
+    rtpInterface.addStreamSocket(sockNum, streamChannelId)
+}
+
+func (this *RTPSink) delStreamSocket() {
+    rtpInterface.delStreamSocket()
 }
 
 func (this *RTPSink) currentSeqNo() uint {
@@ -116,4 +125,12 @@ type RTPTransmissionStatsDB struct {
 
 //////// RTPTransmissionStats ////////
 type RTPTransmissionStats struct {
+    isPacket bool
+    SSRC uint
+    jitter uint
+    packetLossRatio uint
+    totNumPacketsLost uint
+    lastPacketNumReceived uint
+    timeCreated Timeval
+    timeReceived Timeval
 }
