@@ -9,7 +9,7 @@ import (
 func InitWinSocket() {
 }
 
-func SetupDatagramSocket(address string, port uint) *net.Conn {
+func SetupDatagramSocket(address string, port uint) *net.UDPConn {
 	addr := fmt.Sprintf("%s:%d", address, port)
 	udpAddr, _ := net.ResolveUDPAddr("udp", addr)
 
@@ -17,7 +17,7 @@ func SetupDatagramSocket(address string, port uint) *net.Conn {
 	if err != nil {
 		return nil
 	}
-    return udpConn
+	return udpConn
 }
 
 func SetupStreamSocket() {
@@ -29,13 +29,13 @@ func createSocket(sockType string) {
 func closeSocket() {
 }
 
-func readSocket(udpConn *net.Conn, buffer []byte) int {
-    readBytes, _, _ := udpConn.ReadFrom(buffer)
-    return readBytes
+func readSocket(udpConn *net.UDPConn, buffer []byte) int {
+	readBytes, _, _ := udpConn.ReadFrom(buffer)
+	return readBytes
 }
 
-func writeSocket(udpConn *net.Conn, udpAddr Addr, buffer []byte) bool {
-	_, err = udpConn.WriteTo(buffer, udpAddr)
+func writeSocket(udpConn *net.UDPConn, udpAddr net.Addr, buffer []byte) bool {
+	_, err := udpConn.WriteTo(buffer, udpAddr)
 	if err != nil {
 		//fmt.Println(writeBytes)
 		return false

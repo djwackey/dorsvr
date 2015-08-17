@@ -4,15 +4,15 @@ type Socket struct {
 }
 
 type OutputSocket struct {
-    Socket
+	Socket
 	sourcePort  uint
 	lastSentTTL uint
 }
 
 func (this *OutputSocket) write(destAddr string, port uint, buffer []byte, bufferSize uint) bool {
-	if !writeSocket(destAddr, port, buffer, bufferSize) {
-		return false
-	}
+	//if !writeSocket(destAddr, port, buffer, bufferSize) {
+	//	return false
+	//}
 
 	return true
 }

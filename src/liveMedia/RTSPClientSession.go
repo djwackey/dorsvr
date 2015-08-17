@@ -3,12 +3,14 @@ package liveMedia
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
 type RTSPClientSession struct {
 	isMulticast          bool
 	isTimerRunning       bool
+	streamAfterSETUP     bool
 	numStreamStates      int
 	TCPStreamIdCount     uint
 	ourSessionId         uint
@@ -77,20 +79,20 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		rtcpChannelId = this.TCPStreamIdCount + 2
 	}
 
-    var rangeStart, rangeEnd float32
-	var absStartTime, absEndTime string
-	rangeHeader, sawRangeHeader := parseRangeHeader(reqStr)
-    if sawRangeHeader {
-	    rangeStart = rangeHeader.rangeStart
-	    rangeEnd = rangeHeader.rangeEnd
-	    absStartTime = rangeHeader.absStartTime
-	    absEndTime = rangeHeader.absEndTime
-        this.streamAfterSETUP = true
-    } else if parsePlayNowHeader(reqStr) {
-        this.streamAfterSETUP = true
-    } else {
-        this.streamAfterSETUP = false
-    }
+	//var rangeStart, rangeEnd float32
+	//var absStartTime, absEndTime string
+	/*rangeHeader*/ _, sawRangeHeader := parseRangeHeader(reqStr)
+	if sawRangeHeader {
+		//rangeStart = rangeHeader.rangeStart
+		//rangeEnd = rangeHeader.rangeEnd
+		//absStartTime = rangeHeader.absStartTime
+		//absEndTime = rangeHeader.absEndTime
+		this.streamAfterSETUP = true
+	} else if parsePlayNowHeader(reqStr) {
+		this.streamAfterSETUP = true
+	} else {
+		this.streamAfterSETUP = false
+	}
 
 	subsession := this.streamStates.subsession
 
@@ -191,52 +193,52 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 func (this *RTSPClientSession) HandleCommandWithinSession(cmdName, urlPreSuffix, urlSuffix, fullRequestStr string) {
 	this.noteLiveness()
 
-	var subsession *ServerMediaSubSession
+	var subsession IServerMediaSubSession
 
 	if this.serverMediaSession == nil { // There wasn't a previous SETUP!
-	    this.rtspClientConn.handleCommandNotSupported()
-	    return
+		this.rtspClientConn.handleCommandNotSupported()
+		return
 	} else if urlSuffix != "" && strings.EqualFold(this.serverMediaSession.StreamName(), urlPreSuffix) {
-	    // Non-aggregated operation.
-	    // Look up the media subsession whose track id is "urlSuffix":
-        for i := 0; i < len(this.serverMediaSession.subSessions); i++ {
-            subsession = this.serverMediaSession.subSessions[i]
-            if strings.EqualFold(subsession.TrackId, urlSuffix) {
-                break
-            }
-        }
-    }
+		// Non-aggregated operation.
+		// Look up the media subsession whose track id is "urlSuffix":
+		for i := 0; i < len(this.serverMediaSession.subSessions); i++ {
+			subsession = this.serverMediaSession.subSessions[i]
+			if strings.EqualFold(subsession.TrackId(), urlSuffix) {
+				break
+			}
+		}
+	}
 
 	if subsession == nil { // no such track!
-        this.rtspClientConn.handleCommandNotFound()
-        return
-    } else if strings.EqualFold(this.serverMediaSession.StreamName(), urlSuffix) ||
-	          urlSuffix == "" && strings.EqualFold(this.serverMediaSession.StreamName(), urlPreSuffix) {
-	    // Aggregated operation
-        subsession = nil
+		this.rtspClientConn.handleCommandNotFound()
+		return
+	} else if strings.EqualFold(this.serverMediaSession.StreamName(), urlSuffix) ||
+		urlSuffix == "" && strings.EqualFold(this.serverMediaSession.StreamName(), urlPreSuffix) {
+		// Aggregated operation
+		subsession = nil
 	} else if urlPreSuffix != "" && urlSuffix != "" {
-	    // Aggregated operation, if <urlPreSuffix>/<urlSuffix> is the session (stream) name:
-	    //urlPreSuffixLen := strlen(urlPreSuffix)
-	    if strings.EqualFold(this.serverMediaSession.StreamName(), urlPreSuffix) &&
-	        this.serverMediaSession.StreamName() == "" &&
-	        strings.EqualFold(this.ourServerMediaSession.StreamName(), urlSuffix) {
-            subsession = nil
-	    } else {
-	        this.rtspClientConn.handleCommandNotFound()
-            return
-	    }
+		// Aggregated operation, if <urlPreSuffix>/<urlSuffix> is the session (stream) name:
+		//urlPreSuffixLen := strlen(urlPreSuffix)
+		if strings.EqualFold(this.serverMediaSession.StreamName(), urlPreSuffix) &&
+			this.serverMediaSession.StreamName() == "" &&
+			strings.EqualFold(this.serverMediaSession.StreamName(), urlSuffix) {
+			subsession = nil
+		} else {
+			this.rtspClientConn.handleCommandNotFound()
+			return
+		}
 	} else { // the request doesn't match a known stream and/or track at all!
-	    this.rtspClientConn.handleCommandNotFound()
-	    return
+		this.rtspClientConn.handleCommandNotFound()
+		return
 	}
 
 	switch cmdName {
 	case "TEARDOWN":
-		this.HandleCommandTearDown(subsession)
+		this.HandleCommandTearDown()
 	case "PLAY":
-		this.HandleCommandPlay(subsession, fullRequestStr)
+		this.HandleCommandPlay(nil, fullRequestStr)
 	case "PAUSE":
-		this.HandleCommandPause(subsession)
+		this.HandleCommandPause()
 	case "GET_PARAMETER":
 		this.handleCommandGetParameter()
 	case "SET_PARAMETER":
@@ -249,12 +251,12 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSessi
 
 	// Parse the client's "Scale:" header, if any:
 	scale, sawScaleHeader := parseScaleHeader(fullRequestStr)
-
-	if subsession == nil {
-	} else {
-		subsession.testScaleFactor(scale)
-	}
-
+	/*
+		if subsession == nil {
+		} else {
+			subsession.testScaleFactor(scale)
+		}
+	*/
 	var buf string
 	if sawScaleHeader {
 		buf = fmt.Sprintf("Scale: %f\r\n", scale)
@@ -286,7 +288,7 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSessi
 
 	rangeHeaderStr := buf
 
-    rtpSeqNum, rtpTimestamp := this.streamStates.subsession.startStream(this.ourSessionId, this.streamStates.streamToken)
+	rtpSeqNum, rtpTimestamp := this.streamStates.subsession.startStream(this.ourSessionId, this.streamStates.streamToken)
 	urlSuffix := this.streamStates.subsession.TrackId()
 
 	// Create a "RTP-INFO" line. It will get filled in from each subsession's state:
@@ -313,7 +315,7 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession *ServerMediaSubSessi
 		rtpInfo)
 }
 
-func (this *RTSPClientSession) HandleCommandPause(subsession *ServerMediaSubSession) {
+func (this *RTSPClientSession) HandleCommandPause() {
 	this.streamStates.subsession.pauseStream(this.streamStates.streamToken)
 	/*
 		for i := 0; i < this.numStreamStates; i++ {
@@ -331,7 +333,7 @@ func (this *RTSPClientSession) handleCommandSetParameter() {
 	this.rtspClientConn.setRTSPResponseWithSessionId("200 OK", this.ourSessionId)
 }
 
-func (this *RTSPClientSession) HandleCommandTearDown(subsession *ServerMediaSubSession) {
+func (this *RTSPClientSession) HandleCommandTearDown() {
 	this.streamStates.subsession.deleteStream(this.streamStates.streamToken)
 	/*
 		for i := 0; i < this.numStreamStates; i++ {

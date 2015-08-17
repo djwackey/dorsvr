@@ -44,12 +44,14 @@ func (this *MediaSession) InitWithSDP(sdpDesc string) bool {
 	for {
 		nextSDPLine, result = this.parseSDPLine(sdpLine)
 		if !result {
-		    return false
+			return false
 		}
 
 		if sdpDesc[0] == 'm' {
 			break
 		}
+
+		fmt.Println(nextSDPLine)
 
 		// Check for various special SDP lines that we understand:
 		//if this.parseSDPLine_s(sdpLine) {

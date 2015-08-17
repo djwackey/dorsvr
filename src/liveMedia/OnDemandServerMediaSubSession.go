@@ -13,6 +13,7 @@ type OnDemandServerMediaSubSession struct {
 	sdpLines         string
 	portNumForSDP    int
 	initialPortNum   uint
+	reuseFirstSource bool
 	lastStreamToken  *StreamState
 	destinations     []*Destinations
 	destinationsHash map[string]*Destinations
@@ -150,18 +151,18 @@ func (this *OnDemandServerMediaSubSession) startStream(clientSessionId uint, str
 	destinations, _ := this.destinationsHash[string(clientSessionId)]
 	streamState.startPlaying(destinations)
 
-    var rtpSeqNum, rtpTimestamp uint
+	var rtpSeqNum, rtpTimestamp uint
 	if streamState.RtpSink() != nil {
 		rtpSeqNum = streamState.RtpSink().currentSeqNo()
-		rtpTimestamp = streamState.rtpSink().presetNextTimestamp()
+		rtpTimestamp = streamState.RtpSink().presetNextTimestamp()
 	}
-    return rtpSeqNum, rtpTimestamp
+	return rtpSeqNum, rtpTimestamp
 }
 
 func (this *OnDemandServerMediaSubSession) seekStream() {
-    if this.reuseFirstSource {
-        return
-    }
+	if this.reuseFirstSource {
+		return
+	}
 }
 
 func (this *OnDemandServerMediaSubSession) pauseStream(streamState *StreamState) {

@@ -45,7 +45,7 @@ func (this *StreamState) startPlaying(dests *Destinations) {
 
 	if dests.isTCP {
 		if this.rtpSink != nil {
-			this.rtpSink.addStreamSocket(dests.tcpSocketNum, dests.rtpChannelId)
+			this.rtpSink.addStreamSocket(dests.tcpSockNum, dests.rtpChannelId)
 			//this.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum)
 		}
 		if this.rtcpInstance != nil {
@@ -55,10 +55,10 @@ func (this *StreamState) startPlaying(dests *Destinations) {
 		// Tell the RTP and RTCP 'groupsocks' about this destination
 		// (in case they don't already have it):
 		if this.rtpGS != nil {
-			this.rtpGS.AddDestination(dests.addr, dests.rtpPort)
+			this.rtpGS.AddDestination(dests.addrStr, dests.rtpPort)
 		}
 		if this.rtcpGS != nil {
-			this.rtcpGS.AddDestination(dests.addr, dests.rtcpPort)
+			this.rtcpGS.AddDestination(dests.addrStr, dests.rtcpPort)
 		}
 		if this.rtcpInstance != nil {
 			//rtcpRRHandler := ""
@@ -90,7 +90,7 @@ func (this *StreamState) pause() {
 
 func (this *StreamState) endPlaying(dests *Destinations) {
 	if this.rtpSink != nil {
-        this.rtpSink.delStreamSocket()
+		this.rtpSink.delStreamSocket()
 	}
 	if this.rtcpInstance != nil {
 		this.rtcpInstance.unsetSpecificRRHandler()

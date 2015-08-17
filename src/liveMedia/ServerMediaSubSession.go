@@ -14,7 +14,7 @@ type IServerMediaSubSession interface {
 	TrackId() string
 	SDPLines() string
 	CNAME() string
-	startStream(clientSessionId uint, streamState *StreamState)
+	startStream(clientSessionId uint, streamState *StreamState) (uint, uint)
 	pauseStream(streamState *StreamState)
 	seekStream()
 	deleteStream(streamState *StreamState)

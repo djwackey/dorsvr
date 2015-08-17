@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "groupsock"
 	. "include"
+	"net"
 )
 
 //////// RTPSink ////////
@@ -16,7 +17,8 @@ type IRTPSink interface {
 	startPlaying(source IFramedSource) bool
 	stopPlaying()
 	continuePlaying()
-    addStreamSocket(sockNum *net.Conn, streamChannelId uint)
+	addStreamSocket(sockNum *net.Conn, streamChannelId uint)
+	delStreamSocket()
 	presetNextTimestamp() uint
 }
 
@@ -50,11 +52,11 @@ func (this *RTPSink) SSRC() uint {
 }
 
 func (this *RTPSink) addStreamSocket(sockNum *net.Conn, streamChannelId uint) {
-    rtpInterface.addStreamSocket(sockNum, streamChannelId)
+	this.rtpInterface.addStreamSocket(sockNum, streamChannelId)
 }
 
 func (this *RTPSink) delStreamSocket() {
-    rtpInterface.delStreamSocket()
+	this.rtpInterface.delStreamSocket()
 }
 
 func (this *RTPSink) currentSeqNo() uint {
@@ -125,12 +127,12 @@ type RTPTransmissionStatsDB struct {
 
 //////// RTPTransmissionStats ////////
 type RTPTransmissionStats struct {
-    isPacket bool
-    SSRC uint
-    jitter uint
-    packetLossRatio uint
-    totNumPacketsLost uint
-    lastPacketNumReceived uint
-    timeCreated Timeval
-    timeReceived Timeval
+	isPacket              bool
+	SSRC                  uint
+	jitter                uint
+	packetLossRatio       uint
+	totNumPacketsLost     uint
+	lastPacketNumReceived uint
+	timeCreated           Timeval
+	timeReceived          Timeval
 }

@@ -2,13 +2,13 @@ package liveMedia
 
 import (
 	. "groupsock"
-    "net"
+	"net"
 )
 
 type RTPInterface struct {
 	gs                         *GroupSock
 	owner                      interface{}
-    tcpStreams                 *TCPStreamRecord
+	tcpStreams                 *TCPStreamRecord
 	nextTCPReadStreamSocketNum int
 }
 
@@ -30,11 +30,11 @@ func (this *RTPInterface) GS() *GroupSock {
 }
 
 func (this *RTPInterface) addStreamSocket(sockNum *net.Conn, streamChannelId uint) {
-    if sockNum == nil {
-        return
-    }
+	if sockNum == nil {
+		return
+	}
 
-    this.tcpStreams = NewTCPStreamRecord(sockNum, streamChannelId)
+	this.tcpStreams = NewTCPStreamRecord(sockNum, streamChannelId)
 }
 
 func (this *RTPInterface) delStreamSocket() {
@@ -48,15 +48,14 @@ func (this *RTPInterface) handleRead() bool {
 	return true
 }
 
-
 type TCPStreamRecord struct {
-    streamChannelId uint
-    streamSocketNum *net.Conn
+	streamChannelId uint
+	streamSocketNum *net.Conn
 }
 
-func NewTCPStreamRecord(sockNum *net.Conn, streamChannelId uint) *TCPStreamRecord {
-    tcpStreamRecord := new(TCPStreamRecord)
-    tcpStreamRecord.streamChannelId = streamChannelId
-    tcpStreamRecord.streamSocketNum = streamSocketNum
-    return tcpStreamRecord
+func NewTCPStreamRecord(streamSocketNum *net.Conn, streamChannelId uint) *TCPStreamRecord {
+	tcpStreamRecord := new(TCPStreamRecord)
+	tcpStreamRecord.streamChannelId = streamChannelId
+	tcpStreamRecord.streamSocketNum = streamSocketNum
+	return tcpStreamRecord
 }
