@@ -174,10 +174,10 @@ func (this *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
 		// Assumed to be a H.264 Video Elementary Stream file:
 		serverMediaSession = NewServerMediaSession("H.264 Video", fileName)
 		serverMediaSession.AddSubSession(NewH264FileMediaSubSession(fileName))
-    case "ts":
-        indexFileName := fmt.Sprintf("%sx", fileName)
+	case "ts":
+		//indexFileName := fmt.Sprintf("%sx", fileName)
 		serverMediaSession = NewServerMediaSession("MPEG Transport Stream", fileName)
-        serverMediaSession.AddSubSession(NewM2TSFileMediaSubSession())
+		serverMediaSession.AddSubSession(NewM2TSFileMediaSubSession(fileName))
 	default:
 	}
 	return serverMediaSession

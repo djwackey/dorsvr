@@ -37,20 +37,20 @@ var maxRTCPPacketSize uint = 1450
 var preferredPacketSize uint = 1000 // bytes
 
 type RTCPInstance struct {
-	typeOfEvent    int
-    lastSentSize   int
-	totSessionBW   uint
-    lastPacketSentSize uint
-    haveJustSentPacket bool
-	inBuf          []byte
-	CNAME          *SDESItem
-	Sink           *RTPSink
-	Source         *RTPSource
-	outBuf         *OutPacketBuffer
-	rtcpInterface  *RTPInterface
-	ByeHandlerTask interface{}
-	SRHandlerTask  interface{}
-	RRHandlerTask  interface{}
+	typeOfEvent        uint
+	lastSentSize       uint
+	totSessionBW       uint
+	lastPacketSentSize uint
+	haveJustSentPacket bool
+	inBuf              []byte
+	CNAME              *SDESItem
+	Sink               *RTPSink
+	Source             *RTPSource
+	outBuf             *OutPacketBuffer
+	rtcpInterface      *RTPInterface
+	ByeHandlerTask     interface{}
+	SRHandlerTask      interface{}
+	RRHandlerTask      interface{}
 }
 
 func NewSDESItem(tag int, value string) *SDESItem {
@@ -124,48 +124,48 @@ func (this *RTCPInstance) sendBuiltPacket() {
 	this.rtcpInterface.sendPacket(this.outBuf.packet(), reportSize)
 	this.outBuf.resetOffset()
 
-	this.lastSentSize = IP_UDP_HDR_SIZE + reportSize
+	this.lastSentSize = uint(IP_UDP_HDR_SIZE) + reportSize
 	this.haveJustSentPacket = true
 	this.lastPacketSentSize = reportSize
 }
 
 func (this *RTCPInstance) addReport() {
-    if this.Sink != nil {
-        if this.sink.enableRTCPReports() {
-            return
-        }
+	if this.Sink != nil {
+		//if this.Sink.enableRTCPReports() {
+		//    return
+		//}
 
-        if this.sink.nextTimestampHasBeenPreset() {
-            return
-        }
+		//if this.Sink.nextTimestampHasBeenPreset() {
+		//    return
+		//}
 
-        this.addSR()
-    } else if this.Source != nil {
-	    this.addRR()
-    }
+		this.addSR()
+	} else if this.Source != nil {
+		this.addRR()
+	}
 }
 
 func (this *RTCPInstance) addSDES() {
-    numBytes := 4
-    numBytes += this.CNAME.totalSize()
-    numBytes += 1
+	numBytes := 4
+	//numBytes += this.CNAME.totalSize()
+	numBytes += 1
 
-    num4ByteWords := (numBytes + 3) / 4
+	num4ByteWords := (numBytes + 3) / 4
 
-    rtcpHdr := 0x81000000   // version 2, no padding, 1 SSRC chunk
-    rtcpHdr |= (RTCP_PT_SDES<<16)
-    rtcpHdr |= num4ByteWords
-    this.outBuf.enqueueWord(rtcpHdr)
+	var rtcpHdr int64 = 0x81000000 // version 2, no padding, 1 SSRC chunk
+	rtcpHdr |= (RTCP_PT_SDES << 16)
+	rtcpHdr |= int64(num4ByteWords)
+	this.outBuf.enqueueWord(uint(rtcpHdr))
 }
 
 func (this *RTCPInstance) addSR() {
-    this.enqueueCommonReportPrefix(RTCP_PT_SR, this.Source.SSRC(), 0)
-    this.enqueueCommonReportSuffix()
+	//this.enqueueCommonReportPrefix(RTCP_PT_SR, this.Source.SSRC(), 0)
+	this.enqueueCommonReportSuffix()
 }
 
 func (this *RTCPInstance) addRR() {
-    this.enqueueCommonReportPrefix(RTCP_PT_RR, this.Source.SSRC(), 0)
-    this.enqueueCommonReportSuffix()
+	//this.enqueueCommonReportPrefix(RTCP_PT_RR, this.Source.SSRC(), 0)
+	this.enqueueCommonReportSuffix()
 }
 
 func (this *RTCPInstance) unsetSpecificRRHandler() {

@@ -16,7 +16,7 @@ type OnDemandServerMediaSubSession struct {
 	reuseFirstSource bool
 	lastStreamToken  *StreamState
 	destinations     []*Destinations
-	destinationsHash map[string]*Destinations
+	destinationsDict map[string]*Destinations
 }
 
 type StreamParameter struct {
@@ -33,6 +33,7 @@ type StreamParameter struct {
 func (this *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession(isubsession IServerMediaSubSession) {
 	this.initialPortNum = 6970
 	this.cname, _ = os.Hostname()
+	this.destinationsDict = make(map[string]*Destinations)
 	this.InitServerMediaSubSession(isubsession)
 }
 
@@ -93,7 +94,7 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net
 
 	dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
 	this.destinations = append(this.destinations, dests)
-	this.destinationsHash[clientSessionId] = dests
+	this.destinationsDict[clientSessionId] = dests
 
 	return sp
 }
@@ -148,8 +149,10 @@ func (this *OnDemandServerMediaSubSession) CNAME() string {
 }
 
 func (this *OnDemandServerMediaSubSession) startStream(clientSessionId uint, streamState *StreamState) (uint, uint) {
-	destinations, _ := this.destinationsHash[string(clientSessionId)]
+	destinations, _ := this.destinationsDict[string(clientSessionId)]
 	streamState.startPlaying(destinations)
+
+	fmt.Println("OnDemandServerMediaSubSession::startStream")
 
 	var rtpSeqNum, rtpTimestamp uint
 	if streamState.RtpSink() != nil {
