@@ -98,21 +98,21 @@ func (this *H264FUAFragmenter) getNextFrame(buffTo []byte, maxSize uint, afterGe
 		}
 
 		if this.curDataOffset == 1 {
-			//    if this.numValidDataBytes - 1 <= this.maxSize { // case 1
-			//        memmove(this.buffTo, &this.inputBuffer[1], this.numValidDataBytes - 1)
-			//        this.frameSize = this.numValidDataBytes - 1
-			//        this.curDataOffset = this.numValidDataBytes
-			//    } else { // case 2
-			//        // We need to send the NAL unit data as FU-A packets.  Deliver the first
-			//        // packet now.  Note that we add FU indicator and FU header bytes to the front
-			//        // of the packet (reusing the existing NAL header byte for the FU header).
-			//        this.inputBuffer[0] = (this.inputBuffer[1] & 0xE0) | 28     // FU indicator
-			//        this.inputBuffer[1] = 0x80 | (this.inputBuffer[1] & 0x1F)   // FU header (with S bit)
+            if this.numValidDataBytes - 1 <= this.maxSize { // case 1
+                // memmove(this.buffTo, &this.inputBuffer[1], this.numValidDataBytes - 1)
+			    this.frameSize = this.numValidDataBytes - 1
+			    this.curDataOffset = this.numValidDataBytes
+			} else { // case 2
+			    // We need to send the NAL unit data as FU-A packets.  Deliver the first
+			    // packet now.  Note that we add FU indicator and FU header bytes to the front
+			    // of the packet (reusing the existing NAL header byte for the FU header).
+			    this.inputBuffer[0] = (this.inputBuffer[1] & 0xE0) | 28     // FU indicator
+			    this.inputBuffer[1] = 0x80 | (this.inputBuffer[1] & 0x1F)   // FU header (with S bit)
 			//        memmove(this.buffTo, this.inputBuffer, this.maxSize)
 			//        this.frameSize = this.maxSize
 			//        this.curDataOffset += this.maxSize - 1
 			//        this.lastFragmentCompletedNALUnit = false
-			//    }
+			    }
 		} else {
 			//    this.inputBuffer[this.curDataOffset-2] = this.inputBuffer[0]        // FU indicator
 			//    this.inputBuffer[this.curDataOffset-1] = this.inputBuffer[1]&^0x80  // FU header (no S bit)

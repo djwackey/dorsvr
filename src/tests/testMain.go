@@ -64,10 +64,10 @@ func parse(reqStr string, reqStrSize int) bool {
 	}
 	for ; j < reqStrSize-8; j++ {
 		if (reqStr[j+0] == 'r' || reqStr[j+0] == 'R') &&
-			(reqStr[j+1] == 't' || reqStr[j+1] == 'T') &&
-			(reqStr[j+2] == 's' || reqStr[j+2] == 'S') &&
-			(reqStr[j+3] == 'p' || reqStr[j+3] == 'P') &&
-			reqStr[j+4] == ':' && reqStr[j+5] == '/' {
+		   (reqStr[j+1] == 't' || reqStr[j+1] == 'T') &&
+		   (reqStr[j+2] == 's' || reqStr[j+2] == 'S') &&
+		   (reqStr[j+3] == 'p' || reqStr[j+3] == 'P') &&
+		    reqStr[j+4] == ':' && reqStr[j+5] == '/' {
 			j += 6
 			if reqStr[j] == '/' {
 				j++

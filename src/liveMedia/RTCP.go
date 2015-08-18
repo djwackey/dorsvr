@@ -38,7 +38,10 @@ var preferredPacketSize uint = 1000 // bytes
 
 type RTCPInstance struct {
 	typeOfEvent    int
+    lastSentSize   int
 	totSessionBW   uint
+    lastPacketSentSize uint
+    haveJustSentPacket bool
 	inBuf          []byte
 	CNAME          *SDESItem
 	Sink           *RTPSink
@@ -110,7 +113,7 @@ func (this *RTCPInstance) sendReport() {
 	this.addReport()
 
 	// Then, include a SDES:
-	//this.addSDES()
+	this.addSDES()
 
 	// Send the report:
 	this.sendBuiltPacket()
@@ -121,33 +124,55 @@ func (this *RTCPInstance) sendBuiltPacket() {
 	this.rtcpInterface.sendPacket(this.outBuf.packet(), reportSize)
 	this.outBuf.resetOffset()
 
-	//this.lastSentSize = IP_UDP_HDR_SIZE + reportSize
-	//this.haveJustSentPacket = true
-	//this.lastPacketSentSize = reportSize
+	this.lastSentSize = IP_UDP_HDR_SIZE + reportSize
+	this.haveJustSentPacket = true
+	this.lastPacketSentSize = reportSize
 }
 
 func (this *RTCPInstance) addReport() {
-	/*
-	   if this.sink != nil {
-	       if this.sink.enableRTCPReports() {
-	           return
-	       }
+    if this.Sink != nil {
+        if this.sink.enableRTCPReports() {
+            return
+        }
 
-	       if this.sink.nextTimestampHasBeenPreset() {
-	           return
-	       }
+        if this.sink.nextTimestampHasBeenPreset() {
+            return
+        }
 
-	       this.addSR()
-	   } else if this.source != nil {
-	       this.addRR()
-	   }*/
+        this.addSR()
+    } else if this.Source != nil {
+	    this.addRR()
+    }
+}
+
+func (this *RTCPInstance) addSDES() {
+    numBytes := 4
+    numBytes += this.CNAME.totalSize()
+    numBytes += 1
+
+    num4ByteWords := (numBytes + 3) / 4
+
+    rtcpHdr := 0x81000000   // version 2, no padding, 1 SSRC chunk
+    rtcpHdr |= (RTCP_PT_SDES<<16)
+    rtcpHdr |= num4ByteWords
+    this.outBuf.enqueueWord(rtcpHdr)
 }
 
 func (this *RTCPInstance) addSR() {
+    this.enqueueCommonReportPrefix(RTCP_PT_SR, this.Source.SSRC(), 0)
+    this.enqueueCommonReportSuffix()
 }
 
 func (this *RTCPInstance) addRR() {
+    this.enqueueCommonReportPrefix(RTCP_PT_RR, this.Source.SSRC(), 0)
+    this.enqueueCommonReportSuffix()
 }
 
 func (this *RTCPInstance) unsetSpecificRRHandler() {
+}
+
+func (this *RTCPInstance) enqueueCommonReportPrefix(packetType, SSRC, numExtraWords uint) {
+}
+
+func (this *RTCPInstance) enqueueCommonReportSuffix() {
 }
