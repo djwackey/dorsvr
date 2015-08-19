@@ -37,7 +37,7 @@ func NewRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionId uint) 
 
 func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr string) {
 	streamName := urlPreSuffix
-	//trackId := urlSuffix
+	trackId := urlSuffix
 
 	sms := this.rtspServer.LookupServerMediaSession(streamName)
 	if sms == nil {
@@ -60,9 +60,30 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		this.numStreamStates = len(this.serverMediaSession.subSessions)
 
 		this.streamStates = new(streamState)
-		this.streamStates.subsession = this.serverMediaSession.subSessions[0]
+		for i := 0; i < this.numStreamStates; i++ {
+			this.streamStates.subsession = this.serverMediaSession.subSessions[i]
+		}
 	}
 
+	// Look up information for the specified subsession (track):
+	//var streamNum int
+	var subsession IServerMediaSubSession
+	if trackId != "" {
+		for streamNum := 0; streamNum < this.numStreamStates; streamNum++ {
+			subsession = this.streamStates.subsession
+			if strings.EqualFold(trackId, subsession.TrackId()) {
+				break
+			}
+		}
+	} else {
+		if this.numStreamStates != 1 && this.streamStates == nil {
+			this.rtspClientConn.handleCommandBad()
+			return
+		}
+		subsession = this.streamStates.subsession
+	}
+
+	// Look for a "Transport:" header in the request string, to extract client parameters:
 	transportHeader := parseTransportHeader(reqStr)
 	rtpChannelId := transportHeader.rtpChannelId
 	rtcpChannelId := transportHeader.rtcpChannelId
@@ -93,8 +114,6 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 	} else {
 		this.streamAfterSETUP = false
 	}
-
-	subsession := this.streamStates.subsession
 
 	sourceAddrStr := this.rtspClientConn.localAddr
 	destAddrStr := this.rtspClientConn.remoteAddr
@@ -257,12 +276,14 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession IServerMediaSubSessi
 
 	// Parse the client's "Scale:" header, if any:
 	scale, sawScaleHeader := parseScaleHeader(fullRequestStr)
-	/*
-		if subsession == nil {
-		} else {
-			subsession.testScaleFactor(scale)
-		}
-	*/
+
+	// Try to set the stream's scale factor to this value:
+	if subsession == nil {
+		//this.serverMediaSession.testScaleFactor()
+	} else {
+		//subsession.testScaleFactor(scale)
+	}
+
 	var buf string
 	if sawScaleHeader {
 		buf = fmt.Sprintf("Scale: %f\r\n", scale)

@@ -2,6 +2,7 @@ package liveMedia
 
 import (
 	"fmt"
+	. "groupsock"
 	. "include"
 	"net"
 	//"time"
@@ -13,16 +14,22 @@ import (
 var responseBufferSize = 20000
 
 type RTSPClient struct {
-	cseq                  uint
-	baseURL               string
-	userAgentHeaderStr    string
-	tcpConn               *net.TCPConn
-	scs                   *StreamClientState
-	tunnelOverHTTPPortNum int
+	baseURL                       string
+	userAgentHeaderStr            string
+	responseBuffer                []byte
+	cseq                          int
+	tunnelOverHTTPPortNum         int
+	responseBufferBytesLeft       uint
+	responseBytesAlreadySeen      uint
+	tcpConn                       *net.TCPConn
+	scs                           *StreamClientState
+	requestsAwaitingResponse      *RequestQueue
+	requestsAwaitingConnection    *RequestQueue
+	requestsAwaitingHTTPTunneling *RequestQueue
 }
 
 type RequestRecord struct {
-	cseq        uint
+	cseq        int
 	commandName string
 	contentStr  string
 	handler     interface{} //ResponseHandler
@@ -40,7 +47,7 @@ func NewRTSPClient(rtspURL, appName string) *RTSPClient {
 	return rtspClient
 }
 
-func NewRequestRecord(cseq uint, commandName string, responseHandler interface{}) *RequestRecord {
+func NewRequestRecord(cseq int, commandName string, responseHandler interface{}) *RequestRecord {
 	requestRecord := new(RequestRecord)
 	requestRecord.cseq = cseq
 	requestRecord.handler = responseHandler
@@ -60,7 +67,7 @@ func (this *RequestRecord) Subsession() *MediaSubSession {
 	return this.subsession
 }
 
-func (this *RequestRecord) CSeq() uint {
+func (this *RequestRecord) CSeq() int {
 	return this.cseq
 }
 
@@ -81,6 +88,7 @@ func (this *RequestRecord) Handle(rtspClient *RTSPClient, resultCode int, result
 
 func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	this.cseq = 1
+	this.responseBuffer = make([]byte, responseBufferSize)
 	this.SetBaseURL(rtspURL)
 
 	this.scs = NewStreamClientState()
@@ -162,9 +170,12 @@ func (this *RTSPClient) SetBaseURL(url string) {
 	this.baseURL = url
 }
 
-func (this *RTSPClient) openConnection() {
+func (this *RTSPClient) setupHTTPTunneling() {
+}
+
+func (this *RTSPClient) openConnection() bool {
 	//SetupStreamSocket()
-	this.connectToServer()
+	return this.connectToServer()
 }
 
 func (this *RTSPClient) connectToServer() bool {
@@ -262,22 +273,15 @@ func (this *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
 }
 
 func (this *RTSPClient) incomingDataHandler() {
+	readBytes := readSocket(this.tcpConn, this.responseBuffer)
 	this.handleResponseBytes()
 }
 
 func (this *RTSPClient) handleResponseBytes() {
 	defer this.tcpConn.Close()
 
-	buffer := make([]byte, 1024)
 	for {
-		readBytes, err := this.tcpConn.Read(buffer)
-		if err != nil {
-			fmt.Println("handleResponseBytes")
-			fmt.Println(err)
-			break
-		}
-
-		fmt.Println(string(buffer), readBytes)
+		select {}
 	}
 }
 
@@ -286,14 +290,25 @@ func (this *RTSPClient) handleRequestError(request *RequestRecord) {
 }
 
 func (this *RTSPClient) sendRequest(request *RequestRecord) int {
-	if this.tcpConn == nil {
-		if !this.connectToServer() {
+	var connectionIsPending bool
+	if !this.requestsAwaitingConnection.isEmpty() {
+		connectionIsPending = true
+	} else if this.tcpConn == nil {
+		if !this.openConnection() {
 			return 0
 		}
+		connectionIsPending = true
+	}
+
+	if connectionIsPending {
+		this.requestsAwaitingConnection.enqueue(request)
+		return request.CSeq()
 	}
 
 	if this.tunnelOverHTTPPortNum != 0 {
-		//this.setupHTTPTunneling()
+		this.setupHTTPTunneling()
+		this.requestsAwaitingHTTPTunneling.enqueue(request)
+		return request.CSeq()
 	}
 
 	protocalStr := "RTSP/1.0"
@@ -316,6 +331,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		subsession := request.Subsession()
 		this.constructSubSessionURL(subsession)
 	case "PLAY":
+		//sessionStr := this.createSessionString(sessionId)
 	case "GET", "POST":
 	default:
 	}
@@ -357,4 +373,100 @@ func (this *RTSPClient) constructSubSessionURL(subsession *MediaSubSession) (str
 	suffix := subsession.ControlPath()
 	separator := ""
 	return prefix, separator, suffix
+}
+
+func (this *RTSPClient) createSessionString(sessionId string) string {
+	var sessionStr string
+	if sessionId != "" {
+		sessionStr = fmt.Sprintf("Session: %s\r\n", sessionId)
+	}
+	return sessionStr
+}
+
+func (this *RTSPClient) createScaleString(scale, currentScale float32) string {
+	var buf string
+	if scale != 1.0 || currentScale != 1.0 {
+		buf = fmt.Sprintf("Scale: %f\r\n", scale)
+	}
+	return buf
+}
+
+func (this *RTSPClient) createRangeString(start, end float32, absStartTime, absEndTime string) string {
+	var buf string
+	if absStartTime != "" {
+		// Create a "Range:" header that specifies 'absolute' time values:
+		if absEndTime == "" {
+			// There's no end time:
+			buf = fmt.Sprintf("Range: clock=%s-\r\n", absStartTime)
+		} else {
+			// There's both a start and an end time; include them both in the "Range:" hdr
+			buf = fmt.Sprintf("Range: clock=%s-%s\r\n", absStartTime, absEndTime)
+		}
+	} else {
+		// Create a "Range:" header that specifies relative (i.e., NPT) time values:
+		if start < 0 {
+			// We're resuming from a PAUSE; there's no "Range:" header at all
+		} else if end < 0 {
+			// There's no end time:
+			buf = fmt.Sprintf("Range: npt=%.3f-\r\n", start)
+		} else {
+			// There's both a start and an end time; include them both in the "Range:" hdr
+			buf = fmt.Sprintf("Range: npt=%.3f-%.3f\r\n", start, end)
+		}
+	}
+	return buf
+}
+
+func (this *RTSPClient) parseResponseCode(line []byte) (bool, int, []byte) {
+	var result bool
+	var responseCode int
+	responseString := line
+
+	for {
+		num1, _ := fmt.Sscanf(string(line), "RTSP/%u", &responseCode)
+		num2, _ := fmt.Sscanf(string(line), "HTTP/%u", &responseCode)
+		if num1 != 1 && num2 != 1 {
+			result = true
+			break
+		}
+
+		// Use everything after the RTSP/* (or HTTP/*) as the response string:
+		i := 0
+		for string(responseString) != "" && responseString[i] != ' ' && responseString[i] != '\t' {
+			i++
+		}
+		i = 0
+		for string(responseString) != "" && (responseString[i] == ' ' || responseString[i] == '\t') {
+			i++ // skip whitespace
+		}
+		break
+	}
+	return result, responseCode, responseString
+}
+
+type RequestQueue struct {
+	requestRecords []*RequestRecord
+}
+
+func NewRequestQueue() *RequestQueue {
+	requestQueue := new(RequestQueue)
+	requestQueue.requestRecords = make([]*RequestRecord, 1024)
+	return requestQueue
+}
+
+func (this *RequestQueue) enqueue(request *RequestRecord) {
+}
+
+func (this *RequestQueue) dequeue() *RequestRecord {
+	return nil
+}
+
+func (this *RequestQueue) putAtHead(request *RequestRecord) {
+}
+
+func (this *RequestQueue) findByCSeq(cseq uint) {
+}
+
+func (this *RequestQueue) isEmpty() bool {
+	return len(this.requestRecords) < 1
 }

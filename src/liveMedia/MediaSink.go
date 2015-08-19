@@ -156,7 +156,7 @@ func (this *OutPacketBuffer) resetOverflowData() {
 
 //////// MediaSink ////////
 type IMediaSink interface {
-	//StartPlaying()
+	StartPlaying()
 }
 
 type MediaSink struct {

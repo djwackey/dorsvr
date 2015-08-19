@@ -39,9 +39,9 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 	defer this.clientOutputSocket.Close()
 
 	isclose := false
-	buffer := make([]byte, 20000)
+	buffer := make([]byte, 4096)
 	for {
-		length, err := this.clientOutputSocket.Read(buffer[:1024])
+		length, err := this.clientOutputSocket.Read(buffer)
 
 		switch err {
 		case nil:
@@ -62,8 +62,8 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 	fmt.Println("end connection.")
 }
 
-func (this *RTSPClientConnection) HandleRequestBytes(buf []byte, length int) {
-	reqStr := string(buf)
+func (this *RTSPClientConnection) HandleRequestBytes(buffer []byte, length int) {
+	reqStr := string(buffer)
 
 	fmt.Println("HandleRequestBytes", reqStr[:length])
 
@@ -164,7 +164,9 @@ func (this *RTSPClientConnection) HandleCommandUnsupportedTransport() {
 
 func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fullRequestStr string) {
 	urlTotalSuffix := urlSuffix
-	//fmt.Println("handleCommandDescribe", urlTotalSuffix)
+	if urlPreSuffix != "" {
+		urlTotalSuffix = fmt.Sprintf("%s/%s", urlPreSuffix, urlSuffix)
+	}
 
 	this.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
 
@@ -195,7 +197,7 @@ func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix,
 }
 
 func (this *RTSPClientConnection) handleCommandBad() {
-	// Don't do anything with "fCurrentCSeq", because it might be nonsense
+	// Don't do anything with "currentCSeq", because it might be nonsense
 	this.responseBuffer = fmt.Sprintf("RTSP/1.0 400 Bad Request\r\n"+
 		"%sAllow: %s\r\n\r\n",
 		DateHeader(), allowedCommandNames)

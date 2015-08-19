@@ -29,13 +29,16 @@ func createSocket(sockType string) {
 func closeSocket() {
 }
 
-func readSocket(udpConn *net.UDPConn, buffer []byte) int {
-	readBytes, _, _ := udpConn.ReadFrom(buffer)
+func readSocket(conn net.Conn, buffer []byte) int {
+	readBytes, err := conn.Read(buffer)
+	if err != nil {
+		fmt.Println("[readSocket]", err.Error())
+	}
 	return readBytes
 }
 
-func writeSocket(udpConn *net.UDPConn, udpAddr net.Addr, buffer []byte) bool {
-	_, err := udpConn.WriteTo(buffer, udpAddr)
+func writeSocket(conn net.Conn, buffer []byte) bool {
+	_, err := conn.Write(buffer)
 	if err != nil {
 		//fmt.Println(writeBytes)
 		return false
