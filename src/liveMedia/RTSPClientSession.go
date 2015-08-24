@@ -100,14 +100,8 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 		rtcpChannelId = this.TCPStreamIdCount + 2
 	}
 
-	//var rangeStart, rangeEnd float32
-	//var absStartTime, absEndTime string
-	/*rangeHeader*/ _, sawRangeHeader := parseRangeHeader(reqStr)
+	_, sawRangeHeader := parseRangeHeader(reqStr)
 	if sawRangeHeader {
-		//rangeStart = rangeHeader.rangeStart
-		//rangeEnd = rangeHeader.rangeEnd
-		//absStartTime = rangeHeader.absStartTime
-		//absEndTime = rangeHeader.absEndTime
 		this.streamAfterSETUP = true
 	} else if parsePlayNowHeader(reqStr) {
 		this.streamAfterSETUP = true
@@ -118,9 +112,9 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 	sourceAddrStr := this.rtspClientConn.localAddr
 	destAddrStr := this.rtspClientConn.remoteAddr
 
-	var tcpSocketNum *net.Conn
+	var tcpSocketNum net.Conn
 	if streamingMode == RTP_TCP {
-		tcpSocketNum = &this.rtspClientConn.clientOutputSocket
+		tcpSocketNum = this.rtspClientConn.clientOutputSocket
 	}
 
 	streamParameter := subsession.getStreamParameters(tcpSocketNum, destAddrStr, string(this.ourSessionId), clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
@@ -279,9 +273,9 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession IServerMediaSubSessi
 
 	// Try to set the stream's scale factor to this value:
 	if subsession == nil {
-		//this.serverMediaSession.testScaleFactor()
+		scale = this.serverMediaSession.testScaleFactor()
 	} else {
-		//subsession.testScaleFactor(scale)
+		scale = subsession.testScaleFactor()
 	}
 
 	var buf string
@@ -290,16 +284,41 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession IServerMediaSubSessi
 	}
 	scaleHeaderStr := buf
 
-	rangeHeader, sawRangeHeader := parseRangeHeader(fullRequestStr)
-	var rangeStart, rangeEnd float32
+	buf = ""
+	var rangeStart, rangeEnd, duration float32
 	var absStartTime, absEndTime string
 
-	buf = ""
-	if sawRangeHeader {
+	rangeHeader, sawRangeHeader := parseRangeHeader(fullRequestStr)
+	if sawRangeHeader && rangeHeader.absStartTime == "" {
+        if subsession == nil {
+            duration = this.serverMediaSession.Duration()
+        } else {
+            duration = subsession.Duration()
+        }
+        if duration < 0 {
+            duration = -duration
+        }
+
 		rangeStart = rangeHeader.rangeStart
 		rangeEnd = rangeHeader.rangeEnd
 		absStartTime = rangeHeader.absStartTime
 		absEndTime = rangeHeader.absEndTime
+
+        if rangeStart < 0 {
+            rangeStart = 0
+        } else if rangeStart > duration {
+            rangeStart = duration
+        }
+        if rangeEnd < 0 {
+            rangeEnd = 0
+        } else if rangeEnd > duration {
+            rangeEnd = duration
+        }
+
+        if (scale > 0.0 && rangeStart > rangeEnd && rangeEnd > 0.0) || (scale < 0.0 && rangeStart < rangeEnd) {
+            // "rangeStart" and "rangeEnd" were the wrong way around; swap them:
+            rangeStart, rangeEnd = rangeEnd, rangeStart
+        }
 
 		// We're seeking by 'absolute' time:
 		if absEndTime == "" {
@@ -315,6 +334,36 @@ func (this *RTSPClientSession) HandleCommandPlay(subsession IServerMediaSubSessi
 			buf = fmt.Sprintf("Range: npt=%.3f-%.3f\r\n", rangeStart, rangeEnd)
 		}
 	}
+
+    for i:=0; i<this.numStreamStates; i++ {
+        if subsession == nil || this.numStreamStates == 1 {
+            if sawScaleHeader {
+                if this.streamStates[i].subsession != nil {
+                    this.streamStates[i].subsession.setStreamScale(this.ourSessionId, this.streamStates[i].streamToken, scale)
+                }
+            }
+            if sawRangeHeader {
+                // Special case handling for seeking by 'absolute' time:
+                if absStart != nil {
+                    if this.streamStates[i].subsession != nil {
+                        this.streamStates[i].subsession.seekStream(this.ourSessionId, this.streamStates[i].streamToken, absStart, absEnd)
+                    }
+                } else {    // Seeking by relative (NPT) time:
+                    streamDuration = 0.0 // by default; means: stream until the end of the media
+                    if rangeEnd > 0.0 && (rangeEnd+0.001) < duration { // the 0.001 is because we limited the values to 3 decimal places
+                        // We want the stream to end early.  Set the duration we want:
+                        streamDuration = rangeEnd - rangeStart
+                        if streamDuration < 0.0 {
+                            streamDuration = -streamDuration // should happen only if scale < 0.0
+                        }
+                    }
+                    if this.streamStates[i].subsession != nil {
+                        var numBytes int
+                        this.streamStates[i].subsession.seekStream(this.ourSessionId, this.StreamStates[i].streamToken, rangeStart, streamDuration, numBytes)
+                    }
+                }}
+                                                                                                                                                                                                                                    }
+    }
 
 	rangeHeaderStr := buf
 

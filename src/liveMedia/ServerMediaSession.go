@@ -103,5 +103,6 @@ func (this *ServerMediaSession) duration() float32 {
 	return 0.0
 }
 
-func (this *ServerMediaSession) testScaleFactor(scale float32) {
+func (this *ServerMediaSession) testScaleFactor() float32 {
+    return 1.0
 }

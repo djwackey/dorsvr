@@ -455,6 +455,7 @@ func NewRequestQueue() *RequestQueue {
 }
 
 func (this *RequestQueue) enqueue(request *RequestRecord) {
+    this.requestQueue = append(this.requestQueue, request)
 }
 
 func (this *RequestQueue) dequeue() *RequestRecord {

@@ -34,20 +34,17 @@ func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
 	return fileSource
 }
 
-func (this *ByteStreamFileSource) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
-	this.maxSize = maxSize
-	//this.buffTo = buffTo
-	fmt.Println("BSFS", afterGettingFunc, this.maxSize)
+func (this *ByteStreamFileSource) doGetNextFrame() {
+    if this.limitNumBytesToStream && this.numBytesToStream == 0 {
+        this.handleClosure()
+        return
+    }
 
-	if this.doReadFromFile() {
-		var frameSize, durationInMicroseconds uint
-		var presentationTime Timeval
-		afterGettingFunc.(func(frameSize, durationInMicroseconds uint, presentationTime Timeval))(frameSize, durationInMicroseconds, presentationTime)
-	}
+    this.doReadFromFile()
 }
 
 func (this *ByteStreamFileSource) doStopGettingFrames() {
-	//defer this.fid.Close()
+	defer this.fid.Close()
 	this.haveStartedReading = false
 }
 

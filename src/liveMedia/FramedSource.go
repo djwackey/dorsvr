@@ -6,29 +6,47 @@ import (
 )
 
 type IFramedSource interface {
-	getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{})
+	getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{})
+    doGetNextFrame()
 	afterGetting()
 	//getSPSandPPS()
 	//stopGettingFrames()
 }
 
 type FramedSource struct {
-	afterGettingFunc       interface{}
-	onCloseFunc            interface{}
-	source                 IFramedSource
-	buffTo                 []byte
-	maxSize                uint
-	frameSize              uint
-	numTruncatedBytes      uint
-	durationInMicroseconds uint
-	presentationTime       Timeval
+	afterGettingFunc        interface{}
+	onCloseFunc             interface{}
+    source                  IFramedSource
+	buffTo                  []byte
+	maxSize                 uint
+	frameSize               uint
+	numTruncatedBytes       uint
+	durationInMicroseconds  uint
+    isCurrentlyAwaitingData bool
+	presentationTime        Timeval
 }
 
 func (this *FramedSource) InitFramedSource(source IFramedSource) {
-	this.source = source
+    this.source = source
+}
+
+func (this *FramedSource) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
+    if this.isCurrentlyAwaitingData {
+        panic("FramedSource::getNextFrame(): attempting to read more than once at the same time!")
+    }
+
+    this.buffTo = buffTo
+    this.maxSize = maxSize
+    this.onCloseFunc = onCloseFunc
+    this.afterGettingFunc = afterGettingFunc
+    this.isCurrentlyAwaitingData = true
+
+    this.source.doGetNextFrame()
 }
 
 func (this *FramedSource) afterGetting() {
+    this.isCurrentlyAwaitingData = false
+
 	if this.afterGettingFunc != nil {
 	}
 }

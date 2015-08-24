@@ -9,12 +9,9 @@ type OutputSocket struct {
 	lastSentTTL uint
 }
 
-func (this *OutputSocket) write(destAddr string, port uint, buffer []byte, bufferSize uint) bool {
-	//if !writeSocket(destAddr, port, buffer, bufferSize) {
-	//	return false
-	//}
-
-	return true
+func (this *OutputSocket) write(destAddr string, portNum uint, buffer []byte, bufferSize uint) bool {
+    udpConn := SetupDatagramSocket(destAddr, portNum)
+	return writeSocket(udpConn, buffer)
 }
 
 func (this *OutputSocket) sourcePortNum() uint {

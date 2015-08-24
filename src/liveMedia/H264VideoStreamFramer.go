@@ -443,11 +443,6 @@ func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	return h264VideoStreamFramer
 }
 
-func (this *H264VideoStreamFramer) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
-	fmt.Println("H264VideoStreamFramer::getNextFrame")
-	this.inputSource.getNextFrame(buffTo, maxSize, afterGettingFunc)
-}
-
 func (this *H264VideoStreamFramer) getSPSandPPS(sps, pps string, spsSize, ppsSize uint) {
 	sps = string(this.lastSeenSPS)
 	pps = string(this.lastSeenPPS)

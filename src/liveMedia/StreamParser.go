@@ -1,7 +1,8 @@
 package liveMedia
 
 import (
-//"fmt"
+    "fmt"
+    . "include"
 )
 
 var BANK_SIZE uint = 150000
@@ -15,12 +16,25 @@ type StreamParser struct {
 	remainingUnparsedBits      uint
 	savedRemainingUnparsedBits uint
 	haveSeenEOF                bool
-	inputSource                *FramedSource
+	inputSource                IFramedSource
 	bank                       []byte
 	curBank                    []byte
+    clientContinueFunc         interface{}
+    clientOnInputCloseFunc     interface{}
+    lastSeenPresentationTime   Timeval
 }
 
-func (sp *StreamParser) InitStreamParser() {
+func (sp *StreamParser) InitStreamParser(inputSource IFramedSource) {
+    sp.inputSource = inputSource
+}
+
+func (sp *StreamParser) restoreSavedParserState() {
+    this.curParserIndex = this.savedParserIndex
+    this.remainingUnparsedBits = this.savedRemainingUnparsedBits
+}
+
+func (sp *StreamParser) bankSize() uint {
+    return BANK_SIZE
 }
 
 func (sp *StreamParser) get4Bytes() uint {
@@ -105,10 +119,10 @@ func (sp *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 
 	if sp.curParserIndex+numBytesNeeded > BANK_SIZE {
 		numBytesToSave := sp.totNumValidBytes + sp.savedParserIndex
-		//from := sp.CurBank()
 
 		sp.curBankNum = (sp.curBankNum + 1) % 2
 		sp.curBank = sp.bank[sp.curBankNum:]
+        sp.curBank = sp.curBank[this.saveParserIndex:this.saveParserIndex + numBytesToSave]
 
 		sp.curParserIndex -= sp.savedParserIndex
 		sp.savedParserIndex = 0
@@ -120,7 +134,33 @@ func (sp *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 	}
 
 	// Try to read as many new bytes as will fit in the current bank:
-	//maxNumBytesToRead := BANK_SIZE - sp.totNumValidBytes
-	//sp.inputSource.getNextFrame()
+	maxNumBytesToRead := BANK_SIZE - sp.totNumValidBytes
+	sp.inputSource.getNextFrame(sp.CurBank(), maxNumBytesToRead, this.afterGettingBytes)
 	return NO_MORE_BUFFERED_INPUT
+}
+
+func (sp *StreamParser) afterGettingBytes(numBytesRead uint, presentationTime Timeval) {
+    if this.totNumValidBytes + numBytesRead > BANK_SIZE {
+        fmt.Println(fmt.Sprintf("StreamParser::afterGettingBytes() warning: read %d bytes; expected no more than %d", numBytesRead, BANK_SIZE - this.totNumValidBytes))
+    }
+
+    this.lastSeenPresentationTime = presentationTime
+
+    // Continue our original calling source where it left off:
+    this.restoreSavedParserState()
+
+    this.clientContinueFunc.(func())()
+}
+
+func (sp *StreamParser) onInputClosure() {
+    if !this.haveSeenEOF {
+        this.haveSeenEOF = true
+        this.afterGettingBytes(0, this.lastSeenPresentationTime)
+    } else {
+        // We're hitting EOF for the second time.  Now, we handle the source input closure:
+        this.haveSeenEOF = false
+        if this.clientOnInputCloseFunc != nil {
+            this.clientOnInputCloseFunc.(func())()
+        }
+    }
 }

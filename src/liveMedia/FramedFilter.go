@@ -16,3 +16,7 @@ func (this *FramedFilter) InputSource() IFramedSource {
 func (this *FramedFilter) reAssignInputSource(newInputSource IFramedSource) {
 	this.inputSource = newInputSource
 }
+
+func (this *FramedFilter) detachInputSource() {
+    this.reAssignInputSource(nil)
+}

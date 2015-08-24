@@ -199,8 +199,7 @@ func (this *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix,
 func (this *RTSPClientConnection) handleCommandBad() {
 	// Don't do anything with "currentCSeq", because it might be nonsense
 	this.responseBuffer = fmt.Sprintf("RTSP/1.0 400 Bad Request\r\n"+
-		"%sAllow: %s\r\n\r\n",
-		DateHeader(), allowedCommandNames)
+		"%sAllow: %s\r\n\r\n", DateHeader(), allowedCommandNames)
 }
 
 func (this *RTSPClientConnection) handleCommandNotSupported() {
@@ -224,8 +223,7 @@ func (this *RTSPClientConnection) handleHTTPCommandTunnelingGET(sessionCookie st
 		"Date: Thu, 19 Aug 1982 18:30:00 GMT\r\n" +
 		"Cache-Control: no-cache\r\n" +
 		"Pragma: no-cache\r\n" +
-		"Content-Type: application/x-rtsp-tunnelled\r\n" +
-		"\r\n")
+		"Content-Type: application/x-rtsp-tunnelled\r\n\r\n")
 }
 
 func (this *RTSPClientConnection) handleHTTPCommandTunnelingPOST() {

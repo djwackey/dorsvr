@@ -53,7 +53,7 @@ func (this *OnDemandServerMediaSubSession) SDPLines() string {
 	return this.sdpLines
 }
 
-func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum *net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *StreamParameter {
+func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *StreamParameter {
 	var streamBitrate uint = 500
 
 	sp := new(StreamParameter)
