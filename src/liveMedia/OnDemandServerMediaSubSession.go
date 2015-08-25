@@ -184,10 +184,10 @@ type Destinations struct {
 	rtcpPort      uint
 	rtpChannelId  uint
 	rtcpChannelId uint
-	tcpSockNum    *net.Conn
+	tcpSockNum    net.Conn
 }
 
-func NewDestinations(tcpSockNum *net.Conn, destAddr string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *Destinations {
+func NewDestinations(tcpSockNum net.Conn, destAddr string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *Destinations {
 	destinations := new(Destinations)
 	destinations.tcpSockNum = tcpSockNum
 	destinations.addrStr = destAddr

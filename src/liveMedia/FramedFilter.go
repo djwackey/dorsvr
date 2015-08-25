@@ -18,5 +18,5 @@ func (this *FramedFilter) reAssignInputSource(newInputSource IFramedSource) {
 }
 
 func (this *FramedFilter) detachInputSource() {
-    this.reAssignInputSource(nil)
+	this.reAssignInputSource(nil)
 }

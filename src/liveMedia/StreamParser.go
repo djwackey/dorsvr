@@ -1,8 +1,8 @@
 package liveMedia
 
 import (
-    "fmt"
-    . "include"
+	"fmt"
+	. "include"
 )
 
 var BANK_SIZE uint = 150000
@@ -11,6 +11,7 @@ var NO_MORE_BUFFERED_INPUT uint = 1
 type StreamParser struct {
 	curBankNum                 uint
 	curParserIndex             uint
+	saveParserIndex            uint
 	totNumValidBytes           uint
 	savedParserIndex           uint
 	remainingUnparsedBits      uint
@@ -19,22 +20,22 @@ type StreamParser struct {
 	inputSource                IFramedSource
 	bank                       []byte
 	curBank                    []byte
-    clientContinueFunc         interface{}
-    clientOnInputCloseFunc     interface{}
-    lastSeenPresentationTime   Timeval
+	clientContinueFunc         interface{}
+	clientOnInputCloseFunc     interface{}
+	lastSeenPresentationTime   Timeval
 }
 
 func (sp *StreamParser) InitStreamParser(inputSource IFramedSource) {
-    sp.inputSource = inputSource
+	sp.inputSource = inputSource
 }
 
 func (sp *StreamParser) restoreSavedParserState() {
-    this.curParserIndex = this.savedParserIndex
-    this.remainingUnparsedBits = this.savedRemainingUnparsedBits
+	sp.curParserIndex = sp.savedParserIndex
+	sp.remainingUnparsedBits = sp.savedRemainingUnparsedBits
 }
 
 func (sp *StreamParser) bankSize() uint {
-    return BANK_SIZE
+	return BANK_SIZE
 }
 
 func (sp *StreamParser) get4Bytes() uint {
@@ -122,7 +123,7 @@ func (sp *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 
 		sp.curBankNum = (sp.curBankNum + 1) % 2
 		sp.curBank = sp.bank[sp.curBankNum:]
-        sp.curBank = sp.curBank[this.saveParserIndex:this.saveParserIndex + numBytesToSave]
+		sp.curBank = sp.curBank[sp.saveParserIndex : sp.saveParserIndex+numBytesToSave]
 
 		sp.curParserIndex -= sp.savedParserIndex
 		sp.savedParserIndex = 0
@@ -135,32 +136,32 @@ func (sp *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 
 	// Try to read as many new bytes as will fit in the current bank:
 	maxNumBytesToRead := BANK_SIZE - sp.totNumValidBytes
-	sp.inputSource.getNextFrame(sp.CurBank(), maxNumBytesToRead, this.afterGettingBytes)
+	sp.inputSource.getNextFrame(sp.CurBank(), maxNumBytesToRead, sp.afterGettingBytes, sp.onInputClosure)
 	return NO_MORE_BUFFERED_INPUT
 }
 
 func (sp *StreamParser) afterGettingBytes(numBytesRead uint, presentationTime Timeval) {
-    if this.totNumValidBytes + numBytesRead > BANK_SIZE {
-        fmt.Println(fmt.Sprintf("StreamParser::afterGettingBytes() warning: read %d bytes; expected no more than %d", numBytesRead, BANK_SIZE - this.totNumValidBytes))
-    }
+	if sp.totNumValidBytes+numBytesRead > BANK_SIZE {
+		fmt.Println(fmt.Sprintf("StreamParser::afterGettingBytes() warning: read %d bytes; expected no more than %d", numBytesRead, BANK_SIZE-sp.totNumValidBytes))
+	}
 
-    this.lastSeenPresentationTime = presentationTime
+	sp.lastSeenPresentationTime = presentationTime
 
-    // Continue our original calling source where it left off:
-    this.restoreSavedParserState()
+	// Continue our original calling source where it left off:
+	sp.restoreSavedParserState()
 
-    this.clientContinueFunc.(func())()
+	sp.clientContinueFunc.(func())()
 }
 
 func (sp *StreamParser) onInputClosure() {
-    if !this.haveSeenEOF {
-        this.haveSeenEOF = true
-        this.afterGettingBytes(0, this.lastSeenPresentationTime)
-    } else {
-        // We're hitting EOF for the second time.  Now, we handle the source input closure:
-        this.haveSeenEOF = false
-        if this.clientOnInputCloseFunc != nil {
-            this.clientOnInputCloseFunc.(func())()
-        }
-    }
+	if !sp.haveSeenEOF {
+		sp.haveSeenEOF = true
+		sp.afterGettingBytes(0, sp.lastSeenPresentationTime)
+	} else {
+		// We're hitting EOF for the second time.  Now, we handle the source input closure:
+		sp.haveSeenEOF = false
+		if sp.clientOnInputCloseFunc != nil {
+			sp.clientOnInputCloseFunc.(func())()
+		}
+	}
 }

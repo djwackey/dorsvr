@@ -8,12 +8,14 @@ import (
 
 type ByteStreamFileSource struct {
 	FramedFileSource
-	presentationTime   Timeval
-	fileSize           int64
-	lastPlayTime       uint
-	playTimePerFrame   uint
-	preferredFrameSize uint
-	haveStartedReading bool
+	presentationTime      Timeval
+	fileSize              int64
+	numBytesToStream      int64
+	lastPlayTime          uint
+	playTimePerFrame      uint
+	preferredFrameSize    uint
+	haveStartedReading    bool
+	limitNumBytesToStream bool
 }
 
 func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
@@ -35,12 +37,12 @@ func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
 }
 
 func (this *ByteStreamFileSource) doGetNextFrame() {
-    if this.limitNumBytesToStream && this.numBytesToStream == 0 {
-        this.handleClosure()
-        return
-    }
+	if this.limitNumBytesToStream && this.numBytesToStream == 0 {
+		this.handleClosure()
+		return
+	}
 
-    this.doReadFromFile()
+	this.doReadFromFile()
 }
 
 func (this *ByteStreamFileSource) doStopGettingFrames() {

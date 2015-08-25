@@ -17,7 +17,7 @@ type IRTPSink interface {
 	startPlaying(source IFramedSource) bool
 	stopPlaying()
 	continuePlaying()
-	addStreamSocket(sockNum *net.Conn, streamChannelId uint)
+	addStreamSocket(sockNum net.Conn, streamChannelId uint)
 	delStreamSocket()
 	presetNextTimestamp() uint
 }
@@ -51,7 +51,7 @@ func (this *RTPSink) SSRC() uint {
 	return this.ssrc
 }
 
-func (this *RTPSink) addStreamSocket(sockNum *net.Conn, streamChannelId uint) {
+func (this *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelId uint) {
 	this.rtpInterface.addStreamSocket(sockNum, streamChannelId)
 }
 

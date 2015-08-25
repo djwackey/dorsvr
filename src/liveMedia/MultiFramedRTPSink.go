@@ -85,7 +85,7 @@ func (this *MultiFramedRTPSink) packFrame() {
 			return
 		}
 		fmt.Println("packFrame", this.afterGettingFrame)
-		this.source.getNextFrame(this.outBuf.curPtr(), this.outBuf.totalBytesAvailable(), this.afterGettingFrame)
+		this.source.getNextFrame(this.outBuf.curPtr(), this.outBuf.totalBytesAvailable(), this.afterGettingFrame, this.ourHandlerClosure)
 	}
 }
 
@@ -196,6 +196,9 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 
 func (this *MultiFramedRTPSink) sendNext() {
 	this.buildAndSendPacket(false)
+}
+
+func (this *MultiFramedRTPSink) ourHandlerClosure() {
 }
 
 func (this *MultiFramedRTPSink) isFirstFrameInPacket() bool {

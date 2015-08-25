@@ -273,7 +273,7 @@ func (this *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
 }
 
 func (this *RTSPClient) incomingDataHandler() {
-	readBytes := readSocket(this.tcpConn, this.responseBuffer)
+	/*readBytes :=*/ ReadSocket(this.tcpConn, this.responseBuffer)
 	this.handleResponseBytes()
 }
 
@@ -455,7 +455,7 @@ func NewRequestQueue() *RequestQueue {
 }
 
 func (this *RequestQueue) enqueue(request *RequestRecord) {
-    this.requestQueue = append(this.requestQueue, request)
+	this.requestRecords = append(this.requestRecords, request)
 }
 
 func (this *RequestQueue) dequeue() *RequestRecord {

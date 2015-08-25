@@ -8,5 +8,8 @@ func NewBasicUDPSource() *BasicUDPSource {
 	return new(BasicUDPSource)
 }
 
-func (this *BasicUDPSource) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}) {
+func (this *BasicUDPSource) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
+}
+
+func (this *BasicUDPSource) doGetNextFrame() {
 }

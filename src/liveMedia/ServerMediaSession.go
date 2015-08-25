@@ -45,7 +45,7 @@ func (this *ServerMediaSession) GenerateSDPDescription() string {
 	}
 
 	var rangeLine string
-	dur := this.duration()
+	dur := this.Duration()
 	if dur == 0.0 {
 		rangeLine = "a=range:npt=0-\r\n"
 	} else if dur > 0.0 {
@@ -99,10 +99,10 @@ func (this *ServerMediaSession) AddSubSession(subSession IServerMediaSubSession)
 	subSession.IncrTrackNumber()
 }
 
-func (this *ServerMediaSession) duration() float32 {
+func (this *ServerMediaSession) Duration() float32 {
 	return 0.0
 }
 
 func (this *ServerMediaSession) testScaleFactor() float32 {
-    return 1.0
+	return 1.0
 }

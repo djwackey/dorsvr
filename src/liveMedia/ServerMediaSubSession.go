@@ -10,7 +10,8 @@ type IServerMediaSubSession interface {
 	createNewStreamSource() IFramedSource
 	createNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
 	getStreamParameters(tcpSocketNum net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *StreamParameter
-    testScaleFactor() float32
+	testScaleFactor(float32) float32
+	//Duration() float32
 	IncrTrackNumber()
 	TrackId() string
 	SDPLines() string

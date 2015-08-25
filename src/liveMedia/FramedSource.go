@@ -1,14 +1,15 @@
 package liveMedia
 
 import (
-	//"fmt"
+	"fmt"
 	. "include"
 )
 
 type IFramedSource interface {
 	getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{})
-    doGetNextFrame()
+	doGetNextFrame()
 	afterGetting()
+	maxFrameSize() uint
 	//getSPSandPPS()
 	//stopGettingFrames()
 }
@@ -16,39 +17,44 @@ type IFramedSource interface {
 type FramedSource struct {
 	afterGettingFunc        interface{}
 	onCloseFunc             interface{}
-    source                  IFramedSource
+	source                  IFramedSource
 	buffTo                  []byte
 	maxSize                 uint
 	frameSize               uint
 	numTruncatedBytes       uint
 	durationInMicroseconds  uint
-    isCurrentlyAwaitingData bool
+	isCurrentlyAwaitingData bool
 	presentationTime        Timeval
 }
 
 func (this *FramedSource) InitFramedSource(source IFramedSource) {
-    this.source = source
+	this.source = source
 }
 
 func (this *FramedSource) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
-    if this.isCurrentlyAwaitingData {
-        panic("FramedSource::getNextFrame(): attempting to read more than once at the same time!")
-    }
+	if this.isCurrentlyAwaitingData {
+		panic("FramedSource::getNextFrame(): attempting to read more than once at the same time!")
+	}
 
-    this.buffTo = buffTo
-    this.maxSize = maxSize
-    this.onCloseFunc = onCloseFunc
-    this.afterGettingFunc = afterGettingFunc
-    this.isCurrentlyAwaitingData = true
+	fmt.Println("FramedSource::getNextFrame -> %p", this.source)
 
-    this.source.doGetNextFrame()
+	this.buffTo = buffTo
+	this.maxSize = maxSize
+	this.onCloseFunc = onCloseFunc
+	this.afterGettingFunc = afterGettingFunc
+	this.isCurrentlyAwaitingData = true
+
+	this.source.doGetNextFrame()
 }
 
 func (this *FramedSource) afterGetting() {
-    this.isCurrentlyAwaitingData = false
+	this.isCurrentlyAwaitingData = false
 
 	if this.afterGettingFunc != nil {
 	}
+}
+
+func (this *FramedSource) handleClosure() {
 }
 
 func (this *FramedSource) stopGettingFrames() {

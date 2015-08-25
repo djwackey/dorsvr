@@ -71,9 +71,9 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 	}
 	for ; j < reqStrSize-8; j++ {
 		if (reqStr[j+0] == 'r' || reqStr[j+0] == 'R') &&
-		   (reqStr[j+1] == 't' || reqStr[j+1] == 'T') &&
-		   (reqStr[j+2] == 's' || reqStr[j+2] == 'S') &&
-		   (reqStr[j+3] == 'p' || reqStr[j+3] == 'P') &&
+			(reqStr[j+1] == 't' || reqStr[j+1] == 'T') &&
+			(reqStr[j+2] == 's' || reqStr[j+2] == 'S') &&
+			(reqStr[j+3] == 'p' || reqStr[j+3] == 'P') &&
 			reqStr[j+4] == ':' && reqStr[j+5] == '/' {
 			j += 6
 			if reqStr[j] == '/' {
@@ -91,10 +91,10 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 	// Look for the URL suffix
 	for k := i + 1; k < reqStrSize-5; k++ {
 		if reqStr[k+0] == 'R' &&
-		   reqStr[k+1] == 'T' &&
-		   reqStr[k+2] == 'S' &&
-		   reqStr[k+3] == 'P' &&
-		   reqStr[k+4] == '/' {
+			reqStr[k+1] == 'T' &&
+			reqStr[k+2] == 'S' &&
+			reqStr[k+3] == 'P' &&
+			reqStr[k+4] == '/' {
 			for k--; k >= i && reqStr[k] == ' '; k-- {
 			}
 			k1 := k

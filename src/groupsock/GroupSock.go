@@ -10,7 +10,7 @@ type OutputSocket struct {
 }
 
 func (this *OutputSocket) write(destAddr string, portNum uint, buffer []byte, bufferSize uint) bool {
-    udpConn := SetupDatagramSocket(destAddr, portNum)
+	udpConn := SetupDatagramSocket(destAddr, portNum)
 	return writeSocket(udpConn, buffer)
 }
 

@@ -8,7 +8,7 @@ import (
 type RTPInterface struct {
 	gs                         *GroupSock
 	owner                      interface{}
-    auxReadHandlerFunc         interface{}
+	auxReadHandlerFunc         interface{}
 	tcpStreams                 *TCPStreamRecord
 	nextTCPReadStreamSocketNum int
 }
@@ -61,10 +61,10 @@ func NewTCPStreamRecord(streamSocketNum net.Conn, streamChannelId uint) *TCPStre
 	return tcpStreamRecord
 }
 
-
 ///////////// Help Functions ///////////////
 func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannelId uint) {
-    dollar := '$'
-    socketNum.Write(dollar)
-    socketNum.Write(streamChannelId)
+	dollar := []byte{'$'}
+	channelId := []byte{byte(streamChannelId)}
+	socketNum.Write(dollar)
+	socketNum.Write(channelId)
 }
