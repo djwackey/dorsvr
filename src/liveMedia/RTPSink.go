@@ -9,6 +9,8 @@ import (
 
 //////// RTPSink ////////
 type IRTPSink interface {
+    NextTimestampHasBeenPreset() bool
+    EnableRTCPReports() bool
 	RtpPayloadType() uint
 	AuxSDPLine() string
 	RtpmapLine() string
@@ -34,6 +36,7 @@ type RTPSink struct {
 	rtpTimestampFrequency      uint
 	timestampFrequency         uint
 	rtpPayloadFormatName       string
+    enableRTCPReports          bool
 	nextTimestampHasBeenPreset bool
 	rtpInterface               *RTPInterface
 	transmissionStatsDB        *RTPTransmissionStatsDB
@@ -119,6 +122,14 @@ func (this *RTPSink) convertToRTPTimestamp(tv Timeval) uint {
 
 	rtpTimestamp := this.timestampBase + timestampIncrement
 	return rtpTimestamp
+}
+
+func (this *RTPSink) NextTimestampHasBeenPreset() bool {
+    return this.nextTimestampHasBeenPreset
+}
+
+func (this *RTPSink) EnableRTCPReports() bool {
+    return this.enableRTCPReports
 }
 
 //////// RTPTransmissionStatsDB ////////

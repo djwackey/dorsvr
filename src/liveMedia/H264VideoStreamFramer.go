@@ -440,6 +440,7 @@ func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	h264VideoStreamFramer.inputSource = inputSource
 	h264VideoStreamFramer.frameRate = 25.0
 	h264VideoStreamFramer.InitMPEGVideoStreamFramer(h264VideoStreamFramer.parser)
+    h264VideoStreamFramer.InitFramedSource(h264VideoStreamFramer.parser)
 	return h264VideoStreamFramer
 }
 

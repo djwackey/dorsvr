@@ -2,16 +2,22 @@ package liveMedia
 
 type MPEGVideoStreamParser struct {
 	StreamParser
-	buffTo            []byte
-	startOfFrame      []byte
-	numTruncatedBytes uint
-	usingSource       *H264VideoStreamFramer
+    limit                  []byte
+	buffTo                 []byte
+    saveTo                 []byte
+	startOfFrame           []byte
+	numTruncatedBytes      uint
+    savedNumTruncatedBytes uint
+	usingSource            *H264VideoStreamFramer
 }
 
-func (this *MPEGVideoStreamParser) registerReadInterest(to []byte, maxSize uint) {
-	//this.StartOfFrame = this.buffTo
-	//this.SavedTo = to
-	//fLimit = to + maxSize
+func (this *MPEGVideoStreamParser) registerReadInterest(buffTo []byte, maxSize uint) {
+	this.startOfFrame = this.buffTo
+    this.buffTo = buffTo
+	this.savedTo = buffTo
+    this.limit = buffTo[maxSize:]
+    this.numTruncatedBytes = 0
+    this.savedNumTruncatedBytes = 0
 }
 
 func (this *MPEGVideoStreamParser) NumTruncatedBytes() uint {

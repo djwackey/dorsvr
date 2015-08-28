@@ -55,9 +55,14 @@ func (this *FramedSource) afterGetting() {
 }
 
 func (this *FramedSource) handleClosure() {
+	this.isCurrentlyAwaitingData = false
+
+    if this.onCloseFunc != nil {
+    }
 }
 
 func (this *FramedSource) stopGettingFrames() {
+    this.isCurrentlyAwaitingData = false
 }
 
 func (this *FramedSource) maxFrameSize() uint {

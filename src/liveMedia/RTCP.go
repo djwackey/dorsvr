@@ -42,6 +42,8 @@ type RTCPInstance struct {
 	totSessionBW       uint
 	lastPacketSentSize uint
 	haveJustSentPacket bool
+    prevReportTime     float32
+    nextReportTime     float32
 	inBuf              []byte
 	CNAME              *SDESItem
 	Sink               *RTPSink
@@ -65,6 +67,12 @@ func NewSDESItem(tag int, value string) *SDESItem {
 	return item
 }
 
+func dTimeNow() int64 {
+    timeNow Timeval
+    GetTimeOfDay(&timeNow)
+    return timeNow.Tv_sec + timeNow.Tv_usec / 1000000.0
+}
+
 func (this *SDESItem) totalSize() uint {
 	return 2 + uint(this.data[1])
 }
@@ -75,6 +83,9 @@ func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPIn
 	rtcp.totSessionBW = totSessionBW
 	rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
 
+    rtcp.prevReportTime = dTimeNow()
+    rtcp.nextReportTime = rtcp.prevReportTime
+
 	rtcp.inBuf = make([]byte, maxRTCPPacketSize)
 	rtcp.outBuf = NewOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
 
@@ -82,7 +93,7 @@ func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPIn
 	rtcp.rtcpInterface.startNetworkReading()
 
 	go rtcp.incomingReportHandler()
-	//this.onExpire(rtcp)
+	go rtcp.onExpire(rtcp)
 	return rtcp
 }
 
@@ -90,7 +101,7 @@ func (this *RTCPInstance) setSpecificRRHandler() {
 }
 
 func (this *RTCPInstance) SetByeHandler(handlerTask interface{}, clientData interface{}) {
-	//this.byeHandlerTask = handlerTask
+	this.ByeHandlerTask = handlerTask
 	//this.byeHandlerClientData = clientData
 }
 
@@ -131,13 +142,13 @@ func (this *RTCPInstance) sendBuiltPacket() {
 
 func (this *RTCPInstance) addReport() {
 	if this.Sink != nil {
-		//if this.Sink.enableRTCPReports() {
-		//    return
-		//}
+		if this.Sink.enableRTCPReports() {
+		    return
+		}
 
-		//if this.Sink.nextTimestampHasBeenPreset() {
-		//    return
-		//}
+		if this.Sink.nextTimestampHasBeenPreset() {
+		    return
+		}
 
 		this.addSR()
 	} else if this.Source != nil {
@@ -166,6 +177,9 @@ func (this *RTCPInstance) addSR() {
 func (this *RTCPInstance) addRR() {
 	//this.enqueueCommonReportPrefix(RTCP_PT_RR, this.Source.SSRC(), 0)
 	this.enqueueCommonReportSuffix()
+}
+
+func (this *RTCPInstance) onExpire() {
 }
 
 func (this *RTCPInstance) unsetSpecificRRHandler() {
