@@ -3,6 +3,7 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
+	. "include"
 )
 
 const (
@@ -42,8 +43,8 @@ type RTCPInstance struct {
 	totSessionBW       uint
 	lastPacketSentSize uint
 	haveJustSentPacket bool
-    prevReportTime     float32
-    nextReportTime     float32
+	prevReportTime     int64
+	nextReportTime     int64
 	inBuf              []byte
 	CNAME              *SDESItem
 	Sink               *RTPSink
@@ -68,9 +69,9 @@ func NewSDESItem(tag int, value string) *SDESItem {
 }
 
 func dTimeNow() int64 {
-    timeNow Timeval
-    GetTimeOfDay(&timeNow)
-    return timeNow.Tv_sec + timeNow.Tv_usec / 1000000.0
+	var timeNow Timeval
+	GetTimeOfDay(&timeNow)
+	return timeNow.Tv_sec + timeNow.Tv_usec/1000000.0
 }
 
 func (this *SDESItem) totalSize() uint {
@@ -83,8 +84,8 @@ func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPIn
 	rtcp.totSessionBW = totSessionBW
 	rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
 
-    rtcp.prevReportTime = dTimeNow()
-    rtcp.nextReportTime = rtcp.prevReportTime
+	rtcp.prevReportTime = dTimeNow()
+	rtcp.nextReportTime = rtcp.prevReportTime
 
 	rtcp.inBuf = make([]byte, maxRTCPPacketSize)
 	rtcp.outBuf = NewOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
@@ -93,7 +94,7 @@ func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPIn
 	rtcp.rtcpInterface.startNetworkReading()
 
 	go rtcp.incomingReportHandler()
-	go rtcp.onExpire(rtcp)
+	go rtcp.onExpire()
 	return rtcp
 }
 
@@ -142,12 +143,12 @@ func (this *RTCPInstance) sendBuiltPacket() {
 
 func (this *RTCPInstance) addReport() {
 	if this.Sink != nil {
-		if this.Sink.enableRTCPReports() {
-		    return
+		if this.Sink.EnableRTCPReports() {
+			return
 		}
 
-		if this.Sink.nextTimestampHasBeenPreset() {
-		    return
+		if this.Sink.NextTimestampHasBeenPreset() {
+			return
 		}
 
 		this.addSR()

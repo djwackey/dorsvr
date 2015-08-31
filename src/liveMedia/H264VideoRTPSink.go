@@ -68,12 +68,13 @@ func (this *H264VideoRTPSink) AuxSDPLine() string {
 //////// H264FUAFragmenter ////////
 type H264FUAFragmenter struct {
 	FramedFilter
-	maxOutputPacketSize uint
-	numValidDataBytes   uint
-	inputBufferSize     uint
-	curDataOffset       uint
-	inputBuffer         []byte
-    lastFragmentCompletedNALUnit bool
+	saveNumTruncatedBytes        uint
+	maxOutputPacketSize          uint
+	numValidDataBytes            uint
+	inputBufferSize              uint
+	curDataOffset                uint
+	inputBuffer                  []byte
+	lastFragmentCompletedNALUnit bool
 }
 
 func NewH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264FUAFragmenter {
@@ -82,7 +83,7 @@ func NewH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264F
 	fragment.inputBufferSize = inputBufferMax + 1
 	fragment.inputBuffer = make([]byte, fragment.inputBufferSize)
 	fragment.InitFramedFilter(inputSource)
-    fragment.InitFramedSource(fragment)
+	fragment.InitFramedSource(fragment)
 	return fragment
 }
 
@@ -98,7 +99,7 @@ func (this *H264FUAFragmenter) doGetNextFrame() {
 
 		if this.curDataOffset == 1 {
 			if this.numValidDataBytes-1 <= this.maxSize { // case 1
-                this.buffTo = this.inputBuffer[1:this.numValidDataBytes - 1]
+				this.buffTo = this.inputBuffer[1 : this.numValidDataBytes-1]
 				this.frameSize = this.numValidDataBytes - 1
 				this.curDataOffset = this.numValidDataBytes
 			} else { // case 2
@@ -107,25 +108,25 @@ func (this *H264FUAFragmenter) doGetNextFrame() {
 				// of the packet (reusing the existing NAL header byte for the FU header).
 				this.inputBuffer[0] = (this.inputBuffer[1] & 0xE0) | 28   // FU indicator
 				this.inputBuffer[1] = 0x80 | (this.inputBuffer[1] & 0x1F) // FU header (with S bit)
-                this.buffTo = this.inputBuffer[:this.maxSize]
+				this.buffTo = this.inputBuffer[:this.maxSize]
 				this.frameSize = this.maxSize
 				this.curDataOffset += this.maxSize - 1
 				this.lastFragmentCompletedNALUnit = false
 			}
 		} else {
-			this.inputBuffer[this.curDataOffset-2] = this.inputBuffer[0]        // FU indicator
-			this.inputBuffer[this.curDataOffset-1] = this.inputBuffer[1]&^0x80  // FU header (no S bit)
+			this.inputBuffer[this.curDataOffset-2] = this.inputBuffer[0]         // FU indicator
+			this.inputBuffer[this.curDataOffset-1] = this.inputBuffer[1] &^ 0x80 // FU header (no S bit)
 			numBytesToSend := 2 + this.numValidDataBytes - this.curDataOffset
 			if numBytesToSend > this.maxSize {
-                // We can't send all of the remaining data this time:
-                numBytesToSend = this.maxSize
-                this.lastFragmentCompletedNALUnit = false
-            } else {
-                // This is the last fragment:
-                this.inputBuffer[this.curDataOffset-1] |= 0x40 // set the E bit in the FU header
-                this.numTruncatedBytes = this.saveNumTruncatedBytes
-            }
-            this.buffTo = this.inputBuffer[this.curDataOffset-2:numBytesToSend]
+				// We can't send all of the remaining data this time:
+				numBytesToSend = this.maxSize
+				this.lastFragmentCompletedNALUnit = false
+			} else {
+				// This is the last fragment:
+				this.inputBuffer[this.curDataOffset-1] |= 0x40 // set the E bit in the FU header
+				this.numTruncatedBytes = this.saveNumTruncatedBytes
+			}
+			this.buffTo = this.inputBuffer[this.curDataOffset-2 : numBytesToSend]
 			this.frameSize = numBytesToSend
 			this.curDataOffset += numBytesToSend - 2
 		}

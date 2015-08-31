@@ -36,7 +36,7 @@ func (this *FramedSource) getNextFrame(buffTo []byte, maxSize uint, afterGetting
 		panic("FramedSource::getNextFrame(): attempting to read more than once at the same time!")
 	}
 
-	fmt.Println("FramedSource::getNextFrame -> %p", this.source)
+	fmt.Println(fmt.Sprintf("FramedSource::getNextFrame -> %p", this.source))
 
 	this.buffTo = buffTo
 	this.maxSize = maxSize
@@ -57,12 +57,12 @@ func (this *FramedSource) afterGetting() {
 func (this *FramedSource) handleClosure() {
 	this.isCurrentlyAwaitingData = false
 
-    if this.onCloseFunc != nil {
-    }
+	if this.onCloseFunc != nil {
+	}
 }
 
 func (this *FramedSource) stopGettingFrames() {
-    this.isCurrentlyAwaitingData = false
+	this.isCurrentlyAwaitingData = false
 }
 
 func (this *FramedSource) maxFrameSize() uint {

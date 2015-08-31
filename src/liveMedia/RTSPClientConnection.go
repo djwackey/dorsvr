@@ -105,7 +105,7 @@ func (this *RTSPClientConnection) HandleRequestBytes(buffer []byte, length int) 
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
 			{
 				if clientSession, existed = this.rtspServer.clientSessions[sessionIdStr]; existed {
-					clientSession.HandleCommandWithinSession(requestString.cmdName, requestString.urlPreSuffix, requestString.urlSuffix, reqStr)
+					clientSession.handleCommandWithinSession(requestString.cmdName, requestString.urlPreSuffix, requestString.urlSuffix, reqStr)
 				} else {
 					this.handleCommandSessionNotFound()
 				}

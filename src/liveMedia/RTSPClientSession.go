@@ -204,11 +204,11 @@ func (this *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqSt
 	}
 }
 
-func (this *RTSPClientSession) HandleCommandWithinSession(cmdName, urlPreSuffix, urlSuffix, fullRequestStr string) {
+func (this *RTSPClientSession) handleCommandWithinSession(cmdName, urlPreSuffix, urlSuffix, fullRequestStr string) {
 	this.noteLiveness()
 
 	var subsession IServerMediaSubSession
-	urlSuffix = "track1"
+	//urlSuffix = "track1"
 
 	fmt.Println("RTSPClientSession::HandleCommandWithinSession", urlPreSuffix, urlSuffix)
 	fmt.Println(this.serverMediaSession.StreamName())
@@ -221,6 +221,7 @@ func (this *RTSPClientSession) HandleCommandWithinSession(cmdName, urlPreSuffix,
 		// Look up the media subsession whose track id is "urlSuffix":
 		for i := 0; i < len(this.serverMediaSession.subSessions); i++ {
 			subsession = this.serverMediaSession.subSessions[i]
+            fmt.Println("wwwwwwwww", subsession)
 			break
 
 			if strings.EqualFold(subsession.TrackId(), urlSuffix) {
@@ -229,10 +230,7 @@ func (this *RTSPClientSession) HandleCommandWithinSession(cmdName, urlPreSuffix,
 		}
 	}
 
-	if subsession == nil { // no such track!
-		this.rtspClientConn.handleCommandNotFound()
-		return
-	} /*else if strings.EqualFold(this.serverMediaSession.StreamName(), urlSuffix) ||
+	/*else if strings.EqualFold(this.serverMediaSession.StreamName(), urlSuffix) ||
 		urlSuffix == "" && strings.EqualFold(this.serverMediaSession.StreamName(), urlPreSuffix) {
 		// Aggregated operation
 		subsession = nil

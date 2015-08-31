@@ -1,7 +1,7 @@
 package liveMedia
 
 import (
-	"fmt"
+	//"fmt"
 	. "include"
 )
 
@@ -32,7 +32,7 @@ func (this *H264VideoStreamParser) parse() uint {
 		for first4Bytes := this.test4Bytes(); first4Bytes != 0x00000001; {
 			this.get1Byte()
 			this.setParseState()
-			fmt.Println("parse", first4Bytes)
+			//fmt.Println("parse", first4Bytes)
 		}
 
 		this.skipBytes(4)
@@ -422,6 +422,11 @@ func (this *H264VideoStreamParser) analyzeVUIParameters(bv *BitVector) {
 	}
 }
 
+func (this *H264VideoStreamParser) afterGetting() {}
+func (this *H264VideoStreamParser) doGetNextFrame() {}
+func (this *H264VideoStreamParser) maxFrameSize() uint { return 0 }
+func (this *H264VideoStreamParser) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {}
+
 //////// H264VideoStreamFramer ////////
 type H264VideoStreamFramer struct {
 	MPEGVideoStreamFramer
@@ -440,7 +445,7 @@ func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	h264VideoStreamFramer.inputSource = inputSource
 	h264VideoStreamFramer.frameRate = 25.0
 	h264VideoStreamFramer.InitMPEGVideoStreamFramer(h264VideoStreamFramer.parser)
-    h264VideoStreamFramer.InitFramedSource(h264VideoStreamFramer.parser)
+	h264VideoStreamFramer.InitFramedSource(h264VideoStreamFramer.parser)
 	return h264VideoStreamFramer
 }
 
