@@ -45,7 +45,7 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 
 		switch err {
 		case nil:
-			this.HandleRequestBytes(buffer, length)
+			this.handleRequestBytes(buffer, length)
 		default:
 			//fmt.Println(err.Error())
 			if err.Error() == "EOF" {
@@ -62,7 +62,7 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 	fmt.Println("end connection.")
 }
 
-func (this *RTSPClientConnection) HandleRequestBytes(buffer []byte, length int) {
+func (this *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 	reqStr := string(buffer)
 
 	fmt.Println("HandleRequestBytes", reqStr[:length])

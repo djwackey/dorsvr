@@ -48,9 +48,11 @@ func (this *FramedSource) getNextFrame(buffTo []byte, maxSize uint, afterGetting
 }
 
 func (this *FramedSource) afterGetting() {
+    fmt.Println("FramedSource::afterGetting")
 	this.isCurrentlyAwaitingData = false
 
 	if this.afterGettingFunc != nil {
+        this.afterGettingFunc.(func(frameSize, durationInMicroseconds uint, presentationTime Timeval))(this.frameSize, this.durationInMicroseconds, this.presentationTime)
 	}
 }
 
@@ -58,6 +60,7 @@ func (this *FramedSource) handleClosure() {
 	this.isCurrentlyAwaitingData = false
 
 	if this.onCloseFunc != nil {
+        this.onCloseFunc.(func())()
 	}
 }
 

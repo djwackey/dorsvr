@@ -1,6 +1,7 @@
 package liveMedia
 
 import (
+    "fmt"
 	. "include"
 )
 
@@ -75,6 +76,7 @@ func (this *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures
 }
 
 func (this *MPEGVideoStreamFramer) doGetNextFrame() {
+	fmt.Println(fmt.Sprintf("MPEGVideoStreamFramer::doGetNextFrame -> %p", this.source))
 	this.parser.registerReadInterest(this.buffTo, this.maxSize)
 	this.continueReadProcessing()
 }

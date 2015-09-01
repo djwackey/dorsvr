@@ -199,6 +199,7 @@ func (this *MultiFramedRTPSink) sendNext() {
 }
 
 func (this *MultiFramedRTPSink) ourHandlerClosure() {
+    fmt.Println("MultiFramedRTPSink::ourHandlerClosure")
 }
 
 func (this *MultiFramedRTPSink) isFirstFrameInPacket() bool {
