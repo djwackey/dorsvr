@@ -223,12 +223,12 @@ func (this *RTSPClientSession) handleCommandWithinSession(cmdName, urlPreSuffix,
 			}
 		}
 
-        if subsession == nil { // no such track!
-            this.rtspClientConn.handleCommandNotFound()
-            return
-        }
+		if subsession == nil { // no such track!
+			this.rtspClientConn.handleCommandNotFound()
+			return
+		}
 	} else if strings.EqualFold(this.serverMediaSession.StreamName(), urlSuffix) ||
-		      urlSuffix == "" && strings.EqualFold(this.serverMediaSession.StreamName(), urlPreSuffix) {
+		urlSuffix == "" && strings.EqualFold(this.serverMediaSession.StreamName(), urlPreSuffix) {
 		// Aggregated operation
 		subsession = nil
 	} else if urlPreSuffix != "" && urlSuffix != "" {
@@ -294,10 +294,10 @@ func (this *RTSPClientSession) handleCommandPlay(subsession IServerMediaSubSessi
 			duration = -duration
 		}
 
-		rangeStart   = rangeHeader.rangeStart
-		rangeEnd     = rangeHeader.rangeEnd
+		rangeStart = rangeHeader.rangeStart
+		rangeEnd = rangeHeader.rangeEnd
 		absStartTime = rangeHeader.absStartTime
-		absEndTime   = rangeHeader.absEndTime
+		absEndTime = rangeHeader.absEndTime
 
 		if rangeStart < 0 {
 			rangeStart = 0

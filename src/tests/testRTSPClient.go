@@ -54,6 +54,7 @@ func openURL(appName, rtspURL string) bool {
 
 	sendBytes := rtspClient.SendDescribeCommand(continueAfterDESCRIBE)
 	if sendBytes == 0 {
+		fmt.Println("Failed to send describe command.")
 		return false
 	}
 
@@ -117,11 +118,11 @@ func continueAfterPLAY(rtspClient *RTSPClient, resultCode int, resultStr string)
 	}
 }
 
-func subsessionByeHandler() {
+func subsessionByeHandler(subsession *MediaSubSession) {
 	fmt.Println("Received RTCP BYE on subsession.")
 
 	// Now act as if the subsession had closed:
-	//subsessionAfterPlaying(subsession)
+	subsessionAfterPlaying(subsession)
 }
 
 func subsessionAfterPlaying(subsession *MediaSubSession) {
@@ -148,11 +149,11 @@ func setupNextSubSession(rtspClient *RTSPClient) {
 		}
 	}
 
-	//if scs.Subsession.absStartTime() != nil {
-	//    rtspClient.SendPlayCommand(continueAfterPLAY)
-	//} else {
-	//    rtspClient.SendPlayCommand(continueAfterPLAY)
-	//}
+	if scs.Subsession.AbsStartTime() != "" {
+		rtspClient.SendPlayCommand(continueAfterPLAY)
+	} else {
+		rtspClient.SendPlayCommand(continueAfterPLAY)
+	}
 }
 
 func NewDummySink() *DummySink {

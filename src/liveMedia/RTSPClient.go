@@ -91,6 +91,8 @@ func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	this.responseBuffer = make([]byte, responseBufferSize)
 	this.SetBaseURL(rtspURL)
 
+	this.requestsAwaitingConnection = NewRequestQueue()
+
 	this.scs = NewStreamClientState()
 
 	// Set the "User-Agent:" header to use in each request:
@@ -187,17 +189,16 @@ func (this *RTSPClient) connectToServer() bool {
 	tcpAddr := fmt.Sprintf("%s:%d", rtspUrl.address, rtspUrl.port)
 	addr, err := net.ResolveTCPAddr("tcp", tcpAddr)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Failed to resolve TCP address.", err)
 		return false
 	}
 
 	this.tcpConn, err = net.DialTCP("tcp", nil, addr)
 	if err != nil {
-		fmt.Println("Failed to connect to server.", this.baseURL, err)
+		fmt.Println("Failed to connect to server.", err)
 		return false
 	}
 
-	//fmt.Println(rtspUrl)
 	//defer this.tcpConn.Close()
 
 	go this.incomingDataHandler()
@@ -295,9 +296,10 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		connectionIsPending = true
 	} else if this.tcpConn == nil {
 		if !this.openConnection() {
+			fmt.Println("Failed to open Connection.")
 			return 0
 		}
-		connectionIsPending = true
+		//connectionIsPending = true
 	}
 
 	if connectionIsPending {
@@ -450,7 +452,7 @@ type RequestQueue struct {
 
 func NewRequestQueue() *RequestQueue {
 	requestQueue := new(RequestQueue)
-	requestQueue.requestRecords = make([]*RequestRecord, 1024)
+	//requestQueue.requestRecords = make([]*RequestRecord, 1024)
 	return requestQueue
 }
 

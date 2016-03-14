@@ -65,7 +65,8 @@ func (this *RTSPClientConnection) IncomingRequestHandler() {
 func (this *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 	reqStr := string(buffer)
 
-	fmt.Println("HandleRequestBytes", reqStr[:length])
+	fmt.Println("[---HandleRequestBytes---]")
+	fmt.Println(reqStr[:length])
 
 	var existed bool
 	var clientSession *RTSPClientSession
@@ -112,7 +113,7 @@ func (this *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) 
 			}
 		case "RECORD":
 		default:
-			this.handleCommandBad()
+			this.handleCommandNotSupported()
 		}
 	} else {
 		requestString, parseSucceeded := ParseHTTPRequestString(reqStr, length)
@@ -121,9 +122,14 @@ func (this *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) 
 			case "GET":
 				this.handleHTTPCommandTunnelingGET(requestString.sessionCookie)
 			case "POST":
-				this.handleHTTPCommandTunnelingPOST()
+				extraData := ""
+				extraDataSize := uint(0)
+				this.handleHTTPCommandTunnelingPOST(requestString.sessionCookie, extraData, extraDataSize)
 			default:
+				this.handleHTTPCommandNotSupported()
 			}
+		} else {
+			this.handleCommandBad()
 		}
 	}
 
@@ -218,6 +224,10 @@ func (this *RTSPClientConnection) handleHTTPCommandNotFound() {
 }
 
 func (this *RTSPClientConnection) handleHTTPCommandTunnelingGET(sessionCookie string) {
+	if _, existed := this.rtspServer.clientConnectionsForHTTPTunneling[sessionCookie]; !existed {
+		this.rtspServer.clientConnectionsForHTTPTunneling[sessionCookie] = this
+	}
+
 	// Construct our response:
 	this.responseBuffer = fmt.Sprintf("HTTP/1.0 200 OK\r\n" +
 		"Date: Thu, 19 Aug 1982 18:30:00 GMT\r\n" +
@@ -226,7 +236,7 @@ func (this *RTSPClientConnection) handleHTTPCommandTunnelingGET(sessionCookie st
 		"Content-Type: application/x-rtsp-tunnelled\r\n\r\n")
 }
 
-func (this *RTSPClientConnection) handleHTTPCommandTunnelingPOST() {
+func (this *RTSPClientConnection) handleHTTPCommandTunnelingPOST(sessionCookie, extraData string, extraDataSize uint) {
 }
 
 func (this *RTSPClientConnection) handleHTTPCommandStreamingGET(urlSuffix, fullRequestStr string) {

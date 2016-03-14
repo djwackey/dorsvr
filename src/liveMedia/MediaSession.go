@@ -209,6 +209,8 @@ func (this *MediaSession) parseSDPLine(inputLine string) (string, bool) {
 	if inputLine[0] == '\r' || inputLine[0] == '\n' {
 		return nextLine, true
 	}
+
+    fmt.Println(inputLine)
 	if len(inputLine) < 2 || inputLine[1] != '=' || inputLine[0] < 'a' || inputLine[0] > 'z' {
 		fmt.Println("Invalid SDP line: ", inputLine)
 		return nextLine, false
@@ -507,6 +509,8 @@ type MediaSubSession struct {
 	savedSDPLines         string
 	mediumName            string
 	codecName             string
+	absStartTime          string
+	absEndTime            string
 }
 
 func NewMediaSubSession() *MediaSubSession {
@@ -550,6 +554,22 @@ func (this *MediaSubSession) Initiate() bool {
 }
 
 func (this *MediaSubSession) deInitiate() {
+}
+
+func (this *MediaSubSession) AbsStartTime() string {
+	if this.absStartTime != "" {
+		return this.absStartTime
+	}
+
+	return this.parent.AbsStartTime()
+}
+
+func (this *MediaSubSession) AbsEndTime() string {
+	if this.absEndTime != "" {
+		return this.absEndTime
+	}
+
+	return this.parent.AbsEndTime()
 }
 
 func (this *MediaSubSession) ControlPath() string {

@@ -14,14 +14,15 @@ import (
 )
 
 type RTSPServer struct {
-	urlPrefix              string
-	rtspPort               int
-	httpPort               int
-	rtspListen             *net.TCPListener
-	httpListen             *net.TCPListener
-	clientSessions         map[string]*RTSPClientSession
-	serverMediaSessions    map[string]*ServerMediaSession
-	reclamationTestSeconds time.Duration
+	urlPrefix                         string
+	rtspPort                          int
+	httpPort                          int
+	rtspListen                        *net.TCPListener
+	httpListen                        *net.TCPListener
+	clientSessions                    map[string]*RTSPClientSession
+	serverMediaSessions               map[string]*ServerMediaSession
+	clientConnectionsForHTTPTunneling map[string]*RTSPClientConnection
+	reclamationTestSeconds            time.Duration
 }
 
 func NewRTSPServer(portNum int) *RTSPServer {
@@ -39,6 +40,7 @@ func NewRTSPServer(portNum int) *RTSPServer {
 	rtspServer.StartMonitor()
 	rtspServer.clientSessions = make(map[string]*RTSPClientSession)
 	rtspServer.serverMediaSessions = make(map[string]*ServerMediaSession)
+	rtspServer.clientConnectionsForHTTPTunneling = make(map[string]*RTSPClientConnection)
 	rtspServer.reclamationTestSeconds = 65
 	return rtspServer
 }
