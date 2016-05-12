@@ -5,7 +5,6 @@ import (
 	. "groupsock"
 	. "include"
 	"net"
-	//"time"
 	"strconv"
 	"strings"
 )
@@ -32,7 +31,7 @@ type RequestRecord struct {
 	cseq        int
 	commandName string
 	contentStr  string
-	handler     interface{} //ResponseHandler
+	handler     interface{}
 	subsession  *MediaSubSession
 	session     *MediaSession
 }
@@ -70,11 +69,6 @@ func (this *RequestRecord) Subsession() *MediaSubSession {
 func (this *RequestRecord) CSeq() int {
 	return this.cseq
 }
-
-/*
-func (this *RequestRecord) URL() string {
-	return this.baseURL
-}*/
 
 func (this *RequestRecord) ContentStr() string {
 	return this.contentStr
@@ -177,16 +171,23 @@ func (this *RTSPClient) setupHTTPTunneling() {
 
 func (this *RTSPClient) openConnection() bool {
 	//SetupStreamSocket()
-	return this.connectToServer()
-}
-
-func (this *RTSPClient) connectToServer() bool {
 	rtspUrl, result := this.parseRTSPURL(this.baseURL)
 	if !result {
 		return false
 	}
 
-	tcpAddr := fmt.Sprintf("%s:%d", rtspUrl.address, rtspUrl.port)
+	result = this.connectToServer(rtspUrl.address, rtspUrl.port)
+	if !result {
+		return false
+	}
+
+	//defer this.tcpConn.Close()
+	go this.incomingDataHandler()
+	return true
+}
+
+func (this *RTSPClient) connectToServer(host string, port int) bool {
+	tcpAddr := fmt.Sprintf("%s:%d", host, port)
 	addr, err := net.ResolveTCPAddr("tcp", tcpAddr)
 	if err != nil {
 		fmt.Println("Failed to resolve TCP address.", err)
@@ -199,10 +200,11 @@ func (this *RTSPClient) connectToServer() bool {
 		return false
 	}
 
-	//defer this.tcpConn.Close()
-
-	go this.incomingDataHandler()
 	return true
+}
+
+func (this *RTSPClient) createAuthenticatorStr() string {
+	return ""
 }
 
 type RTSPURL struct {
@@ -274,16 +276,31 @@ func (this *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
 }
 
 func (this *RTSPClient) incomingDataHandler() {
-	/*readBytes :=*/ ReadSocket(this.tcpConn, this.responseBuffer)
-	this.handleResponseBytes()
+	defer this.tcpConn.Close()
+	for {
+		readBytes := ReadSocket(this.tcpConn, this.responseBuffer)
+		this.handleResponseBytes(this.responseBuffer, readBytes)
+	}
 }
 
-func (this *RTSPClient) handleResponseBytes() {
-	defer this.tcpConn.Close()
-
-	for {
-		select {}
+func getline(startOfLine string) (string, string) {
+	var thisLineStart, nextLineStart string
+	for i, c := range startOfLine {
+		if c == '\r' || c == '\n' {
+			thisLineStart = startOfLine[:i]
+			nextLineStart = startOfLine[i:]
+			break
+		}
 	}
+	return nextLineStart, thisLineStart
+}
+
+func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
+	reqStr := string(buffer)
+
+	nextLineStart, thisLineStart := getline(reqStr)
+	fmt.Println("thisLineStart", thisLineStart)
+	fmt.Println("nextLineStart", nextLineStart)
 }
 
 func (this *RTSPClient) handleRequestError(request *RequestRecord) {
@@ -299,7 +316,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 			fmt.Println("Failed to open Connection.")
 			return 0
 		}
-		//connectionIsPending = true
+		fmt.Println("Success for opening Connection.")
 	}
 
 	if connectionIsPending {
@@ -314,12 +331,13 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 	}
 
 	protocalStr := "RTSP/1.0"
+	contentLengthHeader := ""
 
 	contentStr := request.ContentStr()
 	contentStrLen := len(contentStr)
 	if contentStrLen > 0 {
 		contentLengthHeaderFmt := "Content-Length: %s\r\n"
-		contentLengthHeader := fmt.Sprintf(contentLengthHeaderFmt, contentStrLen)
+		contentLengthHeader = fmt.Sprintf(contentLengthHeaderFmt, contentStrLen)
 		fmt.Println("contentLengthHeader", contentLengthHeader)
 	}
 
@@ -338,27 +356,34 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 	default:
 	}
 
+	authenticatorStr := this.createAuthenticatorStr()
+
 	cmdFmt := "%s %s %s\r\n" +
 		"CSeq: %d\r\n" +
 		"%s" +
 		"%s" +
+		"%s" +
+		"%s" +
+		"\r\n" +
 		"%s"
 
 	cmd := fmt.Sprintf(cmdFmt, request.CommandName(),
 		this.baseURL,
 		protocalStr,
 		request.CSeq(),
+		authenticatorStr,
 		this.userAgentHeaderStr,
 		extraHeaders,
+		contentLengthHeader,
 		contentStr)
 
 	writeBytes, err := this.tcpConn.Write([]byte(cmd))
 	if err != nil {
 		fmt.Println("RTSPClient::sendRequst", err, writeBytes)
+		this.handleRequestError(request)
 	}
 	//fmt.Println(cmd, writeBytes)
 
-	this.handleRequestError(request)
 	return writeBytes
 }
 
@@ -452,7 +477,6 @@ type RequestQueue struct {
 
 func NewRequestQueue() *RequestQueue {
 	requestQueue := new(RequestQueue)
-	//requestQueue.requestRecords = make([]*RequestRecord, 1024)
 	return requestQueue
 }
 
