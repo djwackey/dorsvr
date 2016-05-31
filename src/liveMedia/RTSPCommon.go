@@ -149,7 +149,7 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 			j += 15
 			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
 			}
-			if num, _ := fmt.Sscanf(reqStr[j:j+15], "%d", reqInfo.contentLength); num == 1 {
+			if num, _ := fmt.Sscanf(reqStr[j:j+15], "%d", &reqInfo.contentLength); num == 1 {
 				break
 			}
 		}

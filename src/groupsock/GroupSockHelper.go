@@ -29,12 +29,8 @@ func createSocket(sockType string) {
 func closeSocket() {
 }
 
-func ReadSocket(conn net.Conn, buffer []byte) int {
-	readBytes, err := conn.Read(buffer)
-	if err != nil {
-		fmt.Println("[readSocket]", err.Error())
-	}
-	return readBytes
+func ReadSocket(conn net.Conn, buffer []byte) (int, error) {
+	return conn.Read(buffer)
 }
 
 func writeSocket(conn net.Conn, buffer []byte) bool {
