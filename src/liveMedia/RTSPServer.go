@@ -138,12 +138,6 @@ func (this *RTSPServer) LookupServerMediaSession(streamName string) *ServerMedia
 	return sms
 }
 
-/*
-func (this *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
-	serverMediaSession, _ := this.serverMediaSessions[streamName]
-	return serverMediaSession
-}*/
-
 func (this *RTSPServer) AddServerMediaSession(serverMediaSession *ServerMediaSession) {
 	sessionName := serverMediaSession.StreamName()
 

@@ -422,10 +422,11 @@ func (this *H264VideoStreamParser) analyzeVUIParameters(bv *BitVector) {
 	}
 }
 
-func (this *H264VideoStreamParser) afterGetting() {}
-func (this *H264VideoStreamParser) doGetNextFrame() {}
+func (this *H264VideoStreamParser) afterGetting()      {}
+func (this *H264VideoStreamParser) doGetNextFrame()    {}
 func (this *H264VideoStreamParser) maxFrameSize() uint { return 0 }
-func (this *H264VideoStreamParser) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {}
+func (this *H264VideoStreamParser) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
+}
 
 //////// H264VideoStreamFramer ////////
 type H264VideoStreamFramer struct {
