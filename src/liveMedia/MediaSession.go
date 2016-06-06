@@ -33,51 +33,60 @@ func NewMediaSession(sdpDesc string) *MediaSession {
 	return mediaSession
 }
 
-func (this *MediaSession) InitWithSDP(sdpDesc string) bool {
-	sdpLine := sdpDesc
-	if len(sdpLine) < 1 {
+func (this *MediaSession) InitWithSDP(sdpLine string) bool {
+	if sdpLine == "" {
 		return false
 	}
 
+	// Begin by processing All SDP lines until we see the first "m="
 	var result bool
-	var nextSDPLine string
+	var nextSDPLine, thisSDPLine string
 	for {
-		nextSDPLine, result = this.parseSDPLine(sdpLine)
+		nextSDPLine, thisSDPLine, result = this.parseSDPLine(sdpLine)
 		if !result {
 			return false
 		}
 
-		if sdpDesc[0] == 'm' {
+		//fmt.Println("InitWithSDP::parseSDPLine")
+		//fmt.Println("thisSDPLine:", thisSDPLine)
+		//fmt.Println("nextSDPLine:", nextSDPLine)
+		//fmt.Println("result:", result)
+
+		if thisSDPLine[0] == 'm' {
 			break
 		}
 
-		fmt.Println(nextSDPLine)
+		// there is no m= lines at all
+		sdpLine = nextSDPLine
+		if sdpLine == "" {
+			break
+		}
 
 		// Check for various special SDP lines that we understand:
-		//if this.parseSDPLine_s(sdpLine) {
-		//    continue
-		//}
-		//if this.parseSDPLine_i(sdpLine) {
-		//    continue
-		//}
-		//if this.parseSDPLine_c(sdpLine) {
-		//    continue
-		//}
-		//if this.parseSDPAttribute_control(sdpLine) {
-		//    continue
-		//}
-		//if this.parseSDPAttribute_range(sdpLine) {
-		//    continue
-		//}
-		//if this.parseSDPAttribute_type(sdpLine) {
-		//    continue
-		//}
-		//if this.parseSDPAttribute_source_filter(sdpLine) {
-		//    continue
-		//}
+		if this.parseSDPLine_s(thisSDPLine) {
+			continue
+		}
+		if this.parseSDPLine_i(thisSDPLine) {
+			continue
+		}
+		if this.parseSDPLine_c(thisSDPLine) {
+			continue
+		}
+		if this.parseSDPAttribute_control(thisSDPLine) {
+			continue
+		}
+		if this.parseSDPAttribute_range(thisSDPLine) {
+			continue
+		}
+		if this.parseSDPAttribute_type(thisSDPLine) {
+			continue
+		}
+		if this.parseSDPAttribute_source_filter(thisSDPLine) {
+			continue
+		}
 	}
+	return false
 
-	//var num int
 	var payloadFormat uint
 	var mediumName, protocolName string
 	for {
@@ -86,17 +95,26 @@ func (this *MediaSession) InitWithSDP(sdpDesc string) bool {
 			fmt.Println("Unable to create new MediaSubsession")
 			return false
 		}
-		/*
-		   if (num, _ = fmt.Sscanf(sdpLine, "m=%s %d RTP/AVP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3 || num, _ = fmt.Sscanf(sdpLine, "m=%s %d/%*d RTP/AVP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3) && int(payloadFormat) <= 127 {
-		       protocolName = "RTP"
-		   } else if (num, _ = fmt.Sscanf(sdpLine, "m=%s %d UDP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3 ||
-		              num, _ = fmt.Sscanf(sdpLine, "m=%s %d udp %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3 ||
-		              num, _ = fmt.Sscanf(sdpLine, "m=%s %d RAW/RAW/UDP %d", mediumName, subsession.clientPortNum, payloadFormat); num == 3) && int(payloadFormat) <= 127 {
-		       // This is a RAW UDP source
-		       protocolName = "UDP"
-		   } else {
-		   }
-		*/
+
+		num1, _ := fmt.Sscanf(thisSDPLine, "m=%s %d RTP/AVP %d", &mediumName,
+			&subsession.clientPortNum, &payloadFormat)
+		num2, _ := fmt.Sscanf(thisSDPLine, "m=%s %d/%*d RTP/AVP %d", &mediumName,
+			&subsession.clientPortNum, &payloadFormat)
+		num3, _ := fmt.Sscanf(sdpLine, "m=%s %d UDP %d", &mediumName,
+			&subsession.clientPortNum, &payloadFormat)
+		num4, _ := fmt.Sscanf(sdpLine, "m=%s %d udp %d", &mediumName,
+			&subsession.clientPortNum, &payloadFormat)
+		num5, _ := fmt.Sscanf(sdpLine, "m=%s %d RAW/RAW/UDP %d", &mediumName,
+			&subsession.clientPortNum, &payloadFormat)
+
+		if (num1 == 3 || num2 == 3) && int(payloadFormat) <= 127 {
+			protocolName = "RTP"
+		} else if (num3 == 3 || num4 == 3 || num5 == 3) && int(payloadFormat) <= 127 {
+			// This is a RAW UDP source
+			protocolName = "UDP"
+		} else {
+		}
+
 		// Insert this subsession at the end of the list:
 		//this.mediaSubSessions = append(this.mediaSubSessions, subsession)
 		this.mediaSubSessions[this.subSessionNum] = subsession
@@ -108,53 +126,64 @@ func (this *MediaSession) InitWithSDP(sdpDesc string) bool {
 		subsession.protocolName = protocolName
 		subsession.rtpPayloadFormat = payloadFormat
 
+		fmt.Println("adfafasdkfjkl;adsf", len(thisSDPLine), thisSDPLine)
+
 		// Process the following SDP lines, up until the next "m=":
-		//        for {
-		//            sdpLine = nextSDPLine
-		//            if len(sdpLine) < 1 {
-		//                break; // we've reached the end
-		//            }
-		//            if !this.parseSDPLine(sdpLine, nextSDPLine) {
-		//                return false
-		//            }
-		//
-		//            if sdpLine[0] == 'm' {
-		//                break // we've reached the next subsession
-		//            }
-		//
-		//            // Check for various special SDP lines that we understand:
-		//            if subsession.parseSDPLine_c(sdpLine) {
-		//                continue
-		//            }
-		//            if subsession.parseSDPLine_b(sdpLine) {
-		//                continue
-		//            }
-		//            if subsession.parseSDPAttribute_rtpmap(sdpLine) {
-		//                continue
-		//            }
-		//            if subsession.parseSDPAttribute_control(sdpLine) {
-		//                continue
-		//            }
-		//            if subsession.parseSDPAttribute_range(sdpLine) {
-		//                continue
-		//            }
-		//            if subsession.parseSDPAttribute_fmtp(sdpLine) {
-		//                continue
-		//            }
-		//            if subsession.parseSDPAttribute_source_filter(sdpLine) {
-		//                continue
-		//            }
-		//            if subsession.parseSDPAttribute_x_dimensions(sdpLine) {
-		//                continue
-		//            }
-		//            if subsession.parseSDPAttribute_framerate(sdpLine) {
-		//                continue
-		//            }
-		//            // (Later, check for malformed lines, and other valid SDP lines#####)
-		//        }
-		//
+		for {
+			sdpLine = nextSDPLine
+			if sdpLine == "" {
+				fmt.Println("we've reached the end")
+				break // we've reached the end
+			}
+
+			fmt.Println("Process, yanfei, SDP:", sdpLine, len(sdpLine))
+
+			nextSDPLine, thisSDPLine, result = this.parseSDPLine(sdpLine)
+			if !result {
+				return false
+			}
+
+			if thisSDPLine[0] == 'm' {
+				break // we've reached the next subsession
+			}
+
+			// Check for various special SDP lines that we understand:
+			if subsession.parseSDPLine_c(thisSDPLine) {
+				continue
+			}
+			if subsession.parseSDPLine_b(thisSDPLine) {
+				continue
+			}
+			if subsession.parseSDPAttribute_rtpmap(thisSDPLine) {
+				continue
+			}
+			if subsession.parseSDPAttribute_control(thisSDPLine) {
+				continue
+			}
+			if subsession.parseSDPAttribute_range(thisSDPLine) {
+				continue
+			}
+			if subsession.parseSDPAttribute_fmtp(thisSDPLine) {
+				continue
+			}
+			if subsession.parseSDPAttribute_source_filter(thisSDPLine) {
+				continue
+			}
+			if subsession.parseSDPAttribute_x_dimensions(thisSDPLine) {
+				continue
+			}
+			if subsession.parseSDPAttribute_framerate(thisSDPLine) {
+				continue
+			}
+			// (Later, check for malformed lines, and other valid SDP lines#####)
+		}
+
+		//fmt.Println("adfafasdkfjkl;adsf", thisSDPLine)
+
 		if len(subsession.codecName) < 1 {
-			//subsession.codecName = this.lookupPayloadFormat(subsession.rtpPayloadFormat, subsession.rtpTimestampFrequency, subsession.numChannels)
+			subsession.codecName,
+				subsession.rtpTimestampFrequency,
+				subsession.numChannels = this.lookupPayloadFormat(subsession.rtpPayloadFormat)
 		}
 
 		// If we don't yet know this subsession's RTP timestamp frequency
@@ -162,7 +191,8 @@ func (this *MediaSession) InitWithSDP(sdpDesc string) bool {
 		// SDP "rtpmap" attribute erroneously didn't specify it),
 		// then guess it now:
 		if subsession.rtpTimestampFrequency == 0 {
-			//subsession.rtpTimestampFrequency = this.guessRTPTimestampFrequency(subsession.mediumName, subsession.codecName)
+			subsession.rtpTimestampFrequency = this.guessRTPTimestampFrequency(subsession.mediumName,
+				subsession.codecName)
 		}
 	}
 }
@@ -188,40 +218,32 @@ func (this *MediaSession) SubSession() *MediaSubSession {
 	return this.mediaSubSessions[this.subSessionIndex-1]
 }
 
-func (this *MediaSession) parseSDPLine(inputLine string) (string, bool) {
+func (this *MediaSession) parseSDPLine(inputLine string) (nextLine, thisLine string, result bool) {
+	inputLen := len(inputLine)
+	//fmt.Println("parseSDPLine Content:", inputLen, inputLine)
+
 	// Begin by finding the start of the next line (if any):
-	var nextLine string
-	for i := 0; i < len(inputLine); i++ {
+	for i := 0; i < inputLen; i++ {
 		if inputLine[i] == '\r' || inputLine[i] == '\n' {
-			for {
-				if inputLine[i] != '\r' && inputLine[i] != '\n' {
-					break
-				}
-				i++
+			for i += 1; i < inputLen && (inputLine[i] == '\r' || inputLine[i] == '\n'); i++ {
 			}
 			nextLine = inputLine[i:]
+			thisLine = inputLine[:i-2]
 			break
 		}
 	}
 
-	// Then, check that this line is a SDP line of the form <char>=<etc>
-	// (However, we also accept blank lines in the input.)
-	if inputLine[0] == '\r' || inputLine[0] == '\n' {
-		return nextLine, true
+	if len(thisLine) < 2 || thisLine[1] != '=' || thisLine[0] < 'a' || thisLine[0] > 'z' {
+		fmt.Println("Invalid SDP line:", thisLine, nextLine)
+	} else {
+		result = true
 	}
-
-    fmt.Println(inputLine)
-	if len(inputLine) < 2 || inputLine[1] != '=' || inputLine[0] < 'a' || inputLine[0] > 'z' {
-		fmt.Println("Invalid SDP line: ", inputLine)
-		return nextLine, false
-	}
-
-	return nextLine, true
+	return
 }
 
 func parseCLine(sdpLine string) string {
 	var result string
-	fmt.Sscanf(sdpLine, "c=IN IP4 %[^/\r\n]", result)
+	fmt.Sscanf(sdpLine, "c=IN IP4 %s", &result)
 	return result
 }
 
@@ -229,9 +251,8 @@ func (this *MediaSession) parseSDPLine_s(sdpLine string) bool {
 	// Check for "s=<session name>" line
 	var parseSuccess bool
 
-	var buffer string
-	if num, _ := fmt.Sscanf(sdpLine, "s=%[^\r\n]", buffer); num == 1 {
-		this.sessionName = buffer
+	if sdpLine[0] == 's' && sdpLine[1] == '=' {
+		this.sessionName = sdpLine[2:]
 		parseSuccess = true
 	}
 
@@ -242,9 +263,8 @@ func (this *MediaSession) parseSDPLine_i(sdpLine string) bool {
 	// Check for "i=<session description>" line
 	var parseSuccess bool
 
-	var buffer string
-	if num, _ := fmt.Sscanf(sdpLine, "i=%[^\r\n]", buffer); num == 1 {
-		this.sessionDescription = buffer
+	if sdpLine[0] == 'i' && sdpLine[1] == '=' {
+		this.sessionDescription = sdpLine[2:]
 		parseSuccess = true
 	}
 
@@ -281,23 +301,23 @@ func (this *MediaSession) parseSDPAttribute_control(sdpLine string) bool {
 	// Check for a "a=control:<control-path>" line:
 	var parseSuccess bool
 
-	var controlPath string
-	if num, _ := fmt.Sscanf(sdpLine, "a=control: %s", controlPath); num == 1 {
+	ok := strings.HasPrefix(sdpLine, "a=control:")
+	if ok {
+		this.controlPath = sdpLine[10:]
 		parseSuccess = true
-		this.controlPath = controlPath
 	}
 
 	return parseSuccess
 }
 
-func (this *MediaSession) parseRangeAttribute(sdpLine, method string) (string, string, bool) {
+func parseRangeAttribute(sdpLine, method string) (string, string, bool) {
 	if method == "npt" {
 		var startTime, endTime string
-		num, _ := fmt.Sscanf(sdpLine, "a=range: npt = %lg - %lg", startTime, endTime)
+		num, _ := fmt.Sscanf(sdpLine, "a=range: npt = %f - %f", &startTime, &endTime)
 		return startTime, endTime, (num == 2)
 	} else if method == "clock" {
 		var as, ae, absStartTime, absEndTime string
-		num, _ := fmt.Sscanf(sdpLine, "a=range: clock = %[^-\r\n]-%[^\r\n]", as, ae)
+		num, _ := fmt.Sscanf(sdpLine, "a=range: clock = %[^-\r\n]-%[^\r\n]", &as, &ae)
 		if num == 2 {
 			absStartTime = as
 			absEndTime = ae
@@ -316,8 +336,8 @@ func (this *MediaSession) parseSDPAttribute_range(sdpLine string) bool {
 	// (Later handle other kinds of "a=range" attributes also???#####)
 	var parseSuccess bool
 
-	startTime, endTime, ret := this.parseRangeAttribute(sdpLine, "npt")
-	if ret {
+	startTime, endTime, ok := parseRangeAttribute(sdpLine, "npt")
+	if ok {
 		parseSuccess = true
 
 		playStartTime, _ := strconv.ParseFloat(startTime, 32)
@@ -329,28 +349,25 @@ func (this *MediaSession) parseSDPAttribute_range(sdpLine string) bool {
 		if playEndTime > this.maxPlayEndTime {
 			this.maxPlayEndTime = playEndTime
 		}
-	} else if this.absStartTime, this.absEndTime, ret = this.parseRangeAttribute(sdpLine, "clock"); ret {
+	} else if this.absStartTime, this.absEndTime, ok = parseRangeAttribute(sdpLine, "clock"); ok {
 		parseSuccess = true
 	}
 
 	return parseSuccess
 }
 
-func (this *MediaSession) parseSourceFilterAttribute(sdpLine string) (string, bool) {
+func parseSourceFilterAttribute(sdpLine string) bool {
 	// Check for a "a=source-filter:incl IN IP4 <something> <source>" line.
 	// Note: At present, we don't check that <something> really matches
 	// one of our multicast addresses.  We also don't support more than
 	// one <source> #####
-	var result bool // until we succeed
 	var sourceName string
-	if num, _ := fmt.Sscanf(sdpLine, "a=source-filter: incl IN IP4 %*s %s", sourceName); num == 1 {
-		result = true
-	}
-	return sourceName, result
+	num, _ := fmt.Sscanf(sdpLine, "a=source-filter: incl IN IP4 %*s %s", &sourceName)
+	return (num == 1)
 }
 
-func (this *MediaSession) parseSDPAttribute_source_filter(sdpLine string) (string, bool) {
-	return this.parseSourceFilterAttribute(sdpLine)
+func (this *MediaSession) parseSDPAttribute_source_filter(sdpLine string) bool {
+	return parseSourceFilterAttribute(sdpLine)
 }
 
 func (this *MediaSession) lookupPayloadFormat(rtpPayloadType uint) (string, uint, uint) {
@@ -491,26 +508,32 @@ func (this *MediaSession) initiateByMediaType(mimeType string, useSpecialRTPoffs
 
 //////// MediaSubSession ////////
 type MediaSubSession struct {
-	rtpSocket             *GroupSock
-	rtcpSocket            *GroupSock
-	Sink                  IMediaSink
-	rtpSource             *RTPSource
-	readSource            IFramedSource
-	rtcpInstance          *RTCPInstance
-	parent                *MediaSession
-	rtpTimestampFrequency uint
-	rtpPayloadFormat      uint
-	clientPortNum         uint
-	serverPortNum         uint
-	numChannels           uint
-	bandwidth             uint
-	protocolName          string
-	controlPath           string
-	savedSDPLines         string
-	mediumName            string
-	codecName             string
-	absStartTime          string
-	absEndTime            string
+	rtpSource              *RTPSource
+	rtpSocket              *GroupSock
+	rtcpSocket             *GroupSock
+	Sink                   IMediaSink
+	readSource             IFramedSource
+	rtcpInstance           *RTCPInstance
+	parent                 *MediaSession
+	rtpTimestampFrequency  uint
+	rtpPayloadFormat       uint
+	clientPortNum          uint
+	serverPortNum          uint
+	numChannels            uint
+	bandWidth              uint
+	videoWidth             uint
+	videoHeight            uint
+	protocolName           string
+	controlPath            string
+	savedSDPLines          string
+	mediumName             string
+	codecName              string
+	absStartTime           string
+	absEndTime             string
+	connectionEndpointName string
+	playStartTime          float64
+	playEndTime            float64
+	videoFPS               float32
 }
 
 func NewMediaSubSession() *MediaSubSession {
@@ -544,8 +567,8 @@ func (this *MediaSubSession) Initiate() bool {
 	}
 
 	var totSessionBandwidth uint
-	if this.bandwidth != 0 {
-		totSessionBandwidth = this.bandwidth + this.bandwidth/20
+	if this.bandWidth != 0 {
+		totSessionBandwidth = this.bandWidth + this.bandWidth/20
 	} else {
 		totSessionBandwidth = 500
 	}
@@ -595,4 +618,105 @@ func (this *MediaSubSession) createSourceObject() {
 			//this.readSource = NewH264VideoRTPSource(this.rtpSocket, this.rtpPayloadFormat, this.rtpTimestampFrequency)
 		}
 	}
+}
+
+func (this *MediaSubSession) parseSDPLine_b(sdpLine string) bool {
+	num, _ := fmt.Sscanf(sdpLine, "b=AS:%d", &this.bandWidth)
+	return (num == 1)
+}
+
+func (this *MediaSubSession) parseSDPLine_c(sdpLine string) bool {
+	// Check for "c=IN IP4 <connection-endpoint>"
+	// or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
+	// (Later, do something with <ttl+numAddresses> also #####)
+	connectionEndpointName := parseCLine(sdpLine)
+	if connectionEndpointName != "" {
+		this.connectionEndpointName = connectionEndpointName
+		return true
+	}
+
+	return false
+}
+
+func (this *MediaSubSession) parseSDPAttribute_rtpmap(sdpLine string) bool {
+	return true
+}
+
+func (this *MediaSubSession) parseSDPAttribute_control(sdpLine string) bool {
+	return strings.HasPrefix(sdpLine, "a=control:")
+}
+
+func (this *MediaSubSession) parseSDPAttribute_range(sdpLine string) bool {
+	var parseSuccess bool
+
+	startTime, endTime, ok := parseRangeAttribute(sdpLine, "npt")
+	if ok {
+		parseSuccess = true
+
+		playStartTime, _ := strconv.ParseFloat(startTime, 32)
+		playEndTime, _ := strconv.ParseFloat(endTime, 32)
+
+		if playStartTime > this.playStartTime {
+			this.playStartTime = playStartTime
+			if playStartTime > this.parent.maxPlayStartTime {
+				this.parent.maxPlayStartTime = playStartTime
+			}
+		}
+		if playEndTime > this.playEndTime {
+			this.playEndTime = playEndTime
+			if playEndTime > this.parent.maxPlayEndTime {
+				this.parent.maxPlayEndTime = playEndTime
+			}
+		}
+	} else if this.absStartTime, this.absEndTime, ok = parseRangeAttribute(sdpLine, "clock"); ok {
+		parseSuccess = true
+	}
+
+	return parseSuccess
+}
+
+func (this *MediaSubSession) parseSDPAttribute_fmtp(sdpLine string) bool {
+	return true
+}
+
+func (this *MediaSubSession) parseSDPAttribute_source_filter(sdpLine string) bool {
+	return parseSourceFilterAttribute(sdpLine)
+}
+
+func (this *MediaSubSession) parseSDPAttribute_x_dimensions(sdpLine string) bool {
+	var parseSuccess bool
+	var width, height uint
+	num, _ := fmt.Sscanf(sdpLine, "a=x-dimensions:%d,%d", &width, &height)
+	if num == 2 {
+		parseSuccess = true
+		this.videoWidth = width
+		this.videoHeight = height
+	}
+	return parseSuccess
+}
+
+func (this *MediaSubSession) parseSDPAttribute_framerate(sdpLine string) bool {
+	// check for a "a=framerate: <fps>" r "a=x-framerate: <fps>" line:
+	parseSuccess := true
+	for {
+		num, _ := fmt.Sscanf(sdpLine, "a=framerate: %f", &this.videoFPS)
+		if num == 1 {
+			break
+		}
+
+		num, _ = fmt.Sscanf(sdpLine, "a=framerate:%f", &this.videoFPS)
+		if num == 1 {
+			break
+		}
+
+		num, _ = fmt.Sscanf(sdpLine, "a=x-framerate: %f", &this.videoFPS)
+		if num == 1 {
+			break
+		}
+
+		parseSuccess = false
+		break
+	}
+
+	return parseSuccess
 }

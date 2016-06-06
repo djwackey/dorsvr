@@ -62,6 +62,7 @@ func openURL(appName, rtspURL string) bool {
 }
 
 func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr string) {
+	fmt.Println("continueAfterDESCRIBE")
 	for {
 		if resultCode != 0 {
 			fmt.Println(fmt.Sprintf("Failed to get a SDP description: %s", resultStr))
@@ -91,6 +92,7 @@ func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr str
 }
 
 func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string) {
+	fmt.Println("continueAfterSETUP")
 	if resultCode != 0 {
 		fmt.Println(fmt.Sprintf("Failed to set up the subsession"))
 	}
@@ -126,13 +128,15 @@ func subsessionByeHandler(subsession *MediaSubSession) {
 }
 
 func subsessionAfterPlaying(subsession *MediaSubSession) {
-	//shutdownStream()
+	shutdownStream(nil)
 }
 
 func shutdownStream(rtspClient *RTSPClient) {
 	//subsession.tcpInstance().setByeHandler(nil, nil)
 
-	rtspClient.SendTeardownCommand(nil)
+	if rtspClient != nil {
+		rtspClient.SendTeardownCommand(nil)
+	}
 
 	fmt.Println("Closing the Stream.")
 }
@@ -148,6 +152,8 @@ func setupNextSubSession(rtspClient *RTSPClient) {
 			rtspClient.SendSetupCommand(continueAfterSETUP)
 		}
 	}
+
+	fmt.Println("setupNextSubSession", scs.Subsession)
 
 	if scs.Subsession.AbsStartTime() != "" {
 		rtspClient.SendPlayCommand(continueAfterPLAY)

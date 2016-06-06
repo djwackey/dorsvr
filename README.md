@@ -27,8 +27,15 @@ MediaSink <- RTPSink <- MultiFramedRTPSink <- VideoRTPSink <- H264VideoRTPSink
 ### Real-Time Streaming Protocol
 The Real-Time Streaming Protocol allows to control multimedia streams delivered, for example, via RTP. Control includes absolute positioning within the media stream, recording and possibly device control.
 #### OPTIONS
+##### REQUEST #####
+```
+OPTIONS rtsp://192.168.1.1/stream.ts RTSP/1.0
+CSeq: 1
+User-Agent: LibVLC/2.1.2 (Dor Streaming Media v2016.06.05)
+```
+
 #### ANNOUNCD
-#### DESCRIBE ####
+#### DESCRIBE
 ##### REQUEST #####
 ##### RESPONSE #####
 ```

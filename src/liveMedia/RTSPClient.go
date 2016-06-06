@@ -85,6 +85,7 @@ func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	this.responseBuffer = make([]byte, responseBufferSize)
 	this.SetBaseURL(rtspURL)
 
+	this.requestsAwaitingResponse = NewRequestQueue()
 	this.requestsAwaitingConnection = NewRequestQueue()
 
 	this.scs = NewStreamClientState()
@@ -278,17 +279,34 @@ func (this *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
 func (this *RTSPClient) incomingDataHandler() {
 	defer this.tcpConn.Close()
 	for {
-		readBytes := ReadSocket(this.tcpConn, this.responseBuffer)
+		readBytes, err := ReadSocket(this.tcpConn, this.responseBuffer)
+		if err != nil {
+			fmt.Println("[readSocket]", err.Error())
+			break
+		}
+
+		fmt.Println("[readSocket] success for reading ", readBytes, string(this.responseBuffer))
 		this.handleResponseBytes(this.responseBuffer, readBytes)
 	}
 }
 
-func getline(startOfLine string) (string, string) {
-	var thisLineStart, nextLineStart string
+func getLine(startOfLine string) (thisLineStart, nextLineStart string) {
+	var index int
 	for i, c := range startOfLine {
+		// Check for the end of line: \r\n (but also accept \r or \n by itself):
 		if c == '\r' || c == '\n' {
+			if c == '\r' {
+				if startOfLine[i+1] == '\n' {
+					index = i + 2 // skip "\r\n"
+					thisLineStart = startOfLine[:i]
+					nextLineStart = startOfLine[index:]
+					break
+				}
+			}
+
+			index = i + 1
 			thisLineStart = startOfLine[:i]
-			nextLineStart = startOfLine[i:]
+			nextLineStart = startOfLine[index:]
 			break
 		}
 	}
@@ -296,15 +314,127 @@ func getline(startOfLine string) (string, string) {
 }
 
 func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
-	reqStr := string(buffer)
+	reqStr := string(buffer)[:length]
 
-	nextLineStart, thisLineStart := getline(reqStr)
-	fmt.Println("thisLineStart", thisLineStart)
-	fmt.Println("nextLineStart", nextLineStart)
+	nextLineStart, thisLineStart := getLine(reqStr)
+	//fmt.Println("thisLineStart", thisLineStart)
+	//fmt.Println("thisLineLength", len(thisLineStart))
+	//fmt.Println("nextLineStart", nextLineStart)
+	responseCode, responseString, result := this.parseResponseCode(thisLineStart)
+	if !result {
+		this.handleIncomingRequest()
+		return
+	}
+
+	//fmt.Println("responseCode: ", responseCode)
+	//fmt.Println("responseString: ", responseString)
+
+	var ret, cseq, contentLength int
+	var rangeParamsStr, rtpInfoParamsStr string
+	var headerParamsStr, sessionParamsStr string
+	var transportParamsStr, scaleParamsStr string
+	var wwwAuthenticateParamsStr, publicParamsStr string
+	var foundRequest *RequestRecord
+	var responseSuccess bool
+
+	for {
+		//fmt.Println("thisLineStart:", thisLineStart)
+		//fmt.Println("nextLineStart:", nextLineStart)
+
+		nextLineStart, thisLineStart = getLine(nextLineStart)
+		if thisLineStart == "" {
+			break
+		}
+
+		//fmt.Println("yanfei:", thisLineStart)
+
+		if headerParamsStr, result = this.checkForHeader(thisLineStart, "CSeq:", 5); result {
+			ret, _ = fmt.Sscanf(headerParamsStr, "%d", &cseq)
+			if ret != 1 || cseq <= 0 {
+				fmt.Println("Bad \"CSeq\" header: \"", thisLineStart, "\"")
+				break
+			}
+
+			for {
+				request := this.requestsAwaitingResponse.dequeue()
+				if request == nil {
+					break
+				}
+
+				if request.CSeq() < cseq {
+					fmt.Println("WARNING:")
+				} else if request.CSeq() == cseq {
+					// This is the handler that we want. Remove its record, but remember it,
+					// so that we can later call its handler:
+					foundRequest = request
+				} else {
+					break
+				}
+			}
+		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Content-Length:", 15); result {
+			ret, _ = fmt.Sscanf(headerParamsStr, "%d", &contentLength)
+			if ret != 1 {
+				fmt.Println("Bad \"Content-Length\" header: \"", thisLineStart, "\"")
+				break
+			}
+		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Content-Base:", 13); result {
+			this.SetBaseURL(headerParamsStr)
+		} else if sessionParamsStr, result = this.checkForHeader(thisLineStart, "Session:", 8); result {
+		} else if transportParamsStr, result = this.checkForHeader(thisLineStart, "Transport:", 10); result {
+		} else if scaleParamsStr, result = this.checkForHeader(thisLineStart, "Scale:", 6); result {
+		} else if rangeParamsStr, result = this.checkForHeader(thisLineStart, "Range:", 6); result {
+		} else if rtpInfoParamsStr, result = this.checkForHeader(thisLineStart, "RTP-Info:", 9); result {
+		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "WWW-Authenticate:", 17); result {
+		} else if publicParamsStr, result = this.checkForHeader(thisLineStart, "Public:", 7); result {
+		} else if publicParamsStr, result = this.checkForHeader(thisLineStart, "Allow:", 6); result {
+		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Location:", 9); result {
+			this.SetBaseURL(headerParamsStr)
+		}
+	}
+
+	bodyStart := nextLineStart
+
+	fmt.Println(sessionParamsStr)
+	fmt.Println(rangeParamsStr, rtpInfoParamsStr)
+	fmt.Println(transportParamsStr, scaleParamsStr)
+	fmt.Println(wwwAuthenticateParamsStr, publicParamsStr)
+
+	if responseCode == 200 {
+		switch foundRequest.CommandName() {
+		case "SETUP":
+		case "PLAY":
+		case "TEARDOWN":
+		case "GET_PARAMETER":
+		default:
+		}
+	} else if responseCode == 401 {
+	} else if responseCode == 301 || responseCode == 302 {
+	}
+
+	responseSuccess = true
+
+	if foundRequest != nil {
+		if responseSuccess {
+			var resultCode int
+			var resultString string
+			if responseCode == 200 {
+				resultCode = 0
+				resultString = bodyStart
+			} else {
+				resultCode = responseCode
+				resultString = responseString
+			}
+
+			fmt.Println("foundRequest:", foundRequest)
+			foundRequest.Handle(this, resultCode, resultString)
+		} else {
+			this.handleRequestError(foundRequest)
+		}
+	}
 }
 
 func (this *RTSPClient) handleRequestError(request *RequestRecord) {
-	request.Handle(this, 0, "OK")
+	request.Handle(this, -1, "FAILED")
 }
 
 func (this *RTSPClient) sendRequest(request *RequestRecord) int {
@@ -384,6 +514,10 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 	}
 	//fmt.Println(cmd, writeBytes)
 
+	if this.tunnelOverHTTPPortNum == 0 {
+		this.requestsAwaitingResponse.enqueue(request)
+	}
+
 	return writeBytes
 }
 
@@ -444,34 +578,58 @@ func (this *RTSPClient) createRangeString(start, end float32, absStartTime, absE
 	return buf
 }
 
-func (this *RTSPClient) parseResponseCode(line []byte) (bool, int, []byte) {
-	var result bool
-	var responseCode int
-	responseString := line
+func (this *RTSPClient) parseResponseCode(line string) (responseCode int, responseString string, result bool) {
+	var version string
+	responseString = line
 
 	for {
-		num1, _ := fmt.Sscanf(string(line), "RTSP/%u", &responseCode)
-		num2, _ := fmt.Sscanf(string(line), "HTTP/%u", &responseCode)
-		if num1 != 1 && num2 != 1 {
+		ret, _ := fmt.Sscanf(line, "RTSP/%s %d", &version, &responseCode)
+		if ret == 2 {
+			result = true
+			break
+		}
+
+		ret, _ = fmt.Sscanf(line, "HTTP/%s %d", &version, &responseCode)
+		if ret != 2 {
 			result = true
 			break
 		}
 
 		// Use everything after the RTSP/* (or HTTP/*) as the response string:
 		i := 0
-		for string(responseString) != "" && responseString[i] != ' ' && responseString[i] != '\t' {
+		for responseString != "" && responseString[i] != ' ' && responseString[i] != '\t' {
 			i++
 		}
 		i = 0
-		for string(responseString) != "" && (responseString[i] == ' ' || responseString[i] == '\t') {
+		for responseString != "" && (responseString[i] == ' ' || responseString[i] == '\t') {
 			i++ // skip whitespace
 		}
+		result = false
 		break
 	}
-	return result, responseCode, responseString
+	return responseCode, responseString, result
+}
+
+func (this *RTSPClient) handleIncomingRequest() {
+}
+
+func (this *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (headerParams string, result bool) {
+	if !strings.EqualFold(headerName, line[:headerNameLength]) {
+		return headerParams, false
+	}
+
+	var index int
+	for i, c := range line[headerNameLength:] {
+		if c != ' ' && c != '\t' {
+			index = headerNameLength + i
+		}
+	}
+
+	return line[index:], true
 }
 
 type RequestQueue struct {
+	index          int
 	requestRecords []*RequestRecord
 }
 
@@ -485,7 +643,14 @@ func (this *RequestQueue) enqueue(request *RequestRecord) {
 }
 
 func (this *RequestQueue) dequeue() *RequestRecord {
-	return nil
+	if len(this.requestRecords) <= this.index {
+		this.index = 0
+		return nil
+	}
+
+	requestRecord := this.requestRecords[this.index]
+	this.index += 1
+	return requestRecord
 }
 
 func (this *RequestQueue) putAtHead(request *RequestRecord) {
