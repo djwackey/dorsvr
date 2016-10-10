@@ -2,7 +2,7 @@ package liveMedia
 
 import (
 	"fmt"
-	. "include"
+	"utils"
 )
 
 type TimeCode struct {
@@ -27,7 +27,7 @@ type MPEGVideoStreamFramer struct {
 	pictureEndMarker     bool
 	curGOPTimeCode       TimeCode
 	preGOPTimeCode       TimeCode
-	presentationTimeBase Timeval
+	presentationTimeBase utils.Timeval
 	parser               *H264VideoStreamParser
 }
 
@@ -37,7 +37,7 @@ func (this *MPEGVideoStreamFramer) InitMPEGVideoStreamFramer(parser *H264VideoSt
 }
 
 func (this *MPEGVideoStreamFramer) reset() {
-	GetTimeOfDay(&this.presentationTimeBase)
+	utils.GetTimeOfDay(&this.presentationTimeBase)
 }
 
 func (this *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures uint) {

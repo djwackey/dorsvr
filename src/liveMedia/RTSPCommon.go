@@ -7,15 +7,25 @@ import (
 	"time"
 )
 
-const MAX_COMMAND_NUM = 9
+const maxCommandNum = 9
 
 // Handler routines for specific RTSP commands:
-var allowedCommandNames [MAX_COMMAND_NUM]string = [MAX_COMMAND_NUM]string{"OPTIONS", "DESCRIBE", "SETUP", "TEARDOWN", "PLAY", "PAUSE", "RECORD", "GET_PARAMETER", "SET_PARAMETER"}
+var allowedCommandNames [maxCommandNum]string = [maxCommandNum]string{
+	"OPTIONS",
+	"DESCRIBE",
+	"SETUP",
+	"TEARDOWN",
+	"PLAY",
+	"PAUSE",
+	"RECORD",
+	"GET_PARAMETER",
+	"SET_PARAMETER",
+}
 
 type RTSPRequestInfo struct {
 	cseq          string
 	cmdName       string
-	sessionIdStr  string
+	sessionIDStr  string
 	urlPreSuffix  string
 	urlSuffix     string
 	contentLength string
@@ -33,8 +43,8 @@ type TransportHeader struct {
 	streamingMode     uint
 	clientRTPPortNum  uint
 	clientRTCPPortNum uint
-	rtpChannelId      uint
-	rtcpChannelId     uint
+	rtpChannelID      uint
+	rtcpChannelID     uint
 	destinationTTL    uint
 	destinationAddr   string
 	streamingModeStr  string
@@ -138,7 +148,7 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
 			}
 			for ; reqStr[j] != '\r' && reqStr[j] != '\n'; j++ {
-				reqInfo.sessionIdStr += string(reqStr[j])
+				reqInfo.sessionIDStr += string(reqStr[j])
 			}
 		}
 	}
@@ -213,8 +223,8 @@ func parseTransportHeader(reqStr string) *TransportHeader {
 	header.destinationTTL = 255
 	header.clientRTPPortNum = 0
 	header.clientRTCPPortNum = 1
-	header.rtpChannelId = 0xFF
-	header.rtcpChannelId = 0xFF
+	header.rtpChannelID = 0xFF
+	header.rtcpChannelID = 0xFF
 
 	for {
 		// First, find "Transport:"
@@ -257,8 +267,8 @@ func parseTransportHeader(reqStr string) *TransportHeader {
 					header.clientRTCPPortNum = p1
 				}
 			} else if num, _ = fmt.Sscanf(field, "interleaved=%d-%d", &rtpCid, &rtcpCid); num == 2 {
-				header.rtpChannelId = rtpCid
-				header.rtcpChannelId = rtcpCid
+				header.rtpChannelID = rtpCid
+				header.rtcpChannelID = rtcpCid
 			}
 		}
 		break

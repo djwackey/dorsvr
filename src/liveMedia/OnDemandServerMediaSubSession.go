@@ -53,7 +53,8 @@ func (this *OnDemandServerMediaSubSession) SDPLines() string {
 	return this.sdpLines
 }
 
-func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *StreamParameter {
+func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum net.Conn, destAddr,
+	clientSessionID string, clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID uint) *StreamParameter {
 	var streamBitrate uint = 500
 
 	sp := new(StreamParameter)
@@ -92,9 +93,9 @@ func (this *OnDemandServerMediaSubSession) getStreamParameters(tcpSocketNum net.
 		sp.streamToken = this.lastStreamToken
 	}
 
-	dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId)
+	dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID)
 	this.destinations = append(this.destinations, dests)
-	this.destinationsDict[clientSessionId] = dests
+	this.destinationsDict[clientSessionID] = dests
 
 	return sp
 }
@@ -141,7 +142,7 @@ func (this *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink IRTPSi
 		rtpmapLine,
 		rangeLine,
 		auxSDPLine,
-		this.TrackId())
+		this.TrackID())
 }
 
 func (this *OnDemandServerMediaSubSession) CNAME() string {
@@ -182,18 +183,19 @@ type Destinations struct {
 	addrStr       string
 	rtpPort       uint
 	rtcpPort      uint
-	rtpChannelId  uint
-	rtcpChannelId uint
+	rtpChannelID  uint
+	rtcpChannelID uint
 	tcpSockNum    net.Conn
 }
 
-func NewDestinations(tcpSockNum net.Conn, destAddr string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *Destinations {
+func NewDestinations(tcpSockNum net.Conn, destAddr string,
+	clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID uint) *Destinations {
 	destinations := new(Destinations)
 	destinations.tcpSockNum = tcpSockNum
 	destinations.addrStr = destAddr
 	destinations.rtpPort = clientRTPPort
 	destinations.rtcpPort = clientRTCPPort
-	destinations.rtpChannelId = rtpChannelId
-	destinations.rtcpChannelId = rtcpChannelId
+	destinations.rtpChannelID = rtpChannelID
+	destinations.rtcpChannelID = rtcpChannelID
 	return destinations
 }

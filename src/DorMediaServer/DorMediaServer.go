@@ -5,52 +5,55 @@ import (
 	"fmt"
 	"os"
 
-	. "DorDatabase"
+	db "DorDatabase"
 	env "UsageEnvironment"
-	. "include"
-	. "liveMedia"
+	"constant"
+	media "liveMedia"
 )
 
 func main() {
-	if PrintCommandArgs() {
+	if printCommandArgs() {
 		return
 	}
 
 	fmt.Println("--------------------------------")
-	fmt.Println("|   Dor Media Server " + MEDIA_SERVER_VERSION + "   |")
+	fmt.Println("|   Dor Media Server " + constant.MEDIA_SERVER_VERSION + "   |")
 	fmt.Println("--------------------------------")
 
 	// create an instance of configure file manager.
-	confFileManager := NewConfFileManager()
+	confFileManager := db.NewConfFileManager()
 	if confFileManager == nil {
 		return
 	}
 
-	if !confFileManager.ReadConfInfo(DORMS_CONFIG_FILE) {
-		fmt.Println(FAILED_READ_CONFIG)
+	if !confFileManager.ReadConfInfo(constant.DORMS_CONFIG_FILE) {
+		fmt.Println(constant.FAILED_READ_CONFIG)
 		return
 	}
-	fmt.Println(SUCCESS_READ_CONFIG)
+	fmt.Println(constant.SUCCESS_READ_CONFIG)
 
 	rtspServerPortNum := 554
-	rtspServer := NewRTSPServer(rtspServerPortNum)
+	rtspServer := media.NewRTSPServer(rtspServerPortNum)
 	if rtspServer == nil {
 		rtspServerPortNum = 8554
-		rtspServer = NewRTSPServer(rtspServerPortNum)
+		rtspServer = media.NewRTSPServer(rtspServerPortNum)
 	}
 
 	if rtspServer == nil {
-		fmt.Println(FAILED_CREATE_SERVER)
+		fmt.Println(constant.FAILED_CREATE_SERVER)
 		return
 	}
 	rtspServer.Start()
-	fmt.Println(START_MEDIA_SERVER)
+	fmt.Println(constant.START_MEDIA_SERVER)
 
 	urlPrefix := rtspServer.RtspURLPrefix()
 	fmt.Println("This server's URL: " + urlPrefix + "<filename>.")
 
-	if !rtspServer.SetUpTunnelingOverHTTP(80) || !rtspServer.SetUpTunnelingOverHTTP(8000) || !rtspServer.SetUpTunnelingOverHTTP(8080) {
-		fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling, or for HTTP live streaming (for indexed Transport Stream files only).)", rtspServer.HttpServerPortNum()))
+	if !rtspServer.SetUpTunnelingOverHTTP(80) ||
+		!rtspServer.SetUpTunnelingOverHTTP(8000) ||
+		!rtspServer.SetUpTunnelingOverHTTP(8080) {
+		fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling,"+
+			"or for HTTP live streaming (for indexed Transport Stream files only).)", rtspServer.HttpServerPortNum()))
 	} else {
 		fmt.Println("(RTSP-over-HTTP tunneling is not available.)")
 	}
@@ -59,16 +62,16 @@ func main() {
 	return
 }
 
-func PrintCommandArgs() bool {
+func printCommandArgs() bool {
 	//daemons := false
 	flag.Parse()
 	if flag.NArg() >= 1 {
 		switch os.Args[1] {
 		case "/h", "/help":
-			fmt.Println(HELP_MESSAGE + "\n" + HELP_DAEMON)
+			fmt.Println(constant.HELP_MESSAGE + "\n" + constant.HELP_DAEMON)
 			break
 		case "/v", "/version":
-			fmt.Println(MEDIA_SERVER_NAME + MEDIA_SERVER_VERSION)
+			fmt.Println(constant.MEDIA_SERVER_NAME + constant.MEDIA_SERVER_VERSION)
 			break
 		case "/i", "/install":
 			break

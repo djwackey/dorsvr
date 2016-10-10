@@ -45,57 +45,57 @@ func NewRTSPServer(portNum int) *RTSPServer {
 	return rtspServer
 }
 
-func (this *RTSPServer) Start() {
-	go this.IncomingConnectionHandler(this.rtspListen)
+func (server *RTSPServer) Start() {
+	go server.IncomingConnectionHandler(server.rtspListen)
 }
 
-func (this *RTSPServer) StartMonitor() {
-	go this.MonitorServe()
+func (server *RTSPServer) StartMonitor() {
+	go server.MonitorServe()
 }
 
-func (this *RTSPServer) MonitorServe() {
+func (server *RTSPServer) MonitorServe() {
 	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 }
 
-func (this *RTSPServer) SetupOurSocket(portNum int) (*net.TCPListener, error) {
+func (server *RTSPServer) SetupOurSocket(portNum int) (*net.TCPListener, error) {
 	tcpAddr := fmt.Sprintf("0.0.0.0:%d", portNum)
 	addr, _ := net.ResolveTCPAddr("tcp", tcpAddr)
 
 	return net.ListenTCP("tcp", addr)
 }
 
-func (this *RTSPServer) SetUpTunnelingOverHTTP(httpPort int) bool {
-	this.httpPort = httpPort
+func (server *RTSPServer) SetUpTunnelingOverHTTP(httpPort int) bool {
+	server.httpPort = httpPort
 
 	var err error
-	this.httpListen, err = this.SetupOurSocket(httpPort)
+	server.httpListen, err = server.SetupOurSocket(httpPort)
 	if err != nil {
 		return false
 	}
 
-	go this.IncomingConnectionHandler(this.httpListen)
+	go server.IncomingConnectionHandler(server.httpListen)
 	return true
 }
 
-func (this *RTSPServer) HttpServerPortNum() int {
-	return this.httpPort
+func (server *RTSPServer) HttpServerPortNum() int {
+	return server.httpPort
 }
 
-func (this *RTSPServer) RtspURL(streamName string) string {
-	urlPrefix := this.RtspURLPrefix()
+func (server *RTSPServer) RtspURL(streamName string) string {
+	urlPrefix := server.RtspURLPrefix()
 	return fmt.Sprintf("%s%s", urlPrefix, streamName)
 }
 
-func (this *RTSPServer) RtspURLPrefix() string {
-	this.urlPrefix, _ = OurIPAddress()
-	return fmt.Sprintf("rtsp://%s:%d/", this.urlPrefix, this.rtspPort)
+func (server *RTSPServer) RtspURLPrefix() string {
+	server.urlPrefix, _ = OurIPAddress()
+	return fmt.Sprintf("rtsp://%s:%d/", server.urlPrefix, server.rtspPort)
 }
 
-func (this *RTSPServer) NumCPU() int {
+func (server *RTSPServer) NumCPU() int {
 	return runtime.NumCPU()
 }
 
-func (this *RTSPServer) IncomingConnectionHandler(serverListen *net.TCPListener) {
+func (server *RTSPServer) IncomingConnectionHandler(serverListen *net.TCPListener) {
 	for {
 		tcpConn, err := serverListen.AcceptTCP()
 		if err != nil {
@@ -105,57 +105,57 @@ func (this *RTSPServer) IncomingConnectionHandler(serverListen *net.TCPListener)
 
 		tcpConn.SetReadBuffer(50 * 1024)
 
-		// Create a new object for handling this RTSP connection:
-		go this.NewClientConnection(tcpConn)
+		// Create a new object for handling server RTSP connection:
+		go server.NewClientConnection(tcpConn)
 	}
 }
 
-func (this *RTSPServer) NewClientConnection(conn net.Conn) {
-	rtspClientConnection := NewRTSPClientConnection(this, conn)
+func (server *RTSPServer) NewClientConnection(conn net.Conn) {
+	rtspClientConnection := NewRTSPClientConnection(server, conn)
 	if rtspClientConnection != nil {
 		rtspClientConnection.IncomingRequestHandler()
 	}
 }
 
-func (this *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
-	// Next, check whether we already have a "ServerMediaSession" for this file:
-	sms, smsExists := this.serverMediaSessions[streamName]
+func (server *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
+	// Next, check whether we already have a "ServerMediaSession" for server file:
+	sms, smsExists := server.serverMediaSessions[streamName]
 
 	fid, err := os.Open(streamName)
 	if err != nil {
 		if smsExists {
-			this.RemoveServerMediaSession(sms)
+			server.RemoveServerMediaSession(sms)
 		}
 		return nil
 	}
 	defer fid.Close()
 
 	if !smsExists {
-		sms = this.CreateNewSMS(streamName)
-		this.AddServerMediaSession(sms)
+		sms = server.CreateNewSMS(streamName)
+		server.AddServerMediaSession(sms)
 	}
 
 	return sms
 }
 
-func (this *RTSPServer) AddServerMediaSession(serverMediaSession *ServerMediaSession) {
+func (server *RTSPServer) AddServerMediaSession(serverMediaSession *ServerMediaSession) {
 	sessionName := serverMediaSession.StreamName()
 
-	// in case an existing "ServerMediaSession" with this name already exists
-	session, _ := this.serverMediaSessions[sessionName]
-	this.RemoveServerMediaSession(session)
+	// in case an existing "ServerMediaSession" with server name already exists
+	session, _ := server.serverMediaSessions[sessionName]
+	server.RemoveServerMediaSession(session)
 
-	this.serverMediaSessions[sessionName] = serverMediaSession
+	server.serverMediaSessions[sessionName] = serverMediaSession
 }
 
-func (this *RTSPServer) RemoveServerMediaSession(serverMediaSession *ServerMediaSession) {
+func (server *RTSPServer) RemoveServerMediaSession(serverMediaSession *ServerMediaSession) {
 	if serverMediaSession != nil {
 		sessionName := serverMediaSession.StreamName()
-		delete(this.serverMediaSessions, sessionName)
+		delete(server.serverMediaSessions, sessionName)
 	}
 }
 
-func (this *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
+func (server *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
 	var serverMediaSession *ServerMediaSession
 
 	array := strings.Split(fileName, ".")

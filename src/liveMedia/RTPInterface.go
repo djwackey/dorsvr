@@ -30,12 +30,12 @@ func (this *RTPInterface) GS() *GroupSock {
 	return this.gs
 }
 
-func (this *RTPInterface) addStreamSocket(sockNum net.Conn, streamChannelId uint) {
+func (this *RTPInterface) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
 	if sockNum == nil {
 		return
 	}
 
-	this.tcpStreams = NewTCPStreamRecord(sockNum, streamChannelId)
+	this.tcpStreams = NewTCPStreamRecord(sockNum, streamChannelID)
 }
 
 func (this *RTPInterface) delStreamSocket() {
@@ -50,19 +50,19 @@ func (this *RTPInterface) handleRead() bool {
 }
 
 type TCPStreamRecord struct {
-	streamChannelId uint
+	streamChannelID uint
 	streamSocketNum net.Conn
 }
 
-func NewTCPStreamRecord(streamSocketNum net.Conn, streamChannelId uint) *TCPStreamRecord {
+func NewTCPStreamRecord(streamSocketNum net.Conn, streamChannelID uint) *TCPStreamRecord {
 	tcpStreamRecord := new(TCPStreamRecord)
-	tcpStreamRecord.streamChannelId = streamChannelId
+	tcpStreamRecord.streamChannelID = streamChannelID
 	tcpStreamRecord.streamSocketNum = streamSocketNum
 	return tcpStreamRecord
 }
 
 ///////////// Help Functions ///////////////
-func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannelId uint) {
+func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannelId int) {
 	dollar := []byte{'$'}
 	channelId := []byte{byte(streamChannelId)}
 	socketNum.Write(dollar)

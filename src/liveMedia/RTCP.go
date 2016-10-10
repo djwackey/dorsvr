@@ -3,7 +3,7 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
-	. "include"
+	"utils"
 )
 
 const (
@@ -69,8 +69,8 @@ func NewSDESItem(tag int, value string) *SDESItem {
 }
 
 func dTimeNow() int64 {
-	var timeNow Timeval
-	GetTimeOfDay(&timeNow)
+	var timeNow utils.Timeval
+	utils.GetTimeOfDay(&timeNow)
 	return timeNow.Tv_sec + timeNow.Tv_usec/1000000.0
 }
 

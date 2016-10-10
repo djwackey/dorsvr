@@ -3,8 +3,8 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
-	. "include"
 	//"time"
+	"utils"
 )
 
 var rtpHeaderSize uint = 12
@@ -12,7 +12,7 @@ var rtpHeaderSize uint = 12
 type MultiFramedRTPSink struct {
 	RTPSink
 	outBuf                          *OutPacketBuffer
-	nextSendTime                    Timeval
+	nextSendTime                    utils.Timeval
 	noFramesLeft                    bool
 	isFirstPacket                   bool
 	currentTimestamp                uint
@@ -27,7 +27,8 @@ type MultiFramedRTPSink struct {
 	onSendErrorFunc                 interface{}
 }
 
-func (this *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IRTPSink, rtpGroupSock *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
+func (this *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IRTPSink,
+	rtpGroupSock *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
 	// Default max packet size (1500, minus allowance for IP, UDP, UMTP headers)
 	// (Also, make it a multiple of 4 bytes, just in case that matters.)
 	this.setPacketSizes(1000, 1448)
@@ -85,15 +86,16 @@ func (this *MultiFramedRTPSink) packFrame() {
 			return
 		}
 		fmt.Println("packFrame", this.afterGettingFrame)
-		this.source.getNextFrame(this.outBuf.curPtr(), this.outBuf.totalBytesAvailable(), this.afterGettingFrame, this.ourHandlerClosure)
+		this.source.getNextFrame(this.outBuf.curPtr(), this.outBuf.totalBytesAvailable(),
+			this.afterGettingFrame, this.ourHandlerClosure)
 	}
 }
 
-func (this *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds uint, presentationTime Timeval) {
+func (this *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds uint, presentationTime utils.Timeval) {
 	fmt.Println("MultiFramedRTPSink::afterGettingFrame")
 	if this.isFirstPacket {
 		// Record the fact that we're starting to play now:
-		GetTimeOfDay(&this.nextSendTime)
+		utils.GetTimeOfDay(&this.nextSendTime)
 	}
 
 	curFragmentationOffset := this.curFragmentationOffset
@@ -181,8 +183,8 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 		// We have more frames left to send.  Figure out when the next frame
 		// is due to start playing, then make sure that we wait this long before
 		// sending the next packet.
-		var timeNow Timeval
-		GetTimeOfDay(&timeNow)
+		var timeNow utils.Timeval
+		utils.GetTimeOfDay(&timeNow)
 		secsDiff := this.nextSendTime.Tv_sec - timeNow.Tv_sec
 		uSecondsToGo := secsDiff*1000000 + (this.nextSendTime.Tv_usec - timeNow.Tv_usec)
 		if uSecondsToGo < 0 || secsDiff < 0 { // sanity check: Make sure that the time-to-delay is non-negative:
@@ -207,7 +209,7 @@ func (this *MultiFramedRTPSink) isFirstFrameInPacket() bool {
 	return this.numFramesUsedSoFar == 0
 }
 
-func (this *MultiFramedRTPSink) setTimestamp(framePresentationTime Timeval) {
+func (this *MultiFramedRTPSink) setTimestamp(framePresentationTime utils.Timeval) {
 	// First, convert the presentation time to a 32-bit RTP timestamp:
 	this.currentTimestamp = this.convertToRTPTimestamp(framePresentationTime)
 
@@ -233,7 +235,8 @@ func (this *MultiFramedRTPSink) frameCanAppearAfterPacketStart(frameStart []byte
 	return true
 }
 
-func (this *MultiFramedRTPSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint, frameStart string, framePresentationTime Timeval) {
+func (this *MultiFramedRTPSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint,
+	frameStart string, framePresentationTime utils.Timeval) {
 	if this.isFirstFrameInPacket() {
 		this.setTimestamp(framePresentationTime)
 	}

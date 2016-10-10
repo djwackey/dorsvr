@@ -3,8 +3,8 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
-	. "include"
 	"net"
+	"utils"
 )
 
 //////// RTPSink ////////
@@ -40,7 +40,8 @@ type RTPSink struct {
 	transmissionStatsDB        *RTPTransmissionStatsDB
 }
 
-func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
+func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType,
+	rtpTimestampFrequency uint, rtpPayloadFormatName string) {
 	this.InitMediaSink(rtpSink)
 	this.rtpInterface = NewRTPInterface(this, gs)
 	this.rtpPayloadType = rtpPayloadType
@@ -52,8 +53,8 @@ func (this *RTPSink) SSRC() uint {
 	return this.ssrc
 }
 
-func (this *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelId uint) {
-	this.rtpInterface.addStreamSocket(sockNum, streamChannelId)
+func (this *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
+	this.rtpInterface.addStreamSocket(sockNum, streamChannelID)
 }
 
 func (this *RTPSink) delStreamSocket() {
@@ -95,8 +96,8 @@ func (this *RTPSink) RtpTimestampFrequency() uint {
 }
 
 func (this *RTPSink) presetNextTimestamp() uint {
-	var timeNow Timeval
-	GetTimeOfDay(&timeNow)
+	var timeNow utils.Timeval
+	utils.GetTimeOfDay(&timeNow)
 
 	tsNow := this.convertToRTPTimestamp(timeNow)
 	this.timestampBase = tsNow
@@ -105,7 +106,7 @@ func (this *RTPSink) presetNextTimestamp() uint {
 	return tsNow
 }
 
-func (this *RTPSink) convertToRTPTimestamp(tv Timeval) uint {
+func (this *RTPSink) convertToRTPTimestamp(tv utils.Timeval) uint {
 	// Begin by converting from "struct timeval" units to RTP timestamp units:
 	timestampIncrement := this.timestampFrequency * uint(tv.Tv_sec)
 	timestampIncrement += (2.0*this.timestampFrequency*uint(tv.Tv_usec) + 1000000.0) / 2000000
@@ -142,6 +143,6 @@ type RTPTransmissionStats struct {
 	packetLossRatio       uint
 	totNumPacketsLost     uint
 	lastPacketNumReceived uint
-	timeCreated           Timeval
-	timeReceived          Timeval
+	timeCreated           utils.Timeval
+	timeReceived          utils.Timeval
 }

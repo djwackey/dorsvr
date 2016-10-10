@@ -14,6 +14,6 @@ func TaskScheduler() *BasicTaskScheduler {
 	return new(BasicTaskScheduler)
 }
 
-func (this *BasicTaskScheduler) DoEventLoop() {
+func (scheduler *BasicTaskScheduler) DoEventLoop() {
 	select {}
 }

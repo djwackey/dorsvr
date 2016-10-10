@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-type OurRTSPClient struct {
+type ourRTSPClient struct {
 	RTSPClient
 }
 
@@ -18,8 +18,8 @@ type DummySink struct {
 
 var rtspClientCount int
 
-func NewOurRTSPClient(appName, rtspURL string) *OurRTSPClient {
-	rtspClient := new(OurRTSPClient)
+func NewOurRTSPClient(appName, rtspURL string) *ourRTSPClient {
+	rtspClient := new(ourRTSPClient)
 	rtspClient.InitRTSPClient(rtspURL, appName)
 	return rtspClient
 }
@@ -62,7 +62,6 @@ func openURL(appName, rtspURL string) bool {
 }
 
 func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr string) {
-	fmt.Println("continueAfterDESCRIBE")
 	for {
 		if resultCode != 0 {
 			fmt.Println(fmt.Sprintf("Failed to get a SDP description: %s", resultStr))
@@ -93,20 +92,24 @@ func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr str
 
 func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string) {
 	fmt.Println("continueAfterSETUP")
-	if resultCode != 0 {
-		fmt.Println(fmt.Sprintf("Failed to set up the subsession"))
-	}
+	for {
+		if resultCode != 0 {
+			fmt.Println(fmt.Sprintf("Failed to set up the subsession"))
+			break
+		}
 
-	scs := rtspClient.SCS()
-	scs.Subsession.Sink = NewDummySink()
-	if scs.Subsession.Sink == nil {
-		fmt.Println("Failed to create a data sink for the subsession.")
-		return
-	}
+		scs := rtspClient.SCS()
+		scs.Subsession.Sink = NewDummySink()
+		if scs.Subsession.Sink == nil {
+			fmt.Println("Failed to create a data sink for the subsession.")
+			break
+		}
 
-	scs.Subsession.Sink.StartPlaying()
-	if scs.Subsession.RtcpInstance() != nil {
-		scs.Subsession.RtcpInstance().SetByeHandler(subsessionByeHandler, scs.Subsession)
+		scs.Subsession.Sink.StartPlaying()
+		if scs.Subsession.RtcpInstance() != nil {
+			scs.Subsession.RtcpInstance().SetByeHandler(subsessionByeHandler, scs.Subsession)
+		}
+		break
 	}
 
 	// Set up the next subsession, if any:
@@ -114,10 +117,17 @@ func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string
 }
 
 func continueAfterPLAY(rtspClient *RTSPClient, resultCode int, resultStr string) {
-	if resultCode != 0 {
-		fmt.Println(fmt.Sprintf("Failed to start playing session: %s", resultStr))
-		return
+	for {
+		if resultCode != 0 {
+			fmt.Println(fmt.Sprintf("Failed to start playing session: %s", resultStr))
+			break
+		}
+
+		break
 	}
+
+	// An unrecoverable error occurred with this stream.
+	shutdownStream(rtspClient)
 }
 
 func subsessionByeHandler(subsession *MediaSubSession) {
@@ -134,8 +144,10 @@ func subsessionAfterPlaying(subsession *MediaSubSession) {
 func shutdownStream(rtspClient *RTSPClient) {
 	//subsession.tcpInstance().setByeHandler(nil, nil)
 
+	scs := rtspClient.SCS()
+
 	if rtspClient != nil {
-		rtspClient.SendTeardownCommand(nil)
+		rtspClient.SendTeardownCommand(scs.Session, nil)
 	}
 
 	fmt.Println("Closing the Stream.")
@@ -149,16 +161,17 @@ func setupNextSubSession(rtspClient *RTSPClient) {
 			fmt.Println("Failed to initiate the subsession.")
 			setupNextSubSession(rtspClient)
 		} else {
-			rtspClient.SendSetupCommand(continueAfterSETUP)
+			rtspClient.SendSetupCommand(scs.Subsession, continueAfterSETUP)
 		}
+		return
 	}
 
 	fmt.Println("setupNextSubSession", scs.Subsession)
 
-	if scs.Subsession.AbsStartTime() != "" {
-		rtspClient.SendPlayCommand(continueAfterPLAY)
+	if scs.Session.AbsStartTime() != "" {
+		rtspClient.SendPlayCommand(scs.Session, continueAfterPLAY)
 	} else {
-		rtspClient.SendPlayCommand(continueAfterPLAY)
+		rtspClient.SendPlayCommand(scs.Session, continueAfterPLAY)
 	}
 }
 
@@ -166,5 +179,5 @@ func NewDummySink() *DummySink {
 	return new(DummySink)
 }
 
-func (this *DummySink) StartPlaying() {
+func (sink *DummySink) StartPlaying() {
 }

@@ -2,7 +2,7 @@ package liveMedia
 
 import (
 	"fmt"
-	. "include"
+	"utils"
 )
 
 var BANK_SIZE uint = 150000
@@ -22,7 +22,7 @@ type StreamParser struct {
 	curBank                    []byte
 	clientContinueFunc         interface{}
 	clientOnInputCloseFunc     interface{}
-	lastSeenPresentationTime   Timeval
+	lastSeenPresentationTime   utils.Timeval
 }
 
 func (sp *StreamParser) InitStreamParser(inputSource IFramedSource) {
@@ -140,9 +140,10 @@ func (sp *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 	return NO_MORE_BUFFERED_INPUT
 }
 
-func (sp *StreamParser) afterGettingBytes(numBytesRead uint, presentationTime Timeval) {
+func (sp *StreamParser) afterGettingBytes(numBytesRead uint, presentationTime utils.Timeval) {
 	if sp.totNumValidBytes+numBytesRead > BANK_SIZE {
-		fmt.Println(fmt.Sprintf("StreamParser::afterGettingBytes() warning: read %d bytes; expected no more than %d", numBytesRead, BANK_SIZE-sp.totNumValidBytes))
+		fmt.Println(fmt.Sprintf("StreamParser::afterGettingBytes() "+
+			"warning: read %d bytes; expected no more than %d", numBytesRead, BANK_SIZE-sp.totNumValidBytes))
 	}
 
 	sp.lastSeenPresentationTime = presentationTime

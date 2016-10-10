@@ -2,7 +2,7 @@ package liveMedia
 
 import (
 	"fmt"
-	. "include"
+	"utils"
 )
 
 type IFramedSource interface {
@@ -24,14 +24,15 @@ type FramedSource struct {
 	numTruncatedBytes       uint
 	durationInMicroseconds  uint
 	isCurrentlyAwaitingData bool
-	presentationTime        Timeval
+	presentationTime        utils.Timeval
 }
 
 func (this *FramedSource) InitFramedSource(source IFramedSource) {
 	this.source = source
 }
 
-func (this *FramedSource) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
+func (this *FramedSource) getNextFrame(buffTo []byte, maxSize uint,
+	afterGettingFunc interface{}, onCloseFunc interface{}) {
 	if this.isCurrentlyAwaitingData {
 		panic("FramedSource::getNextFrame(): attempting to read more than once at the same time!")
 	}
@@ -52,7 +53,7 @@ func (this *FramedSource) afterGetting() {
 	this.isCurrentlyAwaitingData = false
 
 	if this.afterGettingFunc != nil {
-		this.afterGettingFunc.(func(frameSize, durationInMicroseconds uint, presentationTime Timeval))(this.frameSize, this.durationInMicroseconds, this.presentationTime)
+		this.afterGettingFunc.(func(frameSize, durationInMicroseconds uint, presentationTime utils.Timeval))(this.frameSize, this.durationInMicroseconds, this.presentationTime)
 	}
 }
 

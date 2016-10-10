@@ -2,13 +2,13 @@ package liveMedia
 
 import (
 	"fmt"
-	. "include"
 	"os"
+	"utils"
 )
 
 type ByteStreamFileSource struct {
 	FramedFileSource
-	presentationTime      Timeval
+	presentationTime      utils.Timeval
 	fileSize              int64
 	numBytesToStream      int64
 	lastPlayTime          uint
@@ -64,7 +64,7 @@ func (this *ByteStreamFileSource) doReadFromFile() bool {
 	if this.playTimePerFrame > 0 && this.preferredFrameSize > 0 {
 		if this.presentationTime.Tv_sec == 0 && this.presentationTime.Tv_usec == 0 {
 			// This is the first frame, so use the current time:
-			GetTimeOfDay(&this.presentationTime)
+			utils.GetTimeOfDay(&this.presentationTime)
 		} else {
 			// Increment by the play time of the previous data:
 			uSeconds := this.presentationTime.Tv_usec + int64(this.lastPlayTime)
@@ -78,7 +78,7 @@ func (this *ByteStreamFileSource) doReadFromFile() bool {
 	} else {
 		// We don't know a specific play time duration for this data,
 		// so just record the current time as being the 'presentation time':
-		GetTimeOfDay(&this.presentationTime)
+		utils.GetTimeOfDay(&this.presentationTime)
 	}
 
 	this.afterGetting()

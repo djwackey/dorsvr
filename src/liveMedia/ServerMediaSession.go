@@ -3,12 +3,13 @@ package liveMedia
 import (
 	"fmt"
 	//"time"
+	"constant"
 	. "groupsock"
-	. "include"
+	"utils"
 )
 
 var libNameStr string = "Dor Streaming Media v"
-var libVersionStr string = MEDIA_SERVER_VERSION
+var libVersionStr string = constant.MEDIA_SERVER_VERSION
 
 type ServerMediaSession struct {
 	isSSM             bool
@@ -19,7 +20,7 @@ type ServerMediaSession struct {
 	miscSDPLines      string
 	referenceCount    int
 	subsessionCounter int
-	creationTime      Timeval
+	creationTime      utils.Timeval
 	subSessions       []IServerMediaSubSession
 }
 
@@ -31,7 +32,7 @@ func NewServerMediaSession(description, streamName string) *ServerMediaSession {
 	serverMediaSession.subSessions = make([]IServerMediaSubSession, 1024)
 	serverMediaSession.ipAddr, _ = OurIPAddress()
 
-	GetTimeOfDay(&serverMediaSession.creationTime)
+	utils.GetTimeOfDay(&serverMediaSession.creationTime)
 	return serverMediaSession
 }
 

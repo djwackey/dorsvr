@@ -10,12 +10,9 @@ type SimpleRTPSink struct {
 }
 
 func NewSimpleRTPSink(rtpGS *GroupSock, rtpPayloadFormat,
-	rtpTimestampFrequency,
-	numChannels uint,
-	sdpMediaTypeString,
-	rtpPayloadFormatName string,
-	allowMultipleFramesPerPacket,
-	doNormalMBitRule bool) *SimpleRTPSink {
+	rtpTimestampFrequency, numChannels uint,
+	sdpMediaTypeString, rtpPayloadFormatName string,
+	allowMultipleFramesPerPacket, doNormalMBitRule bool) *SimpleRTPSink {
 	simpleRTPSink := new(SimpleRTPSink)
 	simpleRTPSink.InitMultiFramedRTPSink(simpleRTPSink, rtpGS, rtpPayloadFormat, rtpTimestampFrequency, rtpPayloadFormatName)
 	simpleRTPSink.allowMultipleFramesPerPacket = allowMultipleFramesPerPacket

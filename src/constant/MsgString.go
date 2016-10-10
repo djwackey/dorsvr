@@ -1,4 +1,4 @@
-package include
+package constant
 
 const (
 	MEDIA_SERVER_NAME     = "Digital Operating Room Media Server"

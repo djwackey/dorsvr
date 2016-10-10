@@ -9,14 +9,15 @@ import (
 type IServerMediaSubSession interface {
 	createNewStreamSource() IFramedSource
 	createNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
-	getStreamParameters(tcpSocketNum net.Conn, destAddr, clientSessionId string, clientRTPPort, clientRTCPPort, rtpChannelId, rtcpChannelId uint) *StreamParameter
+	getStreamParameters(tcpSocketNum net.Conn, destAddr, clientSessionID string,
+		clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID uint) *StreamParameter
 	testScaleFactor(float32) float32
 	//Duration() float32
 	IncrTrackNumber()
-	TrackId() string
+	TrackID() string
 	SDPLines() string
 	CNAME() string
-	startStream(clientSessionId uint, streamState *StreamState) (uint, uint)
+	startStream(clientSessionID uint, streamState *StreamState) (uint, uint)
 	pauseStream(streamState *StreamState)
 	seekStream()
 	deleteStream(streamState *StreamState)
@@ -24,7 +25,7 @@ type IServerMediaSubSession interface {
 
 type ServerMediaSubSession struct {
 	trackNumber uint
-	trackId     string
+	trackID     string
 	isubsession IServerMediaSubSession
 }
 
@@ -32,11 +33,11 @@ func (this *ServerMediaSubSession) InitServerMediaSubSession(isubsession IServer
 	this.isubsession = isubsession
 }
 
-func (this *ServerMediaSubSession) TrackId() string {
-	if this.trackId == "" {
-		this.trackId = fmt.Sprintf("track%d", this.trackNumber)
+func (this *ServerMediaSubSession) TrackID() string {
+	if this.trackID == "" {
+		this.trackID = fmt.Sprintf("track%d", this.trackNumber)
 	}
-	return this.trackId
+	return this.trackID
 }
 
 func (this *ServerMediaSubSession) TrackNumber() uint {

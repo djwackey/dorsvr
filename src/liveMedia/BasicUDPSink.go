@@ -2,7 +2,7 @@ package liveMedia
 
 import (
 	. "groupsock"
-	. "include"
+	"utils"
 )
 
 type BasicUDPSink struct {
@@ -10,7 +10,7 @@ type BasicUDPSink struct {
 	gs             *GroupSock
 	maxPayloadSize uint
 	outputBuffer   []byte
-	nextSendTime   Timeval
+	nextSendTime   utils.Timeval
 }
 
 func NewBasicUDPSink(gs *GroupSock) *BasicUDPSink {
@@ -21,5 +21,5 @@ func NewBasicUDPSink(gs *GroupSock) *BasicUDPSink {
 	return udpSink
 }
 
-func (this *BasicUDPSink) continuePlaying() {
+func (sink *BasicUDPSink) continuePlaying() {
 }

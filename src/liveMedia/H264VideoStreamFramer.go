@@ -1,8 +1,7 @@
 package liveMedia
 
 import (
-	//"fmt"
-	. "include"
+	"utils"
 )
 
 var SPS_MAX_SIZE uint = 1000
@@ -432,7 +431,7 @@ func (this *H264VideoStreamParser) getNextFrame(buffTo []byte, maxSize uint, aft
 type H264VideoStreamFramer struct {
 	MPEGVideoStreamFramer
 	parser               *H264VideoStreamParser
-	nextPresentationTime Timeval
+	nextPresentationTime utils.Timeval
 	lastSeenSPS          []byte
 	lastSeenPPS          []byte
 	lastSeenSPSSize      uint

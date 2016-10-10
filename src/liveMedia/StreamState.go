@@ -20,7 +20,9 @@ type StreamState struct {
 	areCurrentlyPlaying bool
 }
 
-func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint, rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW uint, mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
+func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint,
+	rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW uint,
+	mediaSource IFramedSource, rtpGS, rtcpGS *GroupSock) *StreamState {
 	streamState := new(StreamState)
 	streamState.rtpGS = rtpGS
 	streamState.rtcpGS = rtcpGS
@@ -45,7 +47,7 @@ func (this *StreamState) startPlaying(dests *Destinations) {
 
 	if dests.isTCP {
 		if this.rtpSink != nil {
-			this.rtpSink.addStreamSocket(dests.tcpSockNum, dests.rtpChannelId)
+			this.rtpSink.addStreamSocket(dests.tcpSockNum, dests.rtpChannelID)
 			//this.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum)
 		}
 		if this.rtcpInstance != nil {

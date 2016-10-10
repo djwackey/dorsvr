@@ -1,16 +1,16 @@
 package main
 
 import (
-	. "liveMedia"
+	media "liveMedia"
 )
 
 type DynamicRTSPServer struct {
-	RTSPServerSupportingHTTPStreaming
+	media.RTSPServerSupportingHTTPStreaming
 }
 
-func (this *DynamicRTSPServer) InitDynamicRTSPServer() {
+func (server *DynamicRTSPServer) InitDynamicRTSPServer() {
 }
 
-func (this *DynamicRTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
+func (server *DynamicRTSPServer) LookupServerMediaSession(streamName string) *media.ServerMediaSession {
 	return nil
 }
