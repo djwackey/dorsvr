@@ -11,7 +11,11 @@ func InitWinSocket() {
 
 func SetupDatagramSocket(address string, port uint) *net.UDPConn {
 	addr := fmt.Sprintf("%s:%d", address, port)
-	udpAddr, _ := net.ResolveUDPAddr("udp", addr)
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		fmt.Println("Failed to resolve UDP address.", err)
+		return nil
+	}
 
 	udpConn, err := net.DialUDP("udp", nil, udpAddr)
 	if err != nil {
@@ -20,7 +24,19 @@ func SetupDatagramSocket(address string, port uint) *net.UDPConn {
 	return udpConn
 }
 
-func SetupStreamSocket() {
+func SetupStreamSocket(address string, port uint) *net.TCPConn {
+	addr := fmt.Sprintf("%s:%d", address, port)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		fmt.Println("Failed to resolve TCP address.", err)
+		return nil
+	}
+
+	tcpConn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return nil
+	}
+	return tcpConn
 }
 
 func createSocket(sockType string) {
@@ -46,7 +62,7 @@ func writeSocket(conn net.Conn, buffer []byte) bool {
 func OurIPAddress() (string, error) {
 	conn, err := net.Dial("udp", "www.baidu.com:80")
 	if err != nil {
-		fmt.Println("[ourIPAddress]", err.Error())
+		fmt.Println("Failed to get our IP address", err.Error())
 		return "", err
 	}
 	defer conn.Close()

@@ -1,6 +1,14 @@
 package groupsock
 
+import (
+	"net"
+	"strconv"
+	"strings"
+)
+
 type Socket struct {
+	socketNum net.Conn
+	portNum   uint
 }
 
 type OutputSocket struct {
@@ -20,15 +28,20 @@ func (this *OutputSocket) sourcePortNum() uint {
 
 type GroupSock struct {
 	OutputSocket
-	dests   []*destRecord
-	portNum uint
-	ttl     uint
+	dests []*destRecord
+	ttl   uint
 }
 
 func NewGroupSock(addrStr string, portNum uint) *GroupSock {
+	socketNum := SetupDatagramSocket(addrStr, portNum)
+	if socketNum == nil {
+		return nil
+	}
+
 	gs := new(GroupSock)
 	gs.ttl = 255
 	gs.portNum = portNum
+	gs.socketNum = socketNum
 	gs.AddDestination(addrStr, portNum)
 	return gs
 }
@@ -45,6 +58,17 @@ func (this *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
 }
 
 func (this *GroupSock) handleRead() {
+}
+
+func (this *GroupSock) GetSourcePort() uint {
+	if this.socketNum != nil {
+		localAddr := strings.Split(this.socketNum.LocalAddr().String(), ":")
+		sourcePort, err := strconv.Atoi(localAddr[1])
+		if err == nil {
+			return uint(sourcePort)
+		}
+	}
+	return 0
 }
 
 func (this *GroupSock) TTL() uint {
