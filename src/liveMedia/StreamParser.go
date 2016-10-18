@@ -136,7 +136,7 @@ func (sp *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 
 	// Try to read as many new bytes as will fit in the current bank:
 	maxNumBytesToRead := BANK_SIZE - sp.totNumValidBytes
-	sp.inputSource.getNextFrame(sp.CurBank(), maxNumBytesToRead, sp.afterGettingBytes, sp.onInputClosure)
+	sp.inputSource.GetNextFrame(sp.CurBank(), maxNumBytesToRead, sp.afterGettingBytes, sp.onInputClosure)
 	return NO_MORE_BUFFERED_INPUT
 }
 

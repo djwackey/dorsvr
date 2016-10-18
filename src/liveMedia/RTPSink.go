@@ -14,9 +14,9 @@ type IRTPSink interface {
 	RtpmapLine() string
 	SdpMediaType() string
 	currentSeqNo() uint
-	startPlaying(source IFramedSource) bool
-	stopPlaying()
-	continuePlaying()
+	StartPlaying(source IFramedSource) bool
+	StopPlaying()
+	ContinuePlaying()
 	addStreamSocket(sockNum net.Conn, streamChannelId uint)
 	delStreamSocket()
 	presetNextTimestamp() uint

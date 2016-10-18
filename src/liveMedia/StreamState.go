@@ -71,21 +71,21 @@ func (this *StreamState) startPlaying(dests *Destinations) {
 
 	if !this.areCurrentlyPlaying && this.mediaSource != nil {
 		if this.rtpSink != nil {
-			this.rtpSink.startPlaying(this.mediaSource)
+			this.rtpSink.StartPlaying(this.mediaSource)
 			this.areCurrentlyPlaying = true
 		} else if this.udpSink != nil {
 			this.areCurrentlyPlaying = true
-			this.udpSink.startPlaying(this.mediaSource)
+			this.udpSink.StartPlaying(this.mediaSource)
 		}
 	}
 }
 
 func (this *StreamState) pause() {
 	if this.rtpSink != nil {
-		this.rtpSink.stopPlaying()
+		this.rtpSink.StopPlaying()
 	}
 	if this.udpSink != nil {
-		this.udpSink.stopPlaying()
+		this.udpSink.StopPlaying()
 	}
 	this.areCurrentlyPlaying = false
 }

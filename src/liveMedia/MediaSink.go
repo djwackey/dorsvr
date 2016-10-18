@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"net"
 	"utils"
 )
 
@@ -156,11 +157,11 @@ func (this *OutPacketBuffer) resetOverflowData() {
 
 //////// MediaSink ////////
 type IMediaSink interface {
-	StartPlaying()
+	StartPlaying(source IFramedSource) bool
 }
 
 type MediaSink struct {
-	source  IFramedSource
+	Source  IFramedSource
 	rtpSink IRTPSink
 }
 
@@ -168,23 +169,59 @@ func (this *MediaSink) InitMediaSink(rtpSink IRTPSink) {
 	this.rtpSink = rtpSink
 }
 
-func (this *MediaSink) startPlaying(source IFramedSource) bool {
-	if this.source != nil {
+func (this *MediaSink) StartPlaying(source IFramedSource) bool {
+	if this.Source != nil {
 		fmt.Println("This sink is already being played")
 		return false
 	}
 
-	this.source = source
-	this.rtpSink.continuePlaying()
+	if this.rtpSink == nil {
+		fmt.Println("This RTP Sink is nil")
+		return false
+	}
+
+	this.Source = source
+	this.rtpSink.ContinuePlaying()
 	return true
 }
 
-func (this *MediaSink) stopPlaying() {
+func (this *MediaSink) StopPlaying() {
 	// First, tell the source that we're no longer interested:
-	if this.source != nil {
-		//this.source.stopGettingFrames()
+	if this.Source != nil {
+		this.Source.stopGettingFrames()
 	}
 }
 
-func (this *MediaSink) onSourceClosure() {
+func (sink *MediaSink) AuxSDPLine() string {
+	return ""
+}
+
+func (sink *MediaSink) RtpPayloadType() uint {
+	return 0
+}
+
+func (sink *MediaSink) RtpmapLine() string {
+	return ""
+}
+
+func (sink *MediaSink) SdpMediaType() string {
+	return ""
+}
+
+func (this *MediaSink) OnSourceClosure() {
+}
+
+func (sink *MediaSink) addStreamSocket(sockNum net.Conn, streamChannelId uint) {
+	return
+}
+
+func (sink *MediaSink) delStreamSocket() {
+}
+
+func (sink *MediaSink) currentSeqNo() uint {
+	return 0
+}
+
+func (sink *MediaSink) presetNextTimestamp() uint {
+	return 0
 }

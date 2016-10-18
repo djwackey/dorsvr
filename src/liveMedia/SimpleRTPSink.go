@@ -23,5 +23,5 @@ func (this *SimpleRTPSink) AuxSDPLine() string {
 	return ""
 }
 
-func (this *SimpleRTPSink) continuePlaying() {
+func (this *SimpleRTPSink) ContinuePlaying() {
 }

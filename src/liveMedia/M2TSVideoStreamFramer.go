@@ -30,7 +30,7 @@ func NewM2TSVideoStreamFramer(inputSource IFramedSource) *M2TSVideoStreamFramer 
 	return new(M2TSVideoStreamFramer)
 }
 
-func (this *M2TSVideoStreamFramer) getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
+func (this *M2TSVideoStreamFramer) GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
 }
 
 func (this *M2TSVideoStreamFramer) doGetNextFrame() {

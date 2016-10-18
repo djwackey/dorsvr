@@ -1,17 +1,16 @@
 package liveMedia
 
 import (
-	"fmt"
 	"utils"
 )
 
 type IFramedSource interface {
-	getNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{})
+	GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{})
 	doGetNextFrame()
 	afterGetting()
 	maxFrameSize() uint
 	//getSPSandPPS()
-	//stopGettingFrames()
+	stopGettingFrames()
 }
 
 type FramedSource struct {
@@ -31,13 +30,11 @@ func (this *FramedSource) InitFramedSource(source IFramedSource) {
 	this.source = source
 }
 
-func (this *FramedSource) getNextFrame(buffTo []byte, maxSize uint,
+func (this *FramedSource) GetNextFrame(buffTo []byte, maxSize uint,
 	afterGettingFunc interface{}, onCloseFunc interface{}) {
 	if this.isCurrentlyAwaitingData {
-		panic("FramedSource::getNextFrame(): attempting to read more than once at the same time!")
+		panic("FramedSource::GetNextFrame(): attempting to read more than once at the same time!")
 	}
-
-	fmt.Println(fmt.Sprintf("FramedSource::getNextFrame -> %p", this.source))
 
 	this.buffTo = buffTo
 	this.maxSize = maxSize
@@ -49,11 +46,11 @@ func (this *FramedSource) getNextFrame(buffTo []byte, maxSize uint,
 }
 
 func (this *FramedSource) afterGetting() {
-	fmt.Println("FramedSource::afterGetting")
 	this.isCurrentlyAwaitingData = false
 
 	if this.afterGettingFunc != nil {
-		this.afterGettingFunc.(func(frameSize, durationInMicroseconds uint, presentationTime utils.Timeval))(this.frameSize, this.durationInMicroseconds, this.presentationTime)
+		this.afterGettingFunc.(func(frameSize, durationInMicroseconds uint,
+			presentationTime utils.Timeval))(this.frameSize, this.durationInMicroseconds, this.presentationTime)
 	}
 }
 

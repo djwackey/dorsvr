@@ -1,7 +1,6 @@
 package liveMedia
 
 import (
-	"fmt"
 	. "groupsock"
 	"utils"
 )
@@ -113,8 +112,8 @@ func (this *RTCPInstance) setRRHandler() {
 }
 
 func (this *RTCPInstance) incomingReportHandler() {
-	readResult := this.rtcpInterface.handleRead()
-	fmt.Println(readResult)
+	//readResult := 0
+	this.rtcpInterface.handleRead()
 }
 
 func (this *RTCPInstance) onReceive() {

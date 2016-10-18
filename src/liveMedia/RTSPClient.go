@@ -19,7 +19,7 @@ type RTSPClient struct {
 	responseBuffer                []byte
 	cseq                          int
 	tcpStreamIDCount              uint
-	tunnelOverHTTPPortNum         int
+	tunnelOverHTTPPortNum         uint
 	responseBufferBytesLeft       uint
 	responseBytesAlreadySeen      uint
 	tcpConn                       *net.TCPConn
@@ -31,6 +31,7 @@ type RTSPClient struct {
 
 type RequestRecord struct {
 	cseq         int
+	boolFlags    int
 	scale        float32
 	start        float32
 	end          float32
@@ -56,6 +57,9 @@ func NewRTSPClient(rtspURL, appName string) *RTSPClient {
 func NewRequestRecord(cseq int, commandName string, responseHandler interface{}) *RequestRecord {
 	requestRecord := new(RequestRecord)
 	requestRecord.cseq = cseq
+	requestRecord.scale = 1.0
+	requestRecord.start = 0.0
+	requestRecord.end = -1.0
 	requestRecord.handler = responseHandler
 	requestRecord.commandName = commandName
 	return requestRecord
@@ -79,6 +83,10 @@ func (record *RequestRecord) Session() *MediaSession {
 
 func (record *RequestRecord) Subsession() *MediaSubSession {
 	return record.subsession
+}
+
+func (record *RequestRecord) BoolFlags() int {
+	return record.boolFlags
 }
 
 func (record *RequestRecord) CSeq() int {
@@ -137,6 +145,10 @@ func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 
 	userAgentName := fmt.Sprintf("%s%s%s%s%s", appName, libPrefix, libName, libVersionStr, libSuffix)
 	this.SetUserAgentString(userAgentName)
+}
+
+func (this *RTSPClient) URL() string {
+	return this.baseURL
 }
 
 func (this *RTSPClient) SCS() *StreamClientState {
@@ -212,7 +224,6 @@ func (this *RTSPClient) setupHTTPTunneling() {
 }
 
 func (this *RTSPClient) openConnection() bool {
-	//SetupStreamSocket()
 	rtspUrl, result := this.parseRTSPURL(this.baseURL)
 	if !result {
 		return false
@@ -223,7 +234,6 @@ func (this *RTSPClient) openConnection() bool {
 		return false
 	}
 
-	//defer this.tcpConn.Close()
 	go this.incomingDataHandler()
 	return true
 }
@@ -236,12 +246,15 @@ func (this *RTSPClient) connectToServer(host string, port int) bool {
 		return false
 	}
 
+	fmt.Printf("Opening connection to %s, port %d...\n", host, port)
+
 	this.tcpConn, err = net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		fmt.Println("Failed to connect to server.", err)
 		return false
 	}
 
+	fmt.Println("...remote connection opened\n")
 	return true
 }
 
@@ -322,12 +335,10 @@ func (this *RTSPClient) incomingDataHandler() {
 	for {
 		readBytes, err := ReadSocket(this.tcpConn, this.responseBuffer)
 		if err != nil {
-			fmt.Println("[readSocket]", err.Error())
+			fmt.Println("Failed to read bytes.", err.Error())
 			break
 		}
 
-		//fmt.Println("[readSocket] success for reading ", readBytes)
-		//fmt.Println(string(this.responseBuffer))
 		this.handleResponseBytes(this.responseBuffer, readBytes)
 	}
 }
@@ -340,13 +351,11 @@ func getLine(startOfLine string) (thisLineStart, nextLineStart string) {
 			if c == '\r' {
 				if startOfLine[i+1] == '\n' {
 					index = i + 2 // skip "\r\n"
-					thisLineStart = startOfLine[:i]
-					nextLineStart = startOfLine[index:]
-					break
 				}
+			} else {
+				index = i + 1
 			}
 
-			index = i + 1
 			thisLineStart = startOfLine[:i]
 			nextLineStart = startOfLine[index:]
 			break
@@ -357,7 +366,8 @@ func getLine(startOfLine string) (thisLineStart, nextLineStart string) {
 
 func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 	reqStr := string(buffer)[:length]
-	fmt.Println(reqStr)
+
+	fmt.Printf("Received %d new bytes of response data.\n", length)
 
 	nextLineStart, thisLineStart := getLine(reqStr)
 	responseCode, responseString, result := this.parseResponseCode(thisLineStart)
@@ -380,8 +390,6 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 			break
 		}
 
-		//fmt.Println("thisLineStart", thisLineStart)
-
 		if headerParamsStr, result = this.checkForHeader(thisLineStart, "CSeq:", 5); result {
 			ret, _ = fmt.Sscanf(headerParamsStr, "%d", &cseq)
 			if ret != 1 || cseq <= 0 {
@@ -396,7 +404,7 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 				}
 
 				if request.CSeq() < cseq {
-					fmt.Println("WARNING: The server did not respond to our \"", request.CommandName(), "\"")
+					//fmt.Println("WARNING: The server did not respond to our \"", request.CommandName(), "\"")
 				} else if request.CSeq() == cseq {
 					// This is the handler that we want. Remove its record, but remember it,
 					// so that we can later call its handler:
@@ -427,8 +435,9 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 	}
 
 	bodyStart := nextLineStart
+	numBodyBytes := len(bodyStart)
 
-	fmt.Println("publicParamsStr", publicParamsStr)
+	fmt.Printf("Received a complete %s response:\n%s\n", foundRequest.CommandName(), reqStr)
 
 	if responseCode == 200 {
 		switch foundRequest.CommandName() {
@@ -463,7 +472,12 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 			var resultString string
 			if responseCode == 200 {
 				resultCode = 0
-				resultString = bodyStart
+
+				if numBodyBytes > 0 {
+					resultString = bodyStart
+				} else {
+					resultString = publicParamsStr
+				}
 			} else {
 				resultCode = responseCode
 				resultString = responseString
@@ -490,10 +504,8 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 			fmt.Println("Failed to open Connection.")
 			return 0
 		}
-		fmt.Println("Success for opening Connection.")
 	}
 
-	//fmt.Println(connectionIsPending)
 	if connectionIsPending {
 		this.requestsAwaitingConnection.enqueue(request)
 		return request.CSeq()
@@ -516,6 +528,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		fmt.Println("contentLengthHeader", contentLengthHeader)
 	}
 
+	cmdURL := this.baseURL
 	var extraHeaders string
 	switch request.CommandName() {
 	case "OPTIONS", "ANNOUNCE":
@@ -524,10 +537,10 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		extraHeaders = "Accept: application/sdp\r\n"
 	case "SETUP":
 		subsession := request.Subsession()
-		streamUsingTCP := true
-		streamOutgoing := false
+		streamUsingTCP := (request.BoolFlags() & 0x1) != 0
+		streamOutgoing := (request.BoolFlags() & 0x2) != 0
 
-		//prefix, separator, suffix := this.constructSubSessionURL(subsession)
+		prefix, separator, suffix := this.constructSubSessionURL(subsession)
 
 		var transportFmt string
 		if subsession.ProtocolName() == "UDP" {
@@ -536,7 +549,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 			transportFmt = "Transport: RTP/AVP%s%s%s=%d-%d\r\n"
 		}
 
-		//cmdURL := fmt.Sprintf("%s%s%s", prefix, separator, suffix)
+		cmdURL = fmt.Sprintf("%s%s%s", prefix, separator, suffix)
 
 		var modeStr string
 		if streamOutgoing {
@@ -576,7 +589,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		var originalScale float32
 		if request.Session() != nil {
 			sessionID = this.lastSessionID
-			originalScale = 0
+			originalScale = request.Session().Scale()
 		} else {
 		}
 
@@ -606,7 +619,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		"%s"
 
 	cmd := fmt.Sprintf(cmdFmt, request.CommandName(),
-		this.baseURL,
+		cmdURL,
 		protocalStr,
 		request.CSeq(),
 		authenticatorStr,
@@ -625,8 +638,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		this.requestsAwaitingResponse.enqueue(request)
 	}
 
-	fmt.Println(cmd)
-
+	fmt.Printf("Sending request:\n%s\n", cmd)
 	return writeBytes
 }
 
@@ -639,7 +651,18 @@ func (this *RTSPClient) sessionURL(session *MediaSession) string {
 }
 
 func (this *RTSPClient) isAbsoluteURL(url string) bool {
-	return true
+	var isAbsolute bool
+	for _, c := range url {
+		if c == '/' {
+			break
+		}
+
+		if c == ':' {
+			isAbsolute = true
+			break
+		}
+	}
+	return isAbsolute
 }
 
 func (this *RTSPClient) constructSubSessionURL(subsession *MediaSubSession) (
@@ -776,7 +799,7 @@ type TransportParams struct {
 	serverAddressStr string
 }
 
-func (this *RTSPClient) parseTransportParams(paramsStr string) (TransportParams, bool) {
+func (this *RTSPClient) parseTransportParams(paramsStr string) (*TransportParams, bool) {
 	var n int
 	var serverPortNum, clientPortNum, multicastPortNumRTP, multicastPortNumRTCP uint
 	var foundServerPortNum, foundClientPortNum, foundChannelIDs, foundMulticastPortNum bool
@@ -786,7 +809,6 @@ func (this *RTSPClient) parseTransportParams(paramsStr string) (TransportParams,
 
 	params := strings.Split(paramsStr, ";")
 	for _, param := range params {
-		//fmt.Println("parseTransportParams", param)
 		if param == "unicast" {
 			isMulticast = false
 		} else if n, _ = fmt.Sscanf(param, "server_port=%d", &serverPortNum); n == 1 {
@@ -806,7 +828,7 @@ func (this *RTSPClient) parseTransportParams(paramsStr string) (TransportParams,
 		}
 	}
 
-	var transportParams TransportParams
+	transportParams := new(TransportParams)
 	transportParams.rtpChannelID = rtpChannelID
 	transportParams.rtcpChannelID = rtcpChannelID
 
@@ -829,11 +851,7 @@ func (this *RTSPClient) parseTransportParams(paramsStr string) (TransportParams,
 
 func (this *RTSPClient) parseScaleParam(paramStr string) (scale float32, ok bool) {
 	n, _ := fmt.Sscanf(paramStr, "%f", &scale)
-	if n == 1 {
-		ok = true
-	} else {
-		ok = false
-	}
+	ok = (n == 1)
 	return
 }
 
@@ -862,14 +880,13 @@ func (this *RTSPClient) handleIncomingRequest() {
 }
 
 func (this *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (headerParams string, result bool) {
-	//fmt.Println("checkForHeader", line, headerNameLength)
-	if !strings.EqualFold(headerName, line[:headerNameLength]) {
+	if !strings.HasPrefix(line, headerName) {
 		return headerParams, false
 	}
 
 	index := headerNameLength
 	for _, c := range line[headerNameLength:] {
-		if c == 9 || c == 32 {
+		if c == ' ' || c == '\t' {
 			index += 1
 		}
 	}

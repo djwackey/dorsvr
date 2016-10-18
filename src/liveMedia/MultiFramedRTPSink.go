@@ -41,7 +41,7 @@ func (this *MultiFramedRTPSink) setPacketSizes(preferredPacketSize, maxPacketSiz
 }
 
 func (this *MultiFramedRTPSink) multiFramedPlaying() {
-	fmt.Println("MultiFramedRTPSink::continuePlaying")
+	fmt.Println("MultiFramedRTPSink::ContinuePlaying")
 	this.buildAndSendPacket(true)
 }
 
@@ -82,11 +82,11 @@ func (this *MultiFramedRTPSink) packFrame() {
 		this.afterGettingFrame(frameSize, durationInMicroseconds, presentationTime)
 	} else {
 		// Normal case: we need to read a new frame from the source
-		if this.source == nil {
+		if this.Source == nil {
 			return
 		}
 		fmt.Println("packFrame", this.afterGettingFrame)
-		this.source.getNextFrame(this.outBuf.curPtr(), this.outBuf.totalBytesAvailable(),
+		this.Source.GetNextFrame(this.outBuf.curPtr(), this.outBuf.totalBytesAvailable(),
 			this.afterGettingFrame, this.ourHandlerClosure)
 	}
 }
@@ -178,7 +178,7 @@ func (this *MultiFramedRTPSink) sendPacketIfNecessary() {
 
 	if this.noFramesLeft {
 		// We're done:
-		this.onSourceClosure()
+		this.OnSourceClosure()
 	} else {
 		// We have more frames left to send.  Figure out when the next frame
 		// is due to start playing, then make sure that we wait this long before

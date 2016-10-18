@@ -22,15 +22,15 @@ func NewH264VideoRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) *H264Vide
 	return h264VideoRTPSink
 }
 
-func (this *H264VideoRTPSink) continuePlaying() {
-	fmt.Println(fmt.Sprintf("H264VideoRTPSink::continuePlaying -> %p", this.source))
+func (this *H264VideoRTPSink) ContinuePlaying() {
+	//fmt.Println(fmt.Sprintf("H264VideoRTPSink::ContinuePlaying -> %p", this.source))
 	if this.ourFragmenter == nil {
-		this.ourFragmenter = NewH264FUAFragmenter(this.source, OutPacketBufferMaxSize)
+		this.ourFragmenter = NewH264FUAFragmenter(this.Source, OutPacketBufferMaxSize)
 	} else {
-		this.ourFragmenter.reAssignInputSource(this.source)
+		this.ourFragmenter.reAssignInputSource(this.Source)
 	}
 
-	this.source = this.ourFragmenter
+	this.Source = this.ourFragmenter
 	this.multiFramedPlaying()
 }
 
@@ -90,7 +90,7 @@ func NewH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264F
 func (this *H264FUAFragmenter) doGetNextFrame() {
 	fmt.Println(fmt.Sprintf("H264FUAFragmenter::doGetNextFrame -> %p", this.inputSource))
 	if this.numValidDataBytes == 1 {
-		this.inputSource.getNextFrame(this.buffTo, this.maxSize, this.afterGettingFunc, this.onCloseFunc)
+		this.inputSource.GetNextFrame(this.buffTo, this.maxSize, this.afterGettingFunc, this.onCloseFunc)
 	} else {
 		if this.maxSize < this.maxOutputPacketSize {
 		} else {

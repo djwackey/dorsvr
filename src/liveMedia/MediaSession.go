@@ -22,6 +22,7 @@ type MediaSession struct {
 	subSessionIndex        int
 	maxPlayStartTime       float64
 	maxPlayEndTime         float64
+	scale                  float32
 	mediaSubSessions       []*MediaSubSession
 }
 
@@ -29,6 +30,7 @@ func NewMediaSession(sdpDesc string) *MediaSession {
 	mediaSession := new(MediaSession)
 	mediaSession.mediaSubSessions = make([]*MediaSubSession, 1024)
 	mediaSession.cname, _ = os.Hostname()
+	mediaSession.scale = 1.0
 	if !mediaSession.InitWithSDP(sdpDesc) {
 		return nil
 	}
@@ -127,7 +129,7 @@ func (this *MediaSession) InitWithSDP(sdpLine string) bool {
 		for {
 			sdpLine = nextSDPLine
 			if sdpLine == "" {
-				fmt.Println("we've reached the end")
+				//fmt.Println("we've reached the end")
 				break // we've reached the end
 			}
 
@@ -188,6 +190,10 @@ func (this *MediaSession) InitWithSDP(sdpLine string) bool {
 		break
 	}
 	return true
+}
+
+func (this *MediaSession) Scale() float32 {
+	return this.scale
 }
 
 func (this *MediaSession) ControlPath() string {
@@ -546,28 +552,55 @@ func (this *MediaSubSession) ParentSession() *MediaSession {
 }
 
 func (this *MediaSubSession) Initiate() bool {
+	// has already been initiated
+	if this.readSource != nil {
+		return true
+	}
+
 	if len(this.codecName) <= 0 {
 		fmt.Println("Codec is unspecified")
 		return false
 	}
 
-	tempAddr := ""
+	tempAddr := "127.0.0.1"
 
-	protocolIsRTP := strings.EqualFold(this.protocolName, "RTP")
-	if protocolIsRTP {
-		this.clientPortNum = this.clientPortNum &^ 1
+	var success bool
+	for {
+		// create new socket
+		this.rtpSocket = NewGroupSock(tempAddr, 0)
+		if this.rtpSocket == nil {
+			fmt.Println("Unable to create RTP and RTCP sockets")
+			break
+		}
+
+		clientPortNum := this.rtpSocket.GetSourcePort()
+		if clientPortNum == 0 {
+			fmt.Println("Failed to get RTP port number")
+			break
+		}
+
+		this.clientPortNum = clientPortNum
+
+		rtcpPortNum := clientPortNum | 1
+		this.rtcpSocket = NewGroupSock(tempAddr, rtcpPortNum)
+		if this.rtcpSocket == nil {
+			break
+		}
+
+		success = true
 	}
 
-	this.rtpSocket = NewGroupSock(tempAddr, this.clientPortNum)
-	if this.rtpSocket == nil {
-		fmt.Println("Failed to create RTP socket")
+	if !success {
 		return false
 	}
 
-	if protocolIsRTP {
-		// Set our RTCP port to be the RTP Port +1
-		rtcpPortNum := this.clientPortNum | 1
-		this.rtcpSocket = NewGroupSock(tempAddr, rtcpPortNum)
+	if !this.createSourceObject() {
+		return false
+	}
+
+	if this.readSource == nil {
+		fmt.Println("Failed to create read source.")
+		return false
 	}
 
 	var totSessionBandwidth uint
@@ -603,6 +636,14 @@ func (this *MediaSubSession) AbsEndTime() string {
 	return this.parent.AbsEndTime()
 }
 
+func (this *MediaSubSession) CodecName() string {
+	return this.codecName
+}
+
+func (this *MediaSubSession) MediumName() string {
+	return this.mediumName
+}
+
 func (this *MediaSubSession) ClientPortNum() uint {
 	return this.clientPortNum
 }
@@ -615,15 +656,20 @@ func (this *MediaSubSession) ControlPath() string {
 	return this.controlPath
 }
 
+func (this *MediaSubSession) ReadSource() IFramedSource {
+	return this.readSource
+}
+
 func (this *MediaSubSession) RtcpInstance() *RTCPInstance {
 	return this.rtcpInstance
 }
 
-func (this *MediaSubSession) createSourceObject() {
+func (this *MediaSubSession) createSourceObject() bool {
 	if strings.EqualFold(this.protocolName, "RTP") {
-		this.readSource = NewBasicUDPSource()
+		this.readSource = NewBasicUDPSource(this.rtpSocket)
 		this.rtpSource = nil
 
+		// MPEG-2 Transport Stream
 		if strings.EqualFold(this.codecName, "MP2T") {
 			// this sets "durationInMicroseconds" correctly, based on the PCR values
 			//this.readSource = NewMPEG2TransportStreamFramer(this.readSource)
@@ -634,6 +680,7 @@ func (this *MediaSubSession) createSourceObject() {
 			//this.readSource = NewH264VideoRTPSource(this.rtpSocket, this.rtpPayloadFormat, this.rtpTimestampFrequency)
 		}
 	}
+	return true
 }
 
 func (this *MediaSubSession) parseSDPLine_b(sdpLine string) bool {
@@ -697,7 +744,16 @@ func (this *MediaSubSession) parseSDPAttributeRtpmap(sdpLine string) bool {
 }
 
 func (this *MediaSubSession) parseSDPAttributeControl(sdpLine string) bool {
-	return strings.HasPrefix(sdpLine, "a=control:")
+	// Check for a "a=control:<control-path>" line:
+	var parseSuccess bool
+
+	ok := strings.HasPrefix(sdpLine, "a=control:")
+	if ok {
+		this.controlPath = sdpLine[10:]
+		parseSuccess = true
+	}
+
+	return parseSuccess
 }
 
 func (this *MediaSubSession) parseSDPAttributeRange(sdpLine string) bool {

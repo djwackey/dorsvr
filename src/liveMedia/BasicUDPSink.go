@@ -21,5 +21,5 @@ func NewBasicUDPSink(gs *GroupSock) *BasicUDPSink {
 	return udpSink
 }
 
-func (sink *BasicUDPSink) continuePlaying() {
+func (sink *BasicUDPSink) ContinuePlaying() {
 }

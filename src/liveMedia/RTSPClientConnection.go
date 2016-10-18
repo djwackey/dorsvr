@@ -22,8 +22,8 @@ func NewRTSPClientConnection(rtspServer *RTSPServer, socket net.Conn) *RTSPClien
 	rtspClientConn := new(RTSPClientConnection)
 	rtspClientConn.rtspServer = rtspServer
 	rtspClientConn.clientOutputSocket = socket
-	localAddr := strings.Split(fmt.Sprintf("%s", socket.LocalAddr()), ":")
-	remoteAddr := strings.Split(fmt.Sprintf("%s", socket.RemoteAddr()), ":")
+	localAddr := strings.Split(socket.LocalAddr().String(), ":")
+	remoteAddr := strings.Split(socket.RemoteAddr().String(), ":")
 	rtspClientConn.localAddr = localAddr[0]
 	rtspClientConn.localPort = localAddr[1]
 	rtspClientConn.remoteAddr = remoteAddr[0]
