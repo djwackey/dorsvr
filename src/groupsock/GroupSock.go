@@ -1,6 +1,7 @@
 package groupsock
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -57,7 +58,14 @@ func (this *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
 	return writeSuccess
 }
 
-func (this *GroupSock) handleRead() {
+func (this *GroupSock) HandleRead(buffer []byte, bufferMaxSize uint) (int, error) {
+	numBytes, err := ReadSocket(this.socketNum, buffer)
+	if err != nil {
+		fmt.Printf("GroupSock read failed: %s\n", err.Error())
+		return numBytes, err
+	}
+
+	return numBytes, err
 }
 
 func (this *GroupSock) GetSourcePort() uint {
