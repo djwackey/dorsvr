@@ -6,8 +6,7 @@ type StreamClientState struct {
 }
 
 func NewStreamClientState() *StreamClientState {
-	streamClientState := new(StreamClientState)
-	return streamClientState
+	return new(StreamClientState)
 }
 
 func (this *StreamClientState) Next() *MediaSubSession {

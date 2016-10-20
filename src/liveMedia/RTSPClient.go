@@ -15,6 +15,8 @@ var responseBufferSize = 20000
 type RTSPClient struct {
 	baseURL                       string
 	lastSessionID                 string
+	sessionCookie                 string
+	serverAddress                 string
 	userAgentHeaderStr            string
 	responseBuffer                []byte
 	cseq                          int
@@ -126,7 +128,7 @@ func (record *RequestRecord) Handle(rtspClient *RTSPClient, resultCode int, resu
 func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	this.cseq = 1
 	this.responseBuffer = make([]byte, responseBufferSize)
-	this.SetBaseURL(rtspURL)
+	this.setBaseURL(rtspURL)
 
 	this.requestsAwaitingResponse = NewRequestQueue()
 	this.requestsAwaitingConnection = NewRequestQueue()
@@ -144,7 +146,7 @@ func (this *RTSPClient) InitRTSPClient(rtspURL, appName string) {
 	}
 
 	userAgentName := fmt.Sprintf("%s%s%s%s%s", appName, libPrefix, libName, libVersionStr, libSuffix)
-	this.SetUserAgentString(userAgentName)
+	this.setUserAgentString(userAgentName)
 }
 
 func (this *RTSPClient) URL() string {
@@ -211,12 +213,11 @@ func (this *RTSPClient) SendGetParameterCommand(responseHandler interface{}) int
 	return this.sendRequest(NewRequestRecord(this.cseq, "GET_PARAMETER", responseHandler))
 }
 
-func (this *RTSPClient) SetUserAgentString(userAgentName string) {
-	formatStr := "User-Agent: %s\r\n"
-	this.userAgentHeaderStr = fmt.Sprintf(formatStr, userAgentName)
+func (this *RTSPClient) setUserAgentString(userAgentName string) {
+	this.userAgentHeaderStr = fmt.Sprintf("User-Agent: %s\r\n", userAgentName)
 }
 
-func (this *RTSPClient) SetBaseURL(url string) {
+func (this *RTSPClient) setBaseURL(url string) {
 	this.baseURL = url
 }
 
@@ -228,6 +229,8 @@ func (this *RTSPClient) openConnection() bool {
 	if !result {
 		return false
 	}
+
+	this.serverAddress = rtspUrl.address
 
 	result = this.connectToServer(rtspUrl.address, rtspUrl.port)
 	if !result {
@@ -258,7 +261,13 @@ func (this *RTSPClient) connectToServer(host string, port int) bool {
 	return true
 }
 
-func (this *RTSPClient) createAuthenticatorStr() string {
+func (this *RTSPClient) resetTCPSockets() {
+	this.tcpConn.Close()
+}
+
+func (this *RTSPClient) createAuthenticatorStr(cmd, url string) string {
+	//authFmt := "Authorization: Digest username=\"%s\", realm=\"%s\", " +
+	//	"nonce=\"%s\", uri=\"%s\", response=\"%s\"\r\n"
 	return ""
 }
 
@@ -372,11 +381,12 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 	nextLineStart, thisLineStart := getLine(reqStr)
 	responseCode, responseString, result := this.parseResponseCode(thisLineStart)
 	if !result {
-		this.handleIncomingRequest()
+		// This does not appear to be a RTSP response; is's a RTSP request instead?
+		this.handleIncomingRequest(reqStr, length)
 		return
 	}
 
-	var ret, cseq, contentLength int
+	var n, cseq, contentLength int
 	var rangeParamsStr, rtpInfoParamsStr string
 	var headerParamsStr, sessionParamsStr string
 	var transportParamsStr, scaleParamsStr string
@@ -391,8 +401,8 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 		}
 
 		if headerParamsStr, result = this.checkForHeader(thisLineStart, "CSeq:", 5); result {
-			ret, _ = fmt.Sscanf(headerParamsStr, "%d", &cseq)
-			if ret != 1 || cseq <= 0 {
+			n, _ = fmt.Sscanf(headerParamsStr, "%d", &cseq)
+			if n != 1 || cseq <= 0 {
 				fmt.Println("Bad \"CSeq\" header: \"", thisLineStart, "\"")
 				break
 			}
@@ -414,13 +424,13 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 				}
 			}
 		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Content-Length:", 15); result {
-			ret, _ = fmt.Sscanf(headerParamsStr, "%d", &contentLength)
-			if ret != 1 {
+			n, _ = fmt.Sscanf(headerParamsStr, "%d", &contentLength)
+			if n != 1 {
 				fmt.Println("Bad \"Content-Length\" header: \"", thisLineStart, "\"")
 				break
 			}
 		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Content-Base:", 13); result {
-			this.SetBaseURL(headerParamsStr)
+			this.setBaseURL(headerParamsStr)
 		} else if sessionParamsStr, result = this.checkForHeader(thisLineStart, "Session:", 8); result {
 		} else if transportParamsStr, result = this.checkForHeader(thisLineStart, "Transport:", 10); result {
 		} else if scaleParamsStr, result = this.checkForHeader(thisLineStart, "Scale:", 6); result {
@@ -430,38 +440,65 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 		} else if publicParamsStr, result = this.checkForHeader(thisLineStart, "Public:", 7); result {
 		} else if publicParamsStr, result = this.checkForHeader(thisLineStart, "Allow:", 6); result {
 		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Location:", 9); result {
-			this.SetBaseURL(headerParamsStr)
+			this.setBaseURL(headerParamsStr)
 		}
+	}
+
+	if foundRequest == nil {
+		foundRequest = this.requestsAwaitingResponse.dequeue()
 	}
 
 	bodyStart := nextLineStart
 	numBodyBytes := len(bodyStart)
 
-	fmt.Printf("Received a complete %s response:\n%s\n", foundRequest.CommandName(), reqStr)
+	var commandName string
+	if foundRequest != nil {
+		commandName = foundRequest.CommandName()
+	} else {
+		commandName = "(unknown)"
+	}
 
-	if responseCode == 200 {
-		switch foundRequest.CommandName() {
-		case "SETUP":
-			if !this.handleSetupResponse(foundRequest.Subsession(),
-				sessionParamsStr, transportParamsStr, false) {
-				break
+	fmt.Printf("Received a complete %s response:\n%s\n", commandName, reqStr)
+
+	var needToResendCommand bool
+	if foundRequest != nil {
+		if responseCode == 200 {
+			switch foundRequest.CommandName() {
+			case "SETUP":
+				if !this.handleSetupResponse(foundRequest.Subsession(),
+					sessionParamsStr, transportParamsStr, false) {
+					break
+				}
+			case "PLAY":
+				if !this.handlePlayResponse(scaleParamsStr, rangeParamsStr, rtpInfoParamsStr) {
+					break
+				}
+			case "TEARDOWN":
+				if !this.handleTeardownResponse() {
+					break
+				}
+			case "GET_PARAMETER":
+				if !this.handleGetParameterResponse(foundRequest.ContentStr()) {
+					break
+				}
+			default:
 			}
-		case "PLAY":
-			if !this.handlePlayResponse(scaleParamsStr, rangeParamsStr, rtpInfoParamsStr) {
-				break
+		} else if responseCode == 401 && this.handleAuthenticationFailure(wwwAuthenticateParamsStr) {
+			// We need to resend the command, with an "Authorization:" header:
+			needToResendCommand = true
+
+			if foundRequest.CommandName() == "GET" {
+				this.resetTCPSockets()
 			}
-		case "TEARDOWN":
-			if !this.handleTeardownResponse() {
-				break
-			}
-		case "GET_PARAMETER":
-			if !this.handleGetParameterResponse() {
-				break
-			}
-		default:
+		} else if responseCode == 301 || responseCode == 302 { // redirect
+			// because we need to connect somewhere else next
+			this.resetTCPSockets()
+			needToResendCommand = true
 		}
-	} else if responseCode == 401 && this.handleAuthenticationFailure(wwwAuthenticateParamsStr) {
-	} else if responseCode == 301 || responseCode == 302 {
+	}
+
+	if needToResendCommand {
+		return
 	}
 
 	responseSuccess = true
@@ -483,7 +520,6 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 				resultString = responseString
 			}
 
-			//fmt.Println("foundRequest:", foundRequest)
 			foundRequest.Handle(this, resultCode, resultString)
 		} else {
 			this.handleRequestError(foundRequest)
@@ -523,9 +559,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 	contentStr := request.ContentStr()
 	contentStrLen := len(contentStr)
 	if contentStrLen > 0 {
-		contentLengthHeaderFmt := "Content-Length: %s\r\n"
-		contentLengthHeader = fmt.Sprintf(contentLengthHeaderFmt, contentStrLen)
-		fmt.Println("contentLengthHeader", contentLengthHeader)
+		contentLengthHeader = fmt.Sprintf("Content-Length: %s\r\n", contentStrLen)
 	}
 
 	cmdURL := this.baseURL
@@ -591,6 +625,12 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 			sessionID = this.lastSessionID
 			originalScale = request.Session().Scale()
 		} else {
+			subsession := request.Subsession()
+			prefix, separator, suffix := this.constructSubSessionURL(subsession)
+			cmdURL = fmt.Sprintf("%s%s%s", prefix, separator, suffix)
+
+			sessionID = subsession.SessionID()
+			originalScale = subsession.Scale()
 		}
 
 		if request.CommandName() == "PLAY" {
@@ -604,10 +644,25 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 			extraHeaders = this.createSessionString(sessionID)
 		}
 	case "GET", "POST":
+		var extraHeadersFmt string
+		if request.CommandName() == "GET" {
+			extraHeadersFmt = "x-sessioncookie: %s\r\n" +
+				"Accept: application/x-rtsp-tunnelled\r\n" +
+				"Pragma: no-cache\r\n" +
+				"Cache-Control: no-cache\r\n"
+		} else {
+			extraHeadersFmt = "x-sessioncookie: %s\r\n" +
+				"Content-Type: application/x-rtsp-tunnelled\r\n" +
+				"Pragma: no-cache\r\n" +
+				"Cache-Control: no-cache\r\n" +
+				"Content-Length: 32767\r\n" +
+				"Expires: Sun, 9 Jan 1972 00:00:00 GMT\r\n"
+		}
+		extraHeaders = fmt.Sprintf(extraHeadersFmt, this.sessionCookie)
 	default:
 	}
 
-	authenticatorStr := this.createAuthenticatorStr()
+	authenticatorStr := this.createAuthenticatorStr(request.CommandName(), this.baseURL)
 
 	cmdFmt := "%s %s %s\r\n" +
 		"CSeq: %d\r\n" +
@@ -727,14 +782,14 @@ func (this *RTSPClient) parseResponseCode(line string) (responseCode int, respon
 	responseString = line
 
 	for {
-		ret, _ := fmt.Sscanf(line, "RTSP/%s %d", &version, &responseCode)
-		if ret == 2 {
+		n, _ := fmt.Sscanf(line, "RTSP/%s %d", &version, &responseCode)
+		if n == 2 {
 			result = true
 			break
 		}
 
-		ret, _ = fmt.Sscanf(line, "HTTP/%s %d", &version, &responseCode)
-		if ret != 2 {
+		n, _ = fmt.Sscanf(line, "HTTP/%s %d", &version, &responseCode)
+		if n != 2 {
 			result = true
 			break
 		}
@@ -782,7 +837,12 @@ func (this *RTSPClient) handleSetupResponse(subsession *MediaSubSession,
 		subsession.connectionEndpointName = transportParams.serverAddressStr
 
 		if streamUsingTCP {
+			if subsession.rtpSource != nil {
+				subsession.rtpSource.setStreamSocket()
+			}
 		} else {
+			destAddress := this.serverAddress
+			subsession.setDestinations(destAddress)
 		}
 
 		success = true
@@ -868,7 +928,8 @@ func (this *RTSPClient) handleTeardownResponse() bool {
 	return true
 }
 
-func (this *RTSPClient) handleGetParameterResponse() bool {
+func (this *RTSPClient) handleGetParameterResponse(parameterName string) bool {
+	fmt.Println("handleGetParameterResponse", parameterName)
 	return true
 }
 
@@ -876,7 +937,14 @@ func (this *RTSPClient) handleAuthenticationFailure(paramsStr string) bool {
 	return false
 }
 
-func (this *RTSPClient) handleIncomingRequest() {
+func (this *RTSPClient) handleIncomingRequest(reqStr string, length int) {
+	requestString, parseSucceeded := ParseRTSPRequestString(reqStr, length)
+	if parseSucceeded {
+		fmt.Printf("Received incoming RTSP request: %s\n", reqStr)
+
+		buffer := fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n\r\n", requestString.cseq)
+		this.tcpConn.Write([]byte(buffer))
+	}
 }
 
 func (this *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (headerParams string, result bool) {

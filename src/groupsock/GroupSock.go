@@ -12,6 +12,10 @@ type Socket struct {
 	portNum   uint
 }
 
+func (s *Socket) Close() {
+	s.socketNum.Close()
+}
+
 type OutputSocket struct {
 	Socket
 	sourcePort  uint

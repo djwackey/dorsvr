@@ -19,6 +19,7 @@ func SetupDatagramSocket(address string, port uint) *net.UDPConn {
 
 	udpConn, err := net.DialUDP("udp", nil, udpAddr)
 	if err != nil {
+		fmt.Println("Failed to dial UDP address.", err)
 		return nil
 	}
 	return udpConn
