@@ -45,8 +45,9 @@ func (this *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
 	return this.gs.Output(packet, packetSize, this.gs.TTL())
 }
 
-func (this *RTPInterface) handleRead() bool {
-	return true
+func (this *RTPInterface) handleRead(buffer []byte, bufferMaxSize uint) (int, error) {
+	readBytes, err := this.gs.HandleRead(buffer, bufferMaxSize)
+	return readBytes, err
 }
 
 type TCPStreamRecord struct {
@@ -62,9 +63,9 @@ func NewTCPStreamRecord(streamSocketNum net.Conn, streamChannelID uint) *TCPStre
 }
 
 ///////////// Help Functions ///////////////
-func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannelId int) {
+func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannelID int) {
 	dollar := []byte{'$'}
-	channelId := []byte{byte(streamChannelId)}
+	channelID := []byte{byte(streamChannelID)}
 	socketNum.Write(dollar)
-	socketNum.Write(channelId)
+	socketNum.Write(channelID)
 }

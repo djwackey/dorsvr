@@ -1,6 +1,9 @@
 package liveMedia
 
 import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
 	. "groupsock"
 	"utils"
 )
@@ -26,6 +29,9 @@ const (
 
 	// overhead (bytes) of IP and UDP hdrs
 	IP_UDP_HDR_SIZE = 28
+
+	PACKET_UNKNOWN_TYPE = 0
+	PACKET_BYE          = 3
 )
 
 type SDESItem struct {
@@ -50,9 +56,11 @@ type RTCPInstance struct {
 	Source             *RTPSource
 	outBuf             *OutPacketBuffer
 	rtcpInterface      *RTPInterface
-	ByeHandlerTask     interface{}
+	byeHandlerTask     interface{}
 	SRHandlerTask      interface{}
 	RRHandlerTask      interface{}
+	//byeHandlerClientData interface{}
+	byeHandlerClientData *MediaSubSession
 }
 
 func NewSDESItem(tag int, value string) *SDESItem {
@@ -77,6 +85,12 @@ func (this *SDESItem) totalSize() uint {
 	return 2 + uint(this.data[1])
 }
 
+func ADVANCE(data []byte, size, n uint) ([]byte, uint) {
+	data = data[n:]
+	size -= n
+	return data, size
+}
+
 func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPInstance {
 	rtcp := new(RTCPInstance)
 	rtcp.typeOfEvent = EVENT_REPORT
@@ -93,7 +107,7 @@ func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPIn
 	rtcp.rtcpInterface.startNetworkReading()
 
 	go rtcp.incomingReportHandler()
-	go rtcp.onExpire()
+	rtcp.onExpire()
 	return rtcp
 }
 
@@ -101,22 +115,152 @@ func (this *RTCPInstance) setSpecificRRHandler() {
 }
 
 func (this *RTCPInstance) SetByeHandler(handlerTask interface{}, clientData interface{}) {
-	this.ByeHandlerTask = handlerTask
-	//this.byeHandlerClientData = clientData
+	this.byeHandlerTask = handlerTask
+	this.byeHandlerClientData = clientData.(*MediaSubSession)
 }
 
-func (this *RTCPInstance) setSRHandler() {
+func (this *RTCPInstance) setSRHandler(handlerTask interface{}, clientData interface{}) {
+	this.SRHandlerTask = handlerTask
 }
 
-func (this *RTCPInstance) setRRHandler() {
+func (this *RTCPInstance) setRRHandler(handlerTask interface{}, clientData interface{}) {
+	this.RRHandlerTask = handlerTask
 }
 
 func (this *RTCPInstance) incomingReportHandler() {
-	//readResult := 0
-	this.rtcpInterface.handleRead()
+	for {
+		readBytes, err := this.rtcpInterface.handleRead(this.inBuf, maxRTCPPacketSize)
+		if err != nil {
+			fmt.Println("RTCP Interface failed to handle read.", err.Error())
+			break
+		}
+
+		packet := this.inBuf[:readBytes]
+		packetSize := uint(readBytes)
+
+		var rtcpHdr uint32
+
+		buffer := bytes.NewReader(packet)
+
+		err = binary.Read(buffer, binary.BigEndian, &rtcpHdr)
+		if err != nil {
+			fmt.Println("failed to read binary.", err.Error())
+			continue
+		}
+
+		totPacketSize := IP_UDP_HDR_SIZE + packetSize
+
+		if packetSize < 4 {
+			fmt.Println("RTCP Interface packet Size less than 4.")
+			continue
+		}
+
+		if (rtcpHdr & 0xE0FE0000) != (0x80000000 | (RTCP_PT_SR << 16)) {
+			fmt.Printf("rejected bad RTCP packet: header 0x%08x\n", rtcpHdr)
+			continue
+		}
+
+		typeOfPacket := PACKET_UNKNOWN_TYPE
+		var packetOk bool
+		var reportSenderSSRC uint32
+
+		for {
+			//rc := (rtcpHdr >> 24) & 0x1F
+			pt := (rtcpHdr >> 16) & 0xFF
+			// doesn't count hdr
+			length := uint(4 * (rtcpHdr & 0xFFFF))
+			// skip over the header
+			packet, packetSize = ADVANCE(packet, packetSize, 4)
+			if length > packetSize {
+				continue
+			}
+
+			// Assume that each RTCP subpacket begins with a 4-byte SSRC:
+			if length < 4 {
+				continue
+			}
+			length -= 4
+
+			buffer := bytes.NewReader(packet)
+
+			err = binary.Read(buffer, binary.BigEndian, &reportSenderSSRC)
+			if err != nil {
+				fmt.Println("failed to read binary.", err.Error())
+				continue
+			}
+
+			packet, packetSize = ADVANCE(packet, packetSize, 4)
+
+			fmt.Println(pt)
+
+			var subPacketOk bool
+			switch pt {
+			case RTCP_PT_SR:
+				fmt.Println("RTCP_PT_SR")
+				if length < 20 {
+					continue
+				}
+				length -= 20
+
+				if this.SRHandlerTask != nil {
+				}
+			case RTCP_PT_RR:
+				fmt.Println("RTCP_PT_RR")
+				if this.RRHandlerTask != nil {
+				}
+			case RTCP_PT_BYE:
+				fmt.Println("RTCP_PT_BYE")
+				subPacketOk = true
+				typeOfPacket = PACKET_BYE
+			default:
+			}
+
+			if !subPacketOk {
+				break
+			}
+
+			packet, packetSize = ADVANCE(packet, packetSize, length)
+
+			if packetSize == 0 {
+				packetOk = true
+				break
+			} else if packetSize < 4 {
+				fmt.Println("extraneous %d bytes at end of RTCP packet!\n", packetSize)
+				break
+			}
+
+			buffer = bytes.NewReader(packet)
+
+			err = binary.Read(buffer, binary.BigEndian, &rtcpHdr)
+			if err != nil {
+				fmt.Println("failed to read binary.", err.Error())
+				continue
+			}
+
+			if (rtcpHdr & 0xC0000000) != 0x80000000 {
+				fmt.Printf("bad RTCP subpacket: header 0x%08x\n", rtcpHdr)
+				continue
+			}
+		}
+
+		if !packetOk {
+			fmt.Printf("rejected bad RTCP subpacket: header 0x%08x\n", rtcpHdr)
+			continue
+		} else {
+			fmt.Println("validated entire RTCP packet")
+		}
+
+		this.onReceive(typeOfPacket, totPacketSize, uint(reportSenderSSRC))
+
+		if this.byeHandlerTask != nil {
+			this.byeHandlerTask.(func(subsession *MediaSubSession))(this.byeHandlerClientData)
+			break
+		}
+	}
 }
 
-func (this *RTCPInstance) onReceive() {
+func (this *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
+	OnReceive()
 }
 
 func (this *RTCPInstance) sendReport() {

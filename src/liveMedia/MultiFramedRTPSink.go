@@ -134,7 +134,8 @@ func (this *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseco
 		// (iv) one frame per packet is allowed:
 		if this.outBuf.isPreferredSize() ||
 			this.outBuf.wouldOverflow(numFrameBytesToUse) ||
-			this.previousFrameEndedFragmentation && !this.allowOtherFramesAfterLastFragment() || !this.frameCanAppearAfterPacketStart(this.outBuf.curPtr(), frameSize) {
+			this.previousFrameEndedFragmentation && !this.allowOtherFramesAfterLastFragment() ||
+			!this.frameCanAppearAfterPacketStart(this.outBuf.curPtr(), frameSize) {
 			// The packet is ready to be sent now
 			this.sendPacketIfNecessary()
 		} else {

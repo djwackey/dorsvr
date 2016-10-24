@@ -6,7 +6,7 @@ import (
 	"fmt"
 	. "liveMedia"
 	"os"
-	"time"
+	//"time"
 	"utils"
 )
 
@@ -98,7 +98,7 @@ func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr str
 func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string) {
 	for {
 		if resultCode != 0 {
-			fmt.Println(fmt.Sprintf("Failed to set up the subsession"))
+			fmt.Println("Failed to set up the subsession")
 			break
 		}
 
@@ -108,6 +108,9 @@ func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string
 			fmt.Println("Failed to create a data sink for the subsession.")
 			break
 		}
+
+		fmt.Printf("Created a data sink for the \"%s/%s\" subsession\n",
+			scs.Subsession.MediumName(), scs.Subsession.CodecName())
 
 		scs.Subsession.Sink.StartPlaying(scs.Subsession.ReadSource())
 		if scs.Subsession.RtcpInstance() != nil {
@@ -121,7 +124,6 @@ func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string
 }
 
 func continueAfterPLAY(rtspClient *RTSPClient, resultCode int, resultStr string) {
-	fmt.Println("continueAfterPLAY")
 	for {
 		if resultCode != 0 {
 			fmt.Println(fmt.Sprintf("Failed to start playing session: %s", resultStr))
@@ -148,9 +150,11 @@ func subsessionAfterPlaying(subsession *MediaSubSession) {
 }
 
 func shutdownStream(rtspClient *RTSPClient) {
-	//subsession.tcpInstance().setByeHandler(nil, nil)
-
 	scs := rtspClient.SCS()
+
+	if scs.Subsession.RtcpInstance() != nil {
+		scs.Subsession.RtcpInstance().SetByeHandler(nil, nil)
+	}
 
 	if rtspClient != nil {
 		rtspClient.SendTeardownCommand(scs.Session, nil)
@@ -196,15 +200,11 @@ func NewDummySink(subsession *MediaSubSession, streamID string) *DummySink {
 	return sink
 }
 
-var count = 0
-
-func (sink *DummySink) AfterGettingFrame(frameSize, durationInMicroseconds uint, presentationTime utils.Timeval) {
-	count++
-	fmt.Printf("DummySink::AfterGettingFrame: %d\n", count)
-	time.Sleep(50 * time.Millisecond)
-
-	// Then continue, to request the next frame of data:
-	sink.ContinuePlaying()
+func (sink *DummySink) AfterGettingFrame(frameSize, durationInMicroseconds uint,
+	presentationTime utils.Timeval) {
+	//fmt.Printf("Stream \"\"; %s/%s:\tReceived %d bytes.\tPresentation Time: %f\n",
+	//	sink.subsession.MediumName(), sink.subsession.CodecName(), frameSize,
+	//	float32(presentationTime.Tv_sec/1000/1000+presentationTime.Tv_usec))
 }
 
 func (sink *DummySink) ContinuePlaying() {

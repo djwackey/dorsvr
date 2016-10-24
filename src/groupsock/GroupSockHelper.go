@@ -17,11 +17,17 @@ func SetupDatagramSocket(address string, port uint) *net.UDPConn {
 		return nil
 	}
 
-	udpConn, err := net.DialUDP("udp", nil, udpAddr)
+	udpConn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
-		fmt.Println("Failed to dial UDP address.", err)
+		fmt.Println("Failed to listen UDP address.", err)
 		return nil
 	}
+
+	//udpConn, err := net.DialUDP("udp", nil, udpAddr)
+	//if err != nil {
+	//	fmt.Println("Failed to dial UDP address.", err)
+	//	return nil
+	//}
 	return udpConn
 }
 

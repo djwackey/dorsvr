@@ -3,6 +3,7 @@ package liveMedia
 import (
 	"fmt"
 	. "groupsock"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -158,16 +159,16 @@ func (this *MediaSession) InitWithSDP(sdpLine string) bool {
 			if subsession.parseSDPAttributeRange(thisSDPLine) {
 				continue
 			}
-			if subsession.parseSDPAttribute_fmtp(thisSDPLine) {
+			if subsession.parseSDPAttributeFmtp(thisSDPLine) {
 				continue
 			}
-			if subsession.parseSDPAttribute_source_filter(thisSDPLine) {
+			if subsession.parseSDPAttributeSourceFilter(thisSDPLine) {
 				continue
 			}
-			if subsession.parseSDPAttribute_x_dimensions(thisSDPLine) {
+			if subsession.parseSDPAttributeXDimensions(thisSDPLine) {
 				continue
 			}
-			if subsession.parseSDPAttribute_framerate(thisSDPLine) {
+			if subsession.parseSDPAttributeFrameRate(thisSDPLine) {
 				continue
 			}
 			// (Later, check for malformed lines, and other valid SDP lines#####)
@@ -535,6 +536,7 @@ type MediaSubSession struct {
 	playStartTime          float64
 	playEndTime            float64
 	videoFPS               float32
+	scale                  float32
 }
 
 func NewMediaSubSession(parent *MediaSession) *MediaSubSession {
@@ -544,6 +546,7 @@ func NewMediaSubSession(parent *MediaSession) *MediaSubSession {
 
 	subsession := new(MediaSubSession)
 	subsession.parent = parent
+	subsession.scale = 1.0
 	return subsession
 }
 
@@ -562,14 +565,14 @@ func (this *MediaSubSession) Initiate() bool {
 		return false
 	}
 
-	tempAddr := "127.0.0.1"
+	tempAddr := this.ConnectionEndpointName()
 
 	var success bool
 	for {
 		// create new socket
 		this.rtpSocket = NewGroupSock(tempAddr, 0)
 		if this.rtpSocket == nil {
-			fmt.Println("Unable to create RTP and RTCP sockets")
+			fmt.Println("Unable to create RTP socket")
 			break
 		}
 
@@ -579,18 +582,31 @@ func (this *MediaSubSession) Initiate() bool {
 			break
 		}
 
+		if clientPortNum&1 != 0 {
+			this.rtpSocket.Close()
+			continue
+		}
+
 		this.clientPortNum = clientPortNum
 
 		rtcpPortNum := clientPortNum | 1
 		this.rtcpSocket = NewGroupSock(tempAddr, rtcpPortNum)
 		if this.rtcpSocket == nil {
+			fmt.Println("Unable to create RTCP socket")
 			break
 		}
 
 		success = true
+		break
 	}
 
 	if !success {
+		if this.rtpSocket != nil {
+			this.rtpSocket.Close()
+		}
+		if this.rtcpSocket != nil {
+			this.rtcpSocket.Close()
+		}
 		return false
 	}
 
@@ -609,12 +625,21 @@ func (this *MediaSubSession) Initiate() bool {
 	} else {
 		totSessionBandwidth = 500
 	}
+
 	this.rtcpInstance = NewRTCPInstance(this.rtcpSocket, totSessionBandwidth, this.parent.cname)
 	return true
 }
 
+func (this *MediaSubSession) Scale() float32 {
+	return this.scale
+}
+
 func (this *MediaSubSession) setSessionID(sessionID string) {
 	this.sessionID = sessionID
+}
+
+func (this *MediaSubSession) SessionID() string {
+	return this.sessionID
 }
 
 func (this *MediaSubSession) deInitiate() {
@@ -664,6 +689,30 @@ func (this *MediaSubSession) RtcpInstance() *RTCPInstance {
 	return this.rtcpInstance
 }
 
+func (this *MediaSubSession) setDestinations(destAddress string) {
+}
+
+func (this *MediaSubSession) ConnectionEndpointName() string {
+	connectionEndpointName := this.connectionEndpointName
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		fmt.Println(err)
+		return connectionEndpointName
+	}
+
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				connectionEndpointName = ipnet.IP.String()
+			}
+
+		}
+	}
+
+	return connectionEndpointName
+}
+
 func (this *MediaSubSession) createSourceObject() bool {
 	if strings.EqualFold(this.protocolName, "RTP") {
 		this.readSource = NewBasicUDPSource(this.rtpSocket)
@@ -684,8 +733,8 @@ func (this *MediaSubSession) createSourceObject() bool {
 }
 
 func (this *MediaSubSession) parseSDPLine_b(sdpLine string) bool {
-	num, _ := fmt.Sscanf(sdpLine, "b=AS:%d", &this.bandWidth)
-	return (num == 1)
+	n, _ := fmt.Sscanf(sdpLine, "b=AS:%d", &this.bandWidth)
+	return (n == 1)
 }
 
 func (this *MediaSubSession) parseSDPLine_c(sdpLine string) bool {
@@ -785,15 +834,15 @@ func (this *MediaSubSession) parseSDPAttributeRange(sdpLine string) bool {
 	return parseSuccess
 }
 
-func (this *MediaSubSession) parseSDPAttribute_fmtp(sdpLine string) bool {
+func (this *MediaSubSession) parseSDPAttributeFmtp(sdpLine string) bool {
 	return true
 }
 
-func (this *MediaSubSession) parseSDPAttribute_source_filter(sdpLine string) bool {
+func (this *MediaSubSession) parseSDPAttributeSourceFilter(sdpLine string) bool {
 	return parseSourceFilterAttribute(sdpLine)
 }
 
-func (this *MediaSubSession) parseSDPAttribute_x_dimensions(sdpLine string) bool {
+func (this *MediaSubSession) parseSDPAttributeXDimensions(sdpLine string) bool {
 	var parseSuccess bool
 	var width, height uint
 	num, _ := fmt.Sscanf(sdpLine, "a=x-dimensions:%d,%d", &width, &height)
@@ -805,7 +854,7 @@ func (this *MediaSubSession) parseSDPAttribute_x_dimensions(sdpLine string) bool
 	return parseSuccess
 }
 
-func (this *MediaSubSession) parseSDPAttribute_framerate(sdpLine string) bool {
+func (this *MediaSubSession) parseSDPAttributeFrameRate(sdpLine string) bool {
 	// check for a "a=framerate: <fps>" r "a=x-framerate: <fps>" line:
 	parseSuccess := true
 	for {
