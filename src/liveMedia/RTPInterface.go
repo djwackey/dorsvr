@@ -20,7 +20,8 @@ func NewRTPInterface(owner interface{}, gs *GroupSock) *RTPInterface {
 	return rtpInterface
 }
 
-func (this *RTPInterface) startNetworkReading( /*handlerProc interface*/ ) {
+func (this *RTPInterface) startNetworkReading(handlerProc interface{}) {
+	go handlerProc.(func())()
 }
 
 func (this *RTPInterface) stopNetworkReading() {
@@ -45,8 +46,8 @@ func (this *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
 	return this.gs.Output(packet, packetSize, this.gs.TTL())
 }
 
-func (this *RTPInterface) handleRead(buffer []byte, bufferMaxSize uint) (int, error) {
-	readBytes, err := this.gs.HandleRead(buffer, bufferMaxSize)
+func (this *RTPInterface) handleRead(buffer []byte) (int, error) {
+	readBytes, err := this.gs.HandleRead(buffer)
 	return readBytes, err
 }
 

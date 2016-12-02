@@ -514,6 +514,7 @@ type MediaSubSession struct {
 	readSource             IFramedSource
 	rtcpInstance           *RTCPInstance
 	parent                 *MediaSession
+	MiscPtr                interface{}
 	numChannels            uint
 	rtpChannelID           uint
 	rtcpChannelID          uint
@@ -714,7 +715,7 @@ func (this *MediaSubSession) ConnectionEndpointName() string {
 }
 
 func (this *MediaSubSession) createSourceObject() bool {
-	if strings.EqualFold(this.protocolName, "RTP") {
+	if strings.EqualFold(this.protocolName, "UDP") {
 		this.readSource = NewBasicUDPSource(this.rtpSocket)
 		this.rtpSource = nil
 
@@ -726,7 +727,8 @@ func (this *MediaSubSession) createSourceObject() bool {
 	} else {
 		switch this.codecName {
 		case "H264":
-			//this.readSource = NewH264VideoRTPSource(this.rtpSocket, this.rtpPayloadFormat, this.rtpTimestampFrequency)
+			this.readSource = NewH264VideoRTPSource(this.rtpSocket,
+				this.rtpPayloadFormat, this.rtpTimestampFrequency)
 		}
 	}
 	return true

@@ -18,24 +18,24 @@ func NewBasicUDPSource(inputSocket *GroupSock) *BasicUDPSource {
 	return source
 }
 
-func (this *BasicUDPSource) doGetNextFrame() {
-	go this.incomingPacketHandler()
+func (source *BasicUDPSource) doGetNextFrame() {
+	go source.incomingPacketHandler()
 }
 
-func (this *BasicUDPSource) doStopGettingFrames() {
-	this.haveStartedReading = false
+func (source *BasicUDPSource) doStopGettingFrames() {
+	source.haveStartedReading = false
 }
 
-func (this *BasicUDPSource) incomingPacketHandler() {
+func (source *BasicUDPSource) incomingPacketHandler() {
 	for {
-		numBytes, err := this.inputSocket.HandleRead(this.buffTo, this.maxSize)
+		numBytes, err := source.inputSocket.HandleRead(source.buffTo)
 		if err != nil {
 			fmt.Println("Failed to read from input socket.", err.Error())
 			break
 		}
 
-		this.frameSize = uint(numBytes)
+		source.frameSize = uint(numBytes)
 
-		this.afterGetting()
+		source.afterGetting()
 	}
 }

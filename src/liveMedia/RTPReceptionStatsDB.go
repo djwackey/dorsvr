@@ -3,17 +3,14 @@ package liveMedia
 import "utils"
 
 type RTPReceptionStats struct {
-	SSRC                  uint32
-	syncTimestamp         uint32
-	lastReceivedSR_NTPmsw uint32
-	lastReceivedSR_NTPlsw uint32
-	lastReceivedSR_time   utils.Timeval
-	syncTime              utils.Timeval
-	hasBeenSynchronized   bool
-}
-
-type RTPReceptionStatsDB struct {
-	table map[uint32]*RTPReceptionStats
+	SSRC                             uint32
+	syncTimestamp                    uint32
+	lastReceivedSR_NTPmsw            uint32
+	lastReceivedSR_NTPlsw            uint32
+	numPacketsReceivedSinceLastReset uint32
+	lastReceivedSR_time              utils.Timeval
+	syncTime                         utils.Timeval
+	hasBeenSynchronized              bool
 }
 
 func NewRTPReceptionStats(SSRC uint32) *RTPReceptionStats {
@@ -22,10 +19,8 @@ func NewRTPReceptionStats(SSRC uint32) *RTPReceptionStats {
 	return stats
 }
 
-func NewRTPReceptionStatsDB() *RTPReceptionStatsDB {
-	statsDB := new(RTPReceptionStatsDB)
-	statsDB.table = make(map[uint32]*RTPReceptionStats)
-	return statsDB
+func (stats *RTPReceptionStats) noteIncomingPacket(seqNum, rtpTimestamp, timestampFrequency, packetSize uint32,
+	useForJitterCalculation bool) {
 }
 
 func (stats *RTPReceptionStats) noteIncomingSR(ntpTimestampMSW, ntpTimestampLSW, rtpTimestamp uint32) {
@@ -42,6 +37,52 @@ func (stats *RTPReceptionStats) noteIncomingSR(ntpTimestampMSW, ntpTimestampLSW,
 	stats.hasBeenSynchronized = true
 }
 
+func (stats *RTPReceptionStats) NumPacketsReceivedSinceLastReset() uint32 {
+	return stats.numPacketsReceivedSinceLastReset
+}
+
+type RTPReceptionStatsDB struct {
+	table                          map[uint32]*RTPReceptionStats
+	totNumPacketsReceived          uint32
+	numActiveSourcesSinceLastReset uint32
+}
+
+func NewRTPReceptionStatsDB() *RTPReceptionStatsDB {
+	statsDB := new(RTPReceptionStatsDB)
+	statsDB.table = make(map[uint32]*RTPReceptionStats)
+	return statsDB
+}
+
+func (statsDB *RTPReceptionStatsDB) add(SSRC uint32, stats *RTPReceptionStats) {
+	statsDB.table[SSRC] = stats
+}
+
+func (statsDB *RTPReceptionStatsDB) lookup(SSRC uint32) *RTPReceptionStats {
+	stats, _ := statsDB.table[SSRC]
+	return stats
+}
+
+func (statsDB *RTPReceptionStatsDB) noteIncomingPacket(SSRC, seqNum, rtpTimestamp, timestampFrequency, packetSize uint32,
+	useForJitterCalculation bool) {
+	statsDB.totNumPacketsReceived++
+
+	stats := statsDB.lookup(SSRC)
+	if stats == nil {
+		stats = NewRTPReceptionStats(SSRC)
+		if stats == nil {
+			return
+		}
+
+		statsDB.add(SSRC, stats)
+	}
+
+	if stats.NumPacketsReceivedSinceLastReset() == 0 {
+		statsDB.numActiveSourcesSinceLastReset++
+	}
+
+	stats.noteIncomingPacket(seqNum, rtpTimestamp, timestampFrequency, packetSize, useForJitterCalculation)
+}
+
 func (statsDB *RTPReceptionStatsDB) noteIncomingSR(SSRC, ntpTimestampMSW, ntpTimestampLSW, rtpTimestamp uint32) {
 	stats := statsDB.lookup(SSRC)
 	if stats == nil {
@@ -52,9 +93,4 @@ func (statsDB *RTPReceptionStatsDB) noteIncomingSR(SSRC, ntpTimestampMSW, ntpTim
 		statsDB.table[SSRC] = stats
 	}
 	stats.noteIncomingSR(ntpTimestampMSW, ntpTimestampLSW, rtpTimestamp)
-}
-
-func (statsDB *RTPReceptionStatsDB) lookup(SSRC uint32) *RTPReceptionStats {
-	stats, _ := statsDB.table[SSRC]
-	return stats
 }

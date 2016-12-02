@@ -6,7 +6,6 @@ import (
 	"fmt"
 	. "liveMedia"
 	"os"
-	//"time"
 	"utils"
 )
 
@@ -112,6 +111,7 @@ func continueAfterSETUP(rtspClient *RTSPClient, resultCode int, resultStr string
 		fmt.Printf("Created a data sink for the \"%s/%s\" subsession\n",
 			scs.Subsession.MediumName(), scs.Subsession.CodecName())
 
+		scs.Subsession.MiscPtr = rtspClient
 		scs.Subsession.Sink.StartPlaying(scs.Subsession.ReadSource())
 		if scs.Subsession.RtcpInstance() != nil {
 			scs.Subsession.RtcpInstance().SetByeHandler(subsessionByeHandler, scs.Subsession)
@@ -146,22 +146,27 @@ func subsessionByeHandler(subsession *MediaSubSession) {
 }
 
 func subsessionAfterPlaying(subsession *MediaSubSession) {
-	shutdownStream(nil)
+	var rtspClient *RTSPClient = subsession.MiscPtr.(*RTSPClient)
+	shutdownStream(rtspClient)
 }
 
 func shutdownStream(rtspClient *RTSPClient) {
 	scs := rtspClient.SCS()
 
-	if scs.Subsession.RtcpInstance() != nil {
-		scs.Subsession.RtcpInstance().SetByeHandler(nil, nil)
-	}
+	//if scs.Subsession.RtcpInstance() != nil {
+	//	scs.Subsession.RtcpInstance().SetByeHandler(nil, nil)
+	//}
 
 	if rtspClient != nil {
 		rtspClient.SendTeardownCommand(scs.Session, nil)
 	}
-	rtspClientCount--
 
 	fmt.Println("Closing the Stream.")
+
+	rtspClientCount--
+	if rtspClientCount == 0 {
+		os.Exit(1)
+	}
 }
 
 func setupNextSubSession(rtspClient *RTSPClient) {
@@ -202,9 +207,9 @@ func NewDummySink(subsession *MediaSubSession, streamID string) *DummySink {
 
 func (sink *DummySink) AfterGettingFrame(frameSize, durationInMicroseconds uint,
 	presentationTime utils.Timeval) {
-	//fmt.Printf("Stream \"\"; %s/%s:\tReceived %d bytes.\tPresentation Time: %f\n",
-	//	sink.subsession.MediumName(), sink.subsession.CodecName(), frameSize,
-	//	float32(presentationTime.Tv_sec/1000/1000+presentationTime.Tv_usec))
+	fmt.Printf("Stream \"%s\"; %s/%s:\tReceived %d bytes.\tPresentation Time: %f\n",
+		sink.streamID, sink.subsession.MediumName(), sink.subsession.CodecName(), frameSize,
+		float32(presentationTime.Tv_sec/1000/1000+presentationTime.Tv_usec))
 }
 
 func (sink *DummySink) ContinuePlaying() {

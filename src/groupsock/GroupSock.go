@@ -62,7 +62,7 @@ func (this *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
 	return writeSuccess
 }
 
-func (this *GroupSock) HandleRead(buffer []byte, bufferMaxSize uint) (int, error) {
+func (this *GroupSock) HandleRead(buffer []byte) (int, error) {
 	numBytes, err := ReadSocket(this.socketNum, buffer)
 	if err != nil {
 		fmt.Printf("GroupSock read failed: %s\n", err.Error())
