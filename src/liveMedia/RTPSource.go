@@ -10,7 +10,10 @@ type RTPSource struct {
 	lastReceivedSSRC       uint
 	rtpPayloadFormat       uint
 	timestampFrequency     uint
+	curPacketRTPSeqNum     uint32
+	curPacketRTPTimestamp  uint32
 	curPacketSyncUsingRTCP bool
+	curPacketMarkerBit     bool
 	receptionStatsDB       *RTPReceptionStatsDB
 	rtpInterface           *RTPInterface
 }

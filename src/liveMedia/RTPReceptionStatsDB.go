@@ -63,7 +63,7 @@ func (statsDB *RTPReceptionStatsDB) lookup(SSRC uint32) *RTPReceptionStats {
 }
 
 func (statsDB *RTPReceptionStatsDB) noteIncomingPacket(SSRC, seqNum, rtpTimestamp, timestampFrequency, packetSize uint32,
-	useForJitterCalculation bool) {
+	useForJitterCalculation bool) (presentationTime utils.Timeval, hasBeenSyncedUsingRTCP bool) {
 	statsDB.totNumPacketsReceived++
 
 	stats := statsDB.lookup(SSRC)
@@ -81,6 +81,7 @@ func (statsDB *RTPReceptionStatsDB) noteIncomingPacket(SSRC, seqNum, rtpTimestam
 	}
 
 	stats.noteIncomingPacket(seqNum, rtpTimestamp, timestampFrequency, packetSize, useForJitterCalculation)
+	return
 }
 
 func (statsDB *RTPReceptionStatsDB) noteIncomingSR(SSRC, ntpTimestampMSW, ntpTimestampLSW, rtpTimestamp uint32) {

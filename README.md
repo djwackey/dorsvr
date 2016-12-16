@@ -2,10 +2,8 @@
 
 [![Build Status](https://travis-ci.org/djwackey/dorsvr.svg?branch=master)](https://travis-ci.org/djwackey/dorsvr) [![GitHub issues](https://img.shields.io/github/issues/djwackey/dorsvr.svg)](https://github.com/djwackey/dorsvr/issues)
 ### Modules ###
-* DorDatabase      - database driver
 * DorMediaPlayer   - media player
 * DorMediaServer   - media server
-* DorProxyServer   - proxy server
 * GroupSock        - group socket
 * LiveMedia        - live  media
 * UsageEnvironment - usage environment

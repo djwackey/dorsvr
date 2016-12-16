@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	db "DorDatabase"
 	env "UsageEnvironment"
 	"constant"
 	media "liveMedia"
@@ -19,18 +18,6 @@ func main() {
 	fmt.Println("--------------------------------")
 	fmt.Println("|   Dor Media Server " + constant.MEDIA_SERVER_VERSION + "   |")
 	fmt.Println("--------------------------------")
-
-	// create an instance of configure file manager.
-	confFileManager := db.NewConfFileManager()
-	if confFileManager == nil {
-		return
-	}
-
-	if !confFileManager.ReadConfInfo(constant.DORMS_CONFIG_FILE) {
-		fmt.Println(constant.FAILED_READ_CONFIG)
-		return
-	}
-	fmt.Println(constant.SUCCESS_READ_CONFIG)
 
 	rtspServerPortNum := 554
 	rtspServer := media.NewRTSPServer(rtspServerPortNum)

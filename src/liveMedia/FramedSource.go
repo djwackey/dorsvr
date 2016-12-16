@@ -9,7 +9,6 @@ type IFramedSource interface {
 	doGetNextFrame()
 	afterGetting()
 	maxFrameSize() uint
-	//getSPSandPPS()
 	stopGettingFrames()
 }
 
