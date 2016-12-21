@@ -1,4 +1,4 @@
-package rtspclient
+package utils
 
 func Advance(data []byte, size, n uint) ([]byte, uint) {
 	data = data[n:]
