@@ -2,6 +2,7 @@ package livemedia
 
 import (
 	"fmt"
+	gs "github.com/djwackey/dorsvr/groupsock"
 	"net"
 	"os"
 	"strconv"
@@ -507,8 +508,8 @@ func (this *MediaSession) initiateByMediaType(mimeType string, useSpecialRTPoffs
 //////// MediaSubSession ////////
 type MediaSubSession struct {
 	rtpSource              *RTPSource
-	rtpSocket              *GroupSock
-	rtcpSocket             *GroupSock
+	rtpSocket              *gs.GroupSock
+	rtcpSocket             *gs.GroupSock
 	Sink                   IMediaSink
 	readSource             IFramedSource
 	rtcpInstance           *RTCPInstance
@@ -570,7 +571,7 @@ func (this *MediaSubSession) Initiate() bool {
 	var success bool
 	for {
 		// create new socket
-		this.rtpSocket = NewGroupSock(tempAddr, 0)
+		this.rtpSocket = gs.NewGroupSock(tempAddr, 0)
 		if this.rtpSocket == nil {
 			fmt.Println("Unable to create RTP socket")
 			break
@@ -590,7 +591,7 @@ func (this *MediaSubSession) Initiate() bool {
 		this.clientPortNum = clientPortNum
 
 		rtcpPortNum := clientPortNum | 1
-		this.rtcpSocket = NewGroupSock(tempAddr, rtcpPortNum)
+		this.rtcpSocket = gs.NewGroupSock(tempAddr, rtcpPortNum)
 		if this.rtcpSocket == nil {
 			fmt.Println("Unable to create RTCP socket")
 			break

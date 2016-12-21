@@ -1,4 +1,6 @@
-package rtspclient
+package livemedia
+
+import "github.com/djwackey/dorsvr/utils"
 
 type IFramedSource interface {
 	GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{})
@@ -18,7 +20,7 @@ type FramedSource struct {
 	numTruncatedBytes       uint
 	durationInMicroseconds  uint
 	isCurrentlyAwaitingData bool
-	presentationTime        Timeval
+	presentationTime        utils.Timeval
 }
 
 func (this *FramedSource) InitFramedSource(source IFramedSource) {
@@ -45,7 +47,7 @@ func (this *FramedSource) afterGetting() {
 
 	if this.afterGettingFunc != nil {
 		this.afterGettingFunc.(func(frameSize, durationInMicroseconds uint,
-			presentationTime Timeval))(this.frameSize, this.durationInMicroseconds, this.presentationTime)
+			presentationTime utils.Timeval))(this.frameSize, this.durationInMicroseconds, this.presentationTime)
 	}
 }
 

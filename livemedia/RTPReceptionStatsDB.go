@@ -1,4 +1,6 @@
-package rtspclient
+package livemedia
+
+import "github.com/djwackey/dorsvr/utils"
 
 type RTPReceptionStats struct {
 	SSRC                             uint32
@@ -6,8 +8,8 @@ type RTPReceptionStats struct {
 	lastReceivedSR_NTPmsw            uint32
 	lastReceivedSR_NTPlsw            uint32
 	numPacketsReceivedSinceLastReset uint32
-	lastReceivedSR_time              Timeval
-	syncTime                         Timeval
+	lastReceivedSR_time              utils.Timeval
+	syncTime                         utils.Timeval
 	hasBeenSynchronized              bool
 }
 
@@ -61,7 +63,7 @@ func (statsDB *RTPReceptionStatsDB) lookup(SSRC uint32) *RTPReceptionStats {
 }
 
 func (statsDB *RTPReceptionStatsDB) noteIncomingPacket(SSRC, seqNum, rtpTimestamp, timestampFrequency, packetSize uint32,
-	useForJitterCalculation bool) (presentationTime Timeval, hasBeenSyncedUsingRTCP bool) {
+	useForJitterCalculation bool) (presentationTime utils.Timeval, hasBeenSyncedUsingRTCP bool) {
 	statsDB.totNumPacketsReceived++
 
 	stats := statsDB.lookup(SSRC)

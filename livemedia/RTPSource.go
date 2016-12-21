@@ -1,4 +1,6 @@
-package rtspclient
+package livemedia
+
+import gs "github.com/djwackey/dorsvr/groupsock"
 
 type RTPSource struct {
 	FramedSource
@@ -19,7 +21,7 @@ func NewRTPSource() *RTPSource {
 	return source
 }
 
-func (source *RTPSource) InitRTPSouce(isource IFramedSource, RTPgs *GroupSock,
+func (source *RTPSource) InitRTPSouce(isource IFramedSource, RTPgs *gs.GroupSock,
 	rtpPayloadFormat, rtpTimestampFrequency uint) {
 	source.rtpInterface = NewRTPInterface(source, RTPgs)
 	source.lastReceivedSSRC = 0

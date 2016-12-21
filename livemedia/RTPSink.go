@@ -1,7 +1,9 @@
-package rtspclient
+package livemedia
 
 import (
 	"fmt"
+	gs "github.com/djwackey/dorsvr/groupsock"
+	"github.com/djwackey/dorsvr/utils"
 	"net"
 )
 
@@ -38,7 +40,7 @@ type RTPSink struct {
 	transmissionStatsDB        *RTPTransmissionStatsDB
 }
 
-func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *GroupSock, rtpPayloadType,
+func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType,
 	rtpTimestampFrequency uint, rtpPayloadFormatName string) {
 	this.InitMediaSink(rtpSink)
 	this.rtpInterface = NewRTPInterface(this, gs)
@@ -94,7 +96,7 @@ func (this *RTPSink) RtpTimestampFrequency() uint {
 }
 
 func (this *RTPSink) presetNextTimestamp() uint {
-	var timeNow Timeval
+	var timeNow utils.Timeval
 	GetTimeOfDay(&timeNow)
 
 	tsNow := this.convertToRTPTimestamp(timeNow)
@@ -104,7 +106,7 @@ func (this *RTPSink) presetNextTimestamp() uint {
 	return tsNow
 }
 
-func (this *RTPSink) convertToRTPTimestamp(tv Timeval) uint {
+func (this *RTPSink) convertToRTPTimestamp(tv utils.Timeval) uint {
 	// Begin by converting from "struct timeval" units to RTP timestamp units:
 	timestampIncrement := this.timestampFrequency * uint(tv.Tv_sec)
 	timestampIncrement += (2.0*this.timestampFrequency*uint(tv.Tv_usec) + 1000000.0) / 2000000
@@ -141,6 +143,6 @@ type RTPTransmissionStats struct {
 	packetLossRatio       uint
 	totNumPacketsLost     uint
 	lastPacketNumReceived uint
-	timeCreated           Timeval
-	timeReceived          Timeval
+	timeCreated           utils.Timeval
+	timeReceived          utils.Timeval
 }

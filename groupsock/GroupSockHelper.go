@@ -1,4 +1,4 @@
-package rtspclient
+package groupsock
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package rtspclient
+package groupsock
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ func OurRandom32() uint32 {
 	return uint32((random16_1 << 8) | (random16_2 >> 8))
 }
 
-func ntohl(packet []byte) (uint32, error) {
+func Ntohl(packet []byte) (uint32, error) {
 	var value uint32
 	buffer := bytes.NewReader(packet)
 

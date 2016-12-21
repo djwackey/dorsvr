@@ -1,7 +1,9 @@
-package rtspclient
+package livemedia
 
 import (
 	"fmt"
+	gs "github.com/djwackey/dorsvr/groupsock"
+	"github.com/djwackey/dorsvr/utils"
 )
 
 const (
@@ -73,8 +75,8 @@ func NewSDESItem(tag int, value string) *SDESItem {
 }
 
 func dTimeNow() int64 {
-	var timeNow Timeval
-	GetTimeOfDay(&timeNow)
+	var timeNow utils.Timeval
+	utils.GetTimeOfDay(&timeNow)
 	return timeNow.Tv_sec + timeNow.Tv_usec/1000000.0
 }
 
@@ -82,7 +84,7 @@ func (this *SDESItem) totalSize() uint {
 	return 2 + uint(this.data[1])
 }
 
-func NewRTCPInstance(rtcpGS *GroupSock, totSessionBW uint, cname string) *RTCPInstance {
+func NewRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string) *RTCPInstance {
 	rtcp := new(RTCPInstance)
 	rtcp.typeOfEvent = EVENT_REPORT
 	rtcp.totSessionBW = totSessionBW
@@ -134,7 +136,7 @@ func (this *RTCPInstance) incomingReportHandler() {
 		packetSize := uint(readBytes)
 
 		var rtcpHdr uint32
-		rtcpHdr, _ = ntohl(packet)
+		rtcpHdr, _ = gs.Ntohl(packet)
 
 		totPacketSize := IP_UDP_HDR_SIZE + packetSize
 
@@ -169,7 +171,7 @@ func (this *RTCPInstance) incomingReportHandler() {
 			}
 			length -= 4
 
-			reportSenderSSRC, _ = ntohl(packet)
+			reportSenderSSRC, _ = gs.Ntohl(packet)
 
 			packet, packetSize = ADVANCE(packet, packetSize, 4)
 
@@ -180,13 +182,13 @@ func (this *RTCPInstance) incomingReportHandler() {
 					length -= 20
 
 					// Extract the NTP timestamp, and note this:
-					NTPmsw, _ := ntohl(packet)
+					NTPmsw, _ := gs.Ntohl(packet)
 					packet, packetSize = ADVANCE(packet, packetSize, 4)
 
-					NTPlsm, _ := ntohl(packet)
+					NTPlsm, _ := gs.Ntohl(packet)
 					packet, packetSize = ADVANCE(packet, packetSize, 4)
 
-					rtpTimestamp, _ := ntohl(packet)
+					rtpTimestamp, _ := gs.Ntohl(packet)
 					packet, packetSize = ADVANCE(packet, packetSize, 4)
 
 					if this.Source != nil {
@@ -248,7 +250,7 @@ func (this *RTCPInstance) incomingReportHandler() {
 				break
 			}
 
-			rtcpHdr, _ = ntohl(packet)
+			rtcpHdr, _ = gs.Ntohl(packet)
 
 			if (rtcpHdr & 0xC0000000) != 0x80000000 {
 				fmt.Printf("bad RTCP subpacket: header 0x%08x\n", rtcpHdr)

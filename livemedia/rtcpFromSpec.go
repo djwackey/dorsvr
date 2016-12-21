@@ -1,4 +1,4 @@
-package rtspclient
+package livemedia
 
 const (
 	EVENT_UNKNOWN = 0

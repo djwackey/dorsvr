@@ -1,12 +1,12 @@
-package utils
+package livemedia
 
-func Advance(data []byte, size, n uint) ([]byte, uint) {
+func ADVANCE(data []byte, size, n uint) ([]byte, uint) {
 	data = data[n:]
 	size -= n
 	return data, size
 }
 
-func SeqNumLT(s1, s2 int) bool {
+func seqNumLT(s1, s2 int) bool {
 	// a 'less-than' on 16-bit sequence numbers
 	diff := s2 - s1
 	if diff > 0 {

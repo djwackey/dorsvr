@@ -1,8 +1,6 @@
-package rtspclient
+package livemedia
 
-//import (
-//"fmt"
-//)
+import gs "github.com/djwackey/dorsvr/groupsock"
 
 type H264VideoRTPSource struct {
 	MultiFramedRTPSource
@@ -11,7 +9,7 @@ type H264VideoRTPSource struct {
 	currentPacketCompletesFrame bool
 }
 
-func NewH264VideoRTPSource(RTPgs *GroupSock,
+func NewH264VideoRTPSource(RTPgs *gs.GroupSock,
 	rtpPayloadFormat, rtpTimestampFrequency uint) *H264VideoRTPSource {
 	source := new(H264VideoRTPSource)
 

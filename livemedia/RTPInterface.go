@@ -1,18 +1,19 @@
-package rtspclient
+package livemedia
 
 import (
+	gs "github.com/djwackey/dorsvr/groupsock"
 	"net"
 )
 
 type RTPInterface struct {
-	gs                         *GroupSock
+	gs                         *gs.GroupSock
 	owner                      interface{}
 	auxReadHandlerFunc         interface{}
 	nextTCPReadStreamSocketNum int
 	tcpStreams                 *TCPStreamRecord
 }
 
-func NewRTPInterface(owner interface{}, gs *GroupSock) *RTPInterface {
+func NewRTPInterface(owner interface{}, gs *gs.GroupSock) *RTPInterface {
 	rtpInterface := new(RTPInterface)
 	rtpInterface.gs = gs
 	rtpInterface.owner = owner
@@ -26,7 +27,7 @@ func (irtp *RTPInterface) startNetworkReading(handlerProc interface{}) {
 func (irtp *RTPInterface) stopNetworkReading() {
 }
 
-func (irtp *RTPInterface) GS() *GroupSock {
+func (irtp *RTPInterface) GS() *gs.GroupSock {
 	return irtp.gs
 }
 

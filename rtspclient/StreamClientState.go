@@ -1,14 +1,16 @@
 package rtspclient
 
+import "github.com/djwackey/dorsvr/livemedia"
+
 type StreamClientState struct {
-	Session    *MediaSession
-	Subsession *MediaSubSession
+	Session    *livemedia.MediaSession
+	Subsession *livemedia.MediaSubSession
 }
 
 func NewStreamClientState() *StreamClientState {
 	return new(StreamClientState)
 }
 
-func (this *StreamClientState) Next() *MediaSubSession {
+func (this *StreamClientState) Next() *livemedia.MediaSubSession {
 	return this.Session.SubSession()
 }

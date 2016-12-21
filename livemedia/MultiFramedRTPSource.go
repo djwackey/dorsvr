@@ -1,7 +1,9 @@
-package rtspclient
+package livemedia
 
 import (
 	"fmt"
+	gs "github.com/djwackey/dorsvr/groupsock"
+	"github.com/djwackey/dorsvr/utils"
 )
 
 type MultiFramedRTPSource struct {
@@ -18,7 +20,8 @@ type MultiFramedRTPSource struct {
 }
 
 func (source *MultiFramedRTPSource) InitMultiFramedRTPSource(isource IFramedSource,
-	RTPgs *GroupSock, rtpPayloadFormat, rtpTimestampFrequency uint, packetFactory IBufferedPacketFactory) {
+	RTPgs *gs.GroupSock, rtpPayloadFormat, rtpTimestampFrequency uint,
+	packetFactory IBufferedPacketFactory) {
 
 	source.reset()
 
@@ -137,15 +140,15 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 				break
 			}
 
-			rtpHdr, _ := ntohl(packet.data())
+			rtpHdr, _ := gs.Ntohl(packet.data())
 			packet.skip(4)
 
 			var rtpMarkerBit bool = (rtpHdr & 0x00800000) != 0
 
-			rtpTimestamp, _ := ntohl(packet.data())
+			rtpTimestamp, _ := gs.Ntohl(packet.data())
 			packet.skip(4)
 
-			rtpSSRC, _ := ntohl(packet.data())
+			rtpSSRC, _ := gs.Ntohl(packet.data())
 			packet.skip(4)
 
 			// Check the RTP version number (it should be 2):
@@ -169,7 +172,7 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 					break
 				}
 
-				extHdr, _ := ntohl(packet.data())
+				extHdr, _ := gs.Ntohl(packet.data())
 				packet.skip(4)
 
 				remExtSize := uint(4 * (extHdr & 0xFFFF))
@@ -219,8 +222,8 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 					timestampFrequency, uint32(packet.dataSize()), usableInJitterCalculation)
 
 			// Fill in the rest of the packet descriptor, and store it:
-			var timeNow Timeval
-			GetTimeOfDay(&timeNow)
+			var timeNow utils.Timeval
+			utils.GetTimeOfDay(&timeNow)
 			packet.assignMiscParams(rtpSeqNo, rtpTimestamp, presentationTime, timeNow,
 				hasBeenSyncedUsingRTCP, rtpMarkerBit)
 
@@ -250,13 +253,13 @@ type IBufferedPacket interface {
 	hasUsableData() bool
 	markFirstPacket(flag bool)
 	removePadding(numBytes uint)
-	TimeReceived() Timeval
+	TimeReceived() utils.Timeval
 	NextPacket() IBufferedPacket
 	use(buff []byte, size uint) *PacketInfo
 	setNextPacket(nextPacket IBufferedPacket)
 	fillInData(rtpInterface *RTPInterface) error
 	assignMiscParams(rtpSeqNo, rtpTimestamp uint32,
-		presentationTime, timeReceived Timeval,
+		presentationTime, timeReceived utils.Timeval,
 		hasBeenSyncedUsingRTCP, rtpMarkerBit bool)
 }
 
@@ -269,8 +272,8 @@ type BufferedPacket struct {
 	RTPSeqNo               uint32
 	RTPTimestamp           uint32
 	nextPacket             IBufferedPacket
-	timeReceived           Timeval
-	presentationTime       Timeval
+	timeReceived           utils.Timeval
+	presentationTime       utils.Timeval
 	nextEnclosedFrameProc  interface{}
 	hasBeenSyncedUsingRTCP bool
 	firstPacketFlag        bool
@@ -282,7 +285,7 @@ type PacketInfo struct {
 	bytesTruncated         uint
 	rtpSeqNo               uint32
 	rtpTimestamp           uint32
-	presentationTime       Timeval
+	presentationTime       utils.Timeval
 	hasBeenSyncedUsingRTCP bool
 	rtpMarkerBit           bool
 }
@@ -377,7 +380,7 @@ func (packet *BufferedPacket) removePadding(numBytes uint) {
 	packet.tail -= numBytes
 }
 
-func (packet *BufferedPacket) TimeReceived() Timeval {
+func (packet *BufferedPacket) TimeReceived() utils.Timeval {
 	return packet.timeReceived
 }
 
@@ -396,7 +399,7 @@ func (packet *BufferedPacket) getNextEnclosedFrameParameters(framePtr []byte, da
 }
 
 func (packet *BufferedPacket) assignMiscParams(rtpSeqNo, rtpTimestamp uint32,
-	presentationTime, timeReceived Timeval, hasBeenSyncedUsingRTCP, rtpMarkerBit bool) {
+	presentationTime, timeReceived utils.Timeval, hasBeenSyncedUsingRTCP, rtpMarkerBit bool) {
 	packet.RTPSeqNo = rtpSeqNo
 	packet.timeReceived = timeReceived
 	packet.RTPMarkerBit = rtpMarkerBit
@@ -492,8 +495,8 @@ func (buffer *ReorderingPacketBuffer) getNextCompletedPacket() (IBufferedPacket,
 	if buffer.thresholdTime == 0 {
 		timeThresholdHasBeenExceeded = true
 	} else {
-		var timeNow Timeval
-		GetTimeOfDay(&timeNow)
+		var timeNow utils.Timeval
+		utils.GetTimeOfDay(&timeNow)
 
 		timeReceived := buffer.headPacket.TimeReceived()
 		uSecondsSinceReceived := (timeNow.Tv_sec-timeReceived.Tv_sec)*1000000 +

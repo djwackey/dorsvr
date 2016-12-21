@@ -1,16 +1,17 @@
-package rtspclient
+package livemedia
 
 import (
 	"fmt"
+	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
 type BasicUDPSource struct {
 	FramedSource
-	inputSocket        *GroupSock
+	inputSocket        *gs.GroupSock
 	haveStartedReading bool
 }
 
-func NewBasicUDPSource(inputSocket *GroupSock) *BasicUDPSource {
+func NewBasicUDPSource(inputSocket *gs.GroupSock) *BasicUDPSource {
 	source := new(BasicUDPSource)
 	source.inputSocket = inputSocket
 	source.InitFramedSource(source)
