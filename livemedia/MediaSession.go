@@ -507,7 +507,7 @@ func (this *MediaSession) initiateByMediaType(mimeType string, useSpecialRTPoffs
 
 //////// MediaSubSession ////////
 type MediaSubSession struct {
-	rtpSource              *RTPSource
+	RTPSource              *RTPSource
 	rtpSocket              *gs.GroupSock
 	rtcpSocket             *gs.GroupSock
 	Sink                   IMediaSink
@@ -551,8 +551,8 @@ func NewMediaSubSession(parent *MediaSession) *MediaSubSession {
 	return subsession
 }
 
-func (this *MediaSubSession) ParentSession() *MediaSession {
-	return this.parent
+func (subsession *MediaSubSession) ParentSession() *MediaSession {
+	return subsession.parent
 }
 
 func (this *MediaSubSession) Initiate() bool {
@@ -631,27 +631,43 @@ func (this *MediaSubSession) Initiate() bool {
 	return true
 }
 
-func (this *MediaSubSession) Scale() float32 {
-	return this.scale
+func (subsession *MediaSubSession) Scale() float32 {
+	return subsession.scale
 }
 
-func (this *MediaSubSession) setSessionID(sessionID string) {
-	this.sessionID = sessionID
+func (subsession *MediaSubSession) SetRTPChannelID(rtpChannelID uint) {
+	subsession.rtpChannelID = rtpChannelID
 }
 
-func (this *MediaSubSession) SessionID() string {
-	return this.sessionID
+func (subsession *MediaSubSession) SetRTCPChannelID(rtcpChannelID uint) {
+	subsession.rtcpChannelID = rtcpChannelID
 }
 
-func (this *MediaSubSession) deInitiate() {
+func (subsession *MediaSubSession) SetServerPortNum(serverPortNum uint) {
+	subsession.serverPortNum = serverPortNum
 }
 
-func (this *MediaSubSession) AbsStartTime() string {
-	if this.absStartTime != "" {
-		return this.absStartTime
+func (subsession *MediaSubSession) SetConnectionEndpointName(connectionEndpointName string) {
+	subsession.connectionEndpointName = connectionEndpointName
+}
+
+func (subsession *MediaSubSession) SetSessionID(sessionID string) {
+	subsession.sessionID = sessionID
+}
+
+func (subsession *MediaSubSession) SessionID() string {
+	return subsession.sessionID
+}
+
+func (subsession *MediaSubSession) deInitiate() {
+}
+
+func (subsession *MediaSubSession) AbsStartTime() string {
+	if subsession.absStartTime != "" {
+		return subsession.absStartTime
 	}
 
-	return this.parent.AbsStartTime()
+	return subsession.parent.AbsStartTime()
 }
 
 func (this *MediaSubSession) AbsEndTime() string {
@@ -690,7 +706,7 @@ func (this *MediaSubSession) RtcpInstance() *RTCPInstance {
 	return this.rtcpInstance
 }
 
-func (this *MediaSubSession) setDestinations(destAddress string) {
+func (this *MediaSubSession) SetDestinations(destAddress string) {
 }
 
 func (this *MediaSubSession) ConnectionEndpointName() string {
@@ -717,7 +733,7 @@ func (this *MediaSubSession) ConnectionEndpointName() string {
 func (this *MediaSubSession) createSourceObject() bool {
 	if strings.EqualFold(this.protocolName, "UDP") {
 		this.readSource = NewBasicUDPSource(this.rtpSocket)
-		this.rtpSource = nil
+		this.RTPSource = nil
 
 		// MPEG-2 Transport Stream
 		if strings.EqualFold(this.codecName, "MP2T") {

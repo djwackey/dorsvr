@@ -41,7 +41,7 @@ func (source *RTPSource) TimestampFrequency() uint {
 	return source.timestampFrequency
 }
 
-func (source *RTPSource) setStreamSocket() {
+func (source *RTPSource) SetStreamSocket() {
 }
 
 func (source *RTPSource) ReceptionStatsDB() *RTPReceptionStatsDB {

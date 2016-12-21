@@ -22,7 +22,7 @@ var allowedCommandNames [maxCommandNum]string = [maxCommandNum]string{
 }
 
 type RTSPRequestInfo struct {
-	cseq          string
+	Cseq          string
 	cmdName       string
 	sessionIDStr  string
 	urlPreSuffix  string
@@ -135,7 +135,7 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
 			}
 			for ; reqStr[j] != '\r' && reqStr[j] != '\n'; j++ {
-				reqInfo.cseq += string(reqStr[j])
+				reqInfo.Cseq += string(reqStr[j])
 			}
 		}
 	}

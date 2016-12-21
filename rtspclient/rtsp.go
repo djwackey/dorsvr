@@ -2,6 +2,7 @@ package rtspclient
 
 import (
 	"fmt"
+	"github.com/djwackey/dorsvr/livemedia"
 )
 
 func New() *RTSPClient {
@@ -46,7 +47,7 @@ func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr str
 
 		scs := rtspClient.SCS()
 		// Create a media session object from this SDP description
-		scs.Session = NewMediaSession(sdpDesc)
+		scs.Session = livemedia.NewMediaSession(sdpDesc)
 		if scs.Session == nil {
 			fmt.Println("Failed to create a MediaSession object from the sdp Description.")
 			break
@@ -108,14 +109,14 @@ func continueAfterPLAY(rtspClient *RTSPClient, resultCode int, resultStr string)
 	shutdownStream(rtspClient)
 }
 
-func subsessionByeHandler(subsession *MediaSubSession) {
+func subsessionByeHandler(subsession *livemedia.MediaSubSession) {
 	fmt.Println("Received RTCP BYE on subsession.")
 
 	// Now act as if the subsession had closed:
 	subsessionAfterPlaying(subsession)
 }
 
-func subsessionAfterPlaying(subsession *MediaSubSession) {
+func subsessionAfterPlaying(subsession *livemedia.MediaSubSession) {
 	var rtspClient *RTSPClient = subsession.MiscPtr.(*RTSPClient)
 	shutdownStream(rtspClient)
 }

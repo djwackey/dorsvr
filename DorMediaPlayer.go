@@ -23,7 +23,7 @@ func main() {
 		return
 	}
 
-	go TimeCloser(client)
+	//go TimeCloser(client)
 	client.Waiting()
 
 	fmt.Println("exit")

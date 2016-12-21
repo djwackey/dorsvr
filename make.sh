@@ -10,7 +10,6 @@ if [ "$1" = "fmt" ]; then
 fi
 
 if [ "$1" = "test" ]; then
-    go test ./rtspclient
-    go test ./rtspserver
     go test ./groupsock
+    go test ./livemedia
 fi

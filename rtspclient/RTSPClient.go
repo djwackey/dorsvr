@@ -2,6 +2,7 @@ package rtspclient
 
 import (
 	"fmt"
+	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/dorsvr/livemedia"
 	"net"
 	"strconv"
@@ -41,8 +42,8 @@ type RequestRecord struct {
 	absStartTime string
 	absEndTime   string
 	handler      interface{}
-	subsession   *MediaSubSession
-	session      *MediaSession
+	subsession   *livemedia.MediaSubSession
+	session      *livemedia.MediaSession
 }
 
 type ResponseHandler interface {
@@ -60,11 +61,11 @@ func NewRequestRecord(cseq int, commandName string, responseHandler interface{})
 	return requestRecord
 }
 
-func (record *RequestRecord) setSession(session *MediaSession) {
+func (record *RequestRecord) setSession(session *livemedia.MediaSession) {
 	record.session = session
 }
 
-func (record *RequestRecord) setSubSession(subsession *MediaSubSession) {
+func (record *RequestRecord) setSubSession(subsession *livemedia.MediaSubSession) {
 	record.subsession = subsession
 }
 
@@ -72,11 +73,11 @@ func (record *RequestRecord) CommandName() string {
 	return record.commandName
 }
 
-func (record *RequestRecord) Session() *MediaSession {
+func (record *RequestRecord) Session() *livemedia.MediaSession {
 	return record.session
 }
 
-func (record *RequestRecord) Subsession() *MediaSubSession {
+func (record *RequestRecord) Subsession() *livemedia.MediaSubSession {
 	return record.subsession
 }
 
@@ -165,14 +166,14 @@ func (client *RTSPClient) SendDescribeCommand(responseHandler interface{}) int {
 	return client.sendRequest(NewRequestRecord(client.cseq, "DESCRIBE", responseHandler))
 }
 
-func (client *RTSPClient) SendSetupCommand(subsession *MediaSubSession, responseHandler interface{}) int {
+func (client *RTSPClient) SendSetupCommand(subsession *livemedia.MediaSubSession, responseHandler interface{}) int {
 	client.cseq++
 	record := NewRequestRecord(client.cseq, "SETUP", responseHandler)
 	record.setSubSession(subsession)
 	return client.sendRequest(record)
 }
 
-func (client *RTSPClient) SendPlayCommand(session *MediaSession, responseHandler interface{}) int {
+func (client *RTSPClient) SendPlayCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
 	client.cseq++
 	record := NewRequestRecord(client.cseq, "PLAY", responseHandler)
 	record.setSession(session)
@@ -189,7 +190,7 @@ func (client *RTSPClient) SendRecordCommand(responseHandler interface{}) int {
 	return client.sendRequest(NewRequestRecord(client.cseq, "RECORD", responseHandler))
 }
 
-func (client *RTSPClient) SendTeardownCommand(session *MediaSession, responseHandler interface{}) int {
+func (client *RTSPClient) SendTeardownCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
 	client.cseq++
 	record := NewRequestRecord(client.cseq, "TEARDOWN", responseHandler)
 	record.setSession(session)
@@ -335,7 +336,7 @@ func (client *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
 func (client *RTSPClient) incomingDataHandler() {
 	defer client.tcpConn.Close()
 	for {
-		readBytes, err := ReadSocket(client.tcpConn, client.responseBuffer)
+		readBytes, err := gs.ReadSocket(client.tcpConn, client.responseBuffer)
 		if err != nil {
 			fmt.Println("Failed to read bytes.", err.Error())
 			break
@@ -689,7 +690,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 	return writeBytes
 }
 
-func (this *RTSPClient) sessionURL(session *MediaSession) string {
+func (this *RTSPClient) sessionURL(session *livemedia.MediaSession) string {
 	url := session.ControlPath()
 	if url == "" || url == "*" {
 		url = this.baseURL
@@ -712,7 +713,7 @@ func (this *RTSPClient) isAbsoluteURL(url string) bool {
 	return isAbsolute
 }
 
-func (this *RTSPClient) constructSubSessionURL(subsession *MediaSubSession) (
+func (this *RTSPClient) constructSubSessionURL(subsession *livemedia.MediaSubSession) (
 	prefix string, separator string, suffix string) {
 
 	prefix = this.sessionURL(subsession.ParentSession())
@@ -801,7 +802,7 @@ func (this *RTSPClient) parseResponseCode(line string) (responseCode int, respon
 	return responseCode, responseString, result
 }
 
-func (this *RTSPClient) handleSetupResponse(subsession *MediaSubSession,
+func (this *RTSPClient) handleSetupResponse(subsession *livemedia.MediaSubSession,
 	sessionParamsStr, transportParamsStr string, streamUsingTCP bool) bool {
 	var success bool
 	for {
@@ -812,7 +813,7 @@ func (this *RTSPClient) handleSetupResponse(subsession *MediaSubSession,
 
 		sessionID := sessionParamsStr
 
-		subsession.setSessionID(sessionID)
+		subsession.SetSessionID(sessionID)
 
 		this.lastSessionID = sessionID
 
@@ -823,18 +824,18 @@ func (this *RTSPClient) handleSetupResponse(subsession *MediaSubSession,
 			break
 		}
 
-		subsession.rtpChannelID = transportParams.rtpChannelID
-		subsession.rtcpChannelID = transportParams.rtcpChannelID
-		subsession.serverPortNum = transportParams.serverPortNum
-		subsession.connectionEndpointName = transportParams.serverAddressStr
+		subsession.SetRTPChannelID(transportParams.rtpChannelID)
+		subsession.SetRTCPChannelID(transportParams.rtcpChannelID)
+		subsession.SetServerPortNum(transportParams.serverPortNum)
+		subsession.SetConnectionEndpointName(transportParams.serverAddressStr)
 
 		if streamUsingTCP {
-			if subsession.rtpSource != nil {
-				subsession.rtpSource.setStreamSocket()
+			if subsession.RTPSource != nil {
+				subsession.RTPSource.SetStreamSocket()
 			}
 		} else {
 			destAddress := this.serverAddress
-			subsession.setDestinations(destAddress)
+			subsession.SetDestinations(destAddress)
 		}
 
 		success = true
@@ -930,11 +931,11 @@ func (this *RTSPClient) handleAuthenticationFailure(paramsStr string) bool {
 }
 
 func (this *RTSPClient) handleIncomingRequest(reqStr string, length int) {
-	requestString, parseSucceeded := ParseRTSPRequestString(reqStr, length)
+	requestString, parseSucceeded := livemedia.ParseRTSPRequestString(reqStr, length)
 	if parseSucceeded {
 		fmt.Printf("Received incoming RTSP request: %s\n", reqStr)
 
-		buffer := fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n\r\n", requestString.cseq)
+		buffer := fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n\r\n", requestString.Cseq)
 		this.tcpConn.Write([]byte(buffer))
 	}
 }

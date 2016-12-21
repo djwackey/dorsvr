@@ -1,19 +1,23 @@
 package rtspclient
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/djwackey/dorsvr/livemedia"
+	"github.com/djwackey/dorsvr/utils"
+)
 
 type DummySink struct {
-	MediaSink
+	livemedia.MediaSink
 	streamID      string
 	receiveBuffer []byte
-	subsession    *MediaSubSession
+	subsession    *livemedia.MediaSubSession
 }
 
 // Implementation of "DummySink":
 
 var dummySinkReceiveBufferSize uint = 100000
 
-func NewDummySink(subsession *MediaSubSession, streamID string) *DummySink {
+func NewDummySink(subsession *livemedia.MediaSubSession, streamID string) *DummySink {
 	sink := new(DummySink)
 	sink.streamID = streamID
 	sink.subsession = subsession
@@ -23,7 +27,7 @@ func NewDummySink(subsession *MediaSubSession, streamID string) *DummySink {
 }
 
 func (sink *DummySink) AfterGettingFrame(frameSize, durationInMicroseconds uint,
-	presentationTime Timeval) {
+	presentationTime utils.Timeval) {
 	//return
 	fmt.Printf("Stream \"%s\"; %s/%s:\tReceived %d bytes.\tPresentation Time: %f\n",
 		sink.streamID, sink.subsession.MediumName(), sink.subsession.CodecName(), frameSize,
