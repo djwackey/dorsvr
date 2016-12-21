@@ -97,7 +97,7 @@ func (this *RTPSink) RtpTimestampFrequency() uint {
 
 func (this *RTPSink) presetNextTimestamp() uint {
 	var timeNow utils.Timeval
-	GetTimeOfDay(&timeNow)
+	utils.GetTimeOfDay(&timeNow)
 
 	tsNow := this.convertToRTPTimestamp(timeNow)
 	this.timestampBase = tsNow

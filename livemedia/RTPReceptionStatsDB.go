@@ -27,7 +27,7 @@ func (stats *RTPReceptionStats) noteIncomingSR(ntpTimestampMSW, ntpTimestampLSW,
 	stats.lastReceivedSR_NTPmsw = ntpTimestampMSW
 	stats.lastReceivedSR_NTPlsw = ntpTimestampLSW
 
-	GetTimeOfDay(&stats.lastReceivedSR_time)
+	utils.GetTimeOfDay(&stats.lastReceivedSR_time)
 
 	// Use this SR to update time synchronization information:
 	stats.syncTimestamp = rtpTimestamp
