@@ -2,28 +2,24 @@
 
 [![Build Status](https://travis-ci.org/djwackey/dorsvr.svg?branch=master)](https://travis-ci.org/djwackey/dorsvr) [![GitHub issues](https://img.shields.io/github/issues/djwackey/dorsvr.svg)](https://github.com/djwackey/dorsvr/issues)
 ### Modules ###
-* DorMediaPlayer   - media player
-* DorMediaServer   - media server
-* GroupSock        - group socket
-* LiveMedia        - live  media
-* UsageEnvironment - usage environment
+* groupsock        - group socket
+* scheduler        - task scheduler
+* livemedia        - live media handler
+* utils            - tools: time, net, etc.
 
-### Compile And Build ###
-	$ make
+### Install ###
+	go get github.com/djwackey/dorsvr/rtspserver
+	go get github.com/djwackey/dorsvr/rtspclient
+
 ### Format ###
 	$ make fmt
+
 ### Testing ###
 	$ make test
-### Inheritance ###
-ServerMediaSubSession <- OnDemandServerMediaSubSession <- FileServerMediaSubSession <- H264FileMediaSubSession
-
-FramedSource <- FramedFilter <- MPEGVideoStreamFramer <- H264VideoStreamFramer
-             <- FramedFileSource <- ByteStreamFileSource
-
-MediaSink <- RTPSink <- MultiFramedRTPSink <- VideoRTPSink <- H264VideoRTPSink
 
 ### Real-Time Streaming Protocol ###
 The Real-Time Streaming Protocol allows to control multimedia streams delivered, for example, via RTP. Control includes absolute positioning within the media stream, recording and possibly device control.
+
 #### OPTIONS ####
 **Client -> Server**
 

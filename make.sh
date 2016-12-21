@@ -5,19 +5,12 @@ if [ ! -f make.sh ]; then
 	exit 1
 fi
 
-start_time=`date +%s`
-echo "waiting for compiling..."
-
-go install DorMediaServer
-
-end_time=`date +%s`
-
-echo "total: " $[$end_time - $start_time] "s"
-
 if [ "$1" = "fmt" ]; then
-    gofmt -w src
+    gofmt -w .
 fi
 
 if [ "$1" = "test" ]; then
-    go test src/tests
+    go test ./rtspclient
+    go test ./rtspserver
+    go test ./groupsock
 fi
