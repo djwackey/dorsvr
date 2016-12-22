@@ -1,12 +1,10 @@
 # rtspclient
 It 's a RTSP client implemented by golang
 
-[![Build Status](https://travis-ci.org/djwackey/rtspclient.svg?branch=master)](https://travis-ci.org/djwackey/rtspclient) [![GitHub issues](https://img.shields.io/github/issues/djwackey/rtspclient.svg)](https://github.com/djwackey/rtspclient/issues)
-
 ## Install
 
 ```bash
-go get github.com/djwackey/rtspclient
+go get github.com/djwackey/dorsvr/rtspclient
 ```
 
 ## Examples

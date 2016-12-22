@@ -2,14 +2,15 @@
 
 [![Build Status](https://travis-ci.org/djwackey/dorsvr.svg?branch=master)](https://travis-ci.org/djwackey/dorsvr) [![GitHub issues](https://img.shields.io/github/issues/djwackey/dorsvr.svg)](https://github.com/djwackey/dorsvr/issues)
 ### Modules ###
-* groupsock        - group socket
-* scheduler        - task scheduler
-* livemedia        - live media handler
-* utils            - tools: time, net, etc.
+* rtspserver - rtsp server
+* rtspclient - rtsp client
+* groupsock  - group socket
+* scheduler  - task scheduler
+* livemedia  - live media handler
+* utils      - tools: time, net, etc.
 
 ### Install ###
-	go get github.com/djwackey/dorsvr/rtspserver
-	go get github.com/djwackey/dorsvr/rtspclient
+	go get github.com/djwackey/dorsvr
 
 ### Format ###
 	$ make fmt

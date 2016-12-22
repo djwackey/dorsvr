@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/djwackey/rtspclient"
+	"github.com/djwackey/dorsvr/rtspclient"
 	"os"
 	"time"
 )

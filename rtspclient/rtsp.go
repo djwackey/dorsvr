@@ -3,6 +3,7 @@ package rtspclient
 import (
 	"fmt"
 	"github.com/djwackey/dorsvr/livemedia"
+	"github.com/djwackey/dorsvr/scheduler"
 )
 
 func New() *RTSPClient {
@@ -23,7 +24,7 @@ func (client *RTSPClient) DialRTSP(rtspURL string) bool {
 }
 
 func (client *RTSPClient) Waiting() {
-	//TaskScheduler().DoEventLoop()
+	scheduler.DoEventLoop()
 }
 
 func (client *RTSPClient) Close() {
