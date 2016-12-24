@@ -2,25 +2,213 @@ package livemedia
 
 import "github.com/djwackey/dorsvr/utils"
 
+////////// RTPReceptionStats //////////
+const MILLION = 1000000
+
 type RTPReceptionStats struct {
 	SSRC                             uint32
 	syncTimestamp                    uint32
+	totBytesReceived_hi              uint32
+	totBytesReceived_lo              uint32
+	minInterPacketGapUS              uint32
+	maxInterPacketGapUS              uint32
 	lastReceivedSR_NTPmsw            uint32
 	lastReceivedSR_NTPlsw            uint32
+	baseExtSeqNumReceived            uint32
+	totNumPacketsReceived            uint32 // for all SSRCs
+	highestExtSeqNumReceived         uint32
+	previousPacketRTPTimestamp       uint32
+	lastResetExtSeqNumReceived       uint32
 	numPacketsReceivedSinceLastReset uint32
-	lastReceivedSR_time              utils.Timeval
 	syncTime                         utils.Timeval
+	lastReceivedSR_time              utils.Timeval
+	lastPacketReceptionTime          utils.Timeval
+	totalInterPacketGaps             utils.Timeval
 	hasBeenSynchronized              bool
+	haveSeenInitialSequenceNumber    bool
+	lastTransit                      int
+	jitter                           float32
 }
 
-func NewRTPReceptionStats(SSRC uint32) *RTPReceptionStats {
+func NewRTPReceptionStats(SSRC, seqNum uint32) *RTPReceptionStats {
 	stats := new(RTPReceptionStats)
-	stats.SSRC = SSRC
+	stats.init(SSRC)
+	stats.initSeqNum(seqNum)
 	return stats
 }
 
+func (stats *RTPReceptionStats) init(SSRC uint32) {
+	stats.SSRC = SSRC
+	stats.totNumPacketsReceived = 0
+	stats.totBytesReceived_hi = 0
+	stats.totBytesReceived_lo = 0
+	stats.haveSeenInitialSequenceNumber = false
+	stats.lastTransit = -1
+	stats.previousPacketRTPTimestamp = 0
+	stats.jitter = 0.0
+	stats.lastReceivedSR_NTPmsw = 0
+	stats.lastReceivedSR_NTPlsw = 0
+	stats.lastReceivedSR_time.Tv_sec = 0
+	stats.lastReceivedSR_time.Tv_usec = 0
+	stats.lastPacketReceptionTime.Tv_sec = 0
+	stats.lastPacketReceptionTime.Tv_usec = 0
+	stats.minInterPacketGapUS = 0x7FFFFFFF
+	stats.maxInterPacketGapUS = 0
+	stats.totalInterPacketGaps.Tv_sec = 0
+	stats.totalInterPacketGaps.Tv_usec = 0
+	stats.hasBeenSynchronized = false
+	stats.syncTime.Tv_sec = 0
+	stats.syncTime.Tv_usec = 0
+	stats.reset()
+}
+
+func (stats *RTPReceptionStats) reset() {
+	stats.numPacketsReceivedSinceLastReset = 0
+	stats.lastResetExtSeqNumReceived = stats.highestExtSeqNumReceived
+}
+
+func (stats *RTPReceptionStats) initSeqNum(initialSeqNum uint32) {
+	stats.baseExtSeqNumReceived = 0x10000 | initialSeqNum
+	stats.highestExtSeqNumReceived = 0x10000 | initialSeqNum
+	stats.haveSeenInitialSequenceNumber = true
+}
+
 func (stats *RTPReceptionStats) noteIncomingPacket(seqNum, rtpTimestamp, timestampFrequency, packetSize uint32,
-	useForJitterCalculation bool) {
+	useForJitterCalculation bool) (resultPresentationTime utils.Timeval, resultHasBeenSyncedUsingRTCP bool) {
+	if !stats.haveSeenInitialSequenceNumber {
+		stats.initSeqNum(seqNum)
+	}
+
+	stats.numPacketsReceivedSinceLastReset++
+	stats.totNumPacketsReceived++
+
+	prevTotBytesReceived_lo := stats.totBytesReceived_lo
+	stats.totBytesReceived_lo += packetSize
+	if stats.totBytesReceived_lo < prevTotBytesReceived_lo { // wrap-around
+		stats.totBytesReceived_hi++
+	}
+
+	// Check whether the new sequence number is the highest yet seen:
+	oldSeqNum := (stats.highestExtSeqNumReceived & 0xFFFF)
+	seqNumCycle := (stats.highestExtSeqNumReceived & 0xFFFF0000)
+	seqNumDifference := seqNum - oldSeqNum
+	var newSeqNum uint32
+
+	if seqNumLT(int(oldSeqNum), int(seqNum)) {
+		// This packet was not an old packet received out of order, so check it:
+
+		if seqNumDifference >= 0x8000 {
+			// The sequence number wrapped around, so start a new cycle:
+			seqNumCycle += 0x10000
+		}
+
+		newSeqNum = seqNumCycle | seqNum
+		if newSeqNum > stats.highestExtSeqNumReceived {
+			stats.highestExtSeqNumReceived = newSeqNum
+		}
+	} else if stats.totNumPacketsReceived > 1 {
+		// This packet was an old packet received out of order
+
+		if seqNumDifference >= 0x8000 {
+			// The sequence number wrapped around, so switch to an old cycle:
+			seqNumCycle -= 0x10000
+		}
+
+		newSeqNum = seqNumCycle | seqNum
+		if newSeqNum < stats.baseExtSeqNumReceived {
+			stats.baseExtSeqNumReceived = newSeqNum
+		}
+	}
+
+	// Record the inter-packet delay
+	var timeNow utils.Timeval
+	utils.GetTimeOfDay(&timeNow)
+	if stats.lastPacketReceptionTime.Tv_sec != 0 ||
+		stats.lastPacketReceptionTime.Tv_usec != 0 {
+		gap := (timeNow.Tv_sec-stats.lastPacketReceptionTime.Tv_sec)*MILLION +
+			timeNow.Tv_usec - stats.lastPacketReceptionTime.Tv_usec
+		if gap > int64(stats.maxInterPacketGapUS) {
+			stats.maxInterPacketGapUS = uint32(gap)
+		}
+		if gap < int64(stats.minInterPacketGapUS) {
+			stats.minInterPacketGapUS = uint32(gap)
+		}
+		stats.totalInterPacketGaps.Tv_usec += gap
+		if stats.totalInterPacketGaps.Tv_usec >= MILLION {
+			stats.totalInterPacketGaps.Tv_sec++
+			stats.totalInterPacketGaps.Tv_usec -= MILLION
+		}
+	}
+	stats.lastPacketReceptionTime = timeNow
+
+	// Compute the current 'jitter' using the received packet's RTP timestamp,
+	// and the RTP timestamp that would correspond to the current time.
+	// (Use the code from appendix A.8 in the RTP spec.)
+	// Note, however, that we don't use this packet if its timestamp is
+	// the same as that of the previous packet (this indicates a multi-packet
+	// fragment), or if we've been explicitly told not to use this packet.
+	if useForJitterCalculation && rtpTimestamp != stats.previousPacketRTPTimestamp {
+		arrival := int64(timestampFrequency) * timeNow.Tv_sec
+		arrival += ((2.0*int64(timestampFrequency)*timeNow.Tv_usec + 1000000.0) / 2000000)
+		// note: rounding
+		transit := arrival - int64(rtpTimestamp)
+		if stats.lastTransit == -1 {
+			stats.lastTransit = int(transit) // hack for first time
+		}
+		d := transit - int64(stats.lastTransit)
+		stats.lastTransit = int(transit)
+		if d < 0 {
+			d = -d
+		}
+		stats.jitter += (1.0 / 16.0) * (float32(d) - stats.jitter)
+	}
+
+	// Return the 'presentation time' that corresponds to "rtpTimestamp":
+	if stats.syncTime.Tv_sec == 0 && stats.syncTime.Tv_usec == 0 {
+		// This is the first timestamp that we've seen, so use the current
+		// 'wall clock' time as the synchronization time.  (This will be
+		// corrected later when we receive RTCP SRs.)
+		stats.syncTimestamp = rtpTimestamp
+		stats.syncTime = timeNow
+	}
+
+	timestampDiff := rtpTimestamp - stats.syncTimestamp
+	// Note: This works even if the timestamp wraps around
+	// (as long as "int" is 32 bits)
+
+	// Divide this by the timestamp frequency to get real time:
+	timeDiff := float32(timestampDiff) / float32(timestampFrequency)
+
+	// Add this to the 'sync time' to get our result:
+	var million float32 = 1000000
+	var seconds, uSeconds int64
+	if timeDiff >= 0.0 {
+		seconds = stats.syncTime.Tv_sec + int64(timeDiff)
+		uSeconds = stats.syncTime.Tv_usec + int64((timeDiff-float32(int64(timeDiff)))*million)
+		if uSeconds >= int64(million) {
+			uSeconds -= int64(million)
+			seconds++
+		}
+	} else {
+		timeDiff = -timeDiff
+		seconds = stats.syncTime.Tv_sec - int64(timeDiff)
+		uSeconds = stats.syncTime.Tv_usec - int64((timeDiff-float32(int64(timeDiff)))*million)
+		if uSeconds < 0 {
+			uSeconds += int64(million)
+			seconds--
+		}
+	}
+
+	resultPresentationTime.Tv_sec = int64(seconds)
+	resultPresentationTime.Tv_usec = int64(uSeconds)
+	resultHasBeenSyncedUsingRTCP = stats.hasBeenSynchronized
+
+	// Save these as the new synchronization timestamp & time:
+	stats.syncTimestamp = rtpTimestamp
+	stats.syncTime = resultPresentationTime
+
+	stats.previousPacketRTPTimestamp = rtpTimestamp
+	return
 }
 
 func (stats *RTPReceptionStats) noteIncomingSR(ntpTimestampMSW, ntpTimestampLSW, rtpTimestamp uint32) {
@@ -40,6 +228,8 @@ func (stats *RTPReceptionStats) noteIncomingSR(ntpTimestampMSW, ntpTimestampLSW,
 func (stats *RTPReceptionStats) NumPacketsReceivedSinceLastReset() uint32 {
 	return stats.numPacketsReceivedSinceLastReset
 }
+
+////////// RTPReceptionStatsDB //////////
 
 type RTPReceptionStatsDB struct {
 	table                          map[uint32]*RTPReceptionStats
@@ -62,13 +252,14 @@ func (statsDB *RTPReceptionStatsDB) lookup(SSRC uint32) *RTPReceptionStats {
 	return stats
 }
 
-func (statsDB *RTPReceptionStatsDB) noteIncomingPacket(SSRC, seqNum, rtpTimestamp, timestampFrequency, packetSize uint32,
+func (statsDB *RTPReceptionStatsDB) noteIncomingPacket(SSRC, seqNum,
+	rtpTimestamp, timestampFrequency, packetSize uint32,
 	useForJitterCalculation bool) (presentationTime utils.Timeval, hasBeenSyncedUsingRTCP bool) {
 	statsDB.totNumPacketsReceived++
 
 	stats := statsDB.lookup(SSRC)
 	if stats == nil {
-		stats = NewRTPReceptionStats(SSRC)
+		stats = NewRTPReceptionStats(SSRC, seqNum)
 		if stats == nil {
 			return
 		}
@@ -80,14 +271,15 @@ func (statsDB *RTPReceptionStatsDB) noteIncomingPacket(SSRC, seqNum, rtpTimestam
 		statsDB.numActiveSourcesSinceLastReset++
 	}
 
-	stats.noteIncomingPacket(seqNum, rtpTimestamp, timestampFrequency, packetSize, useForJitterCalculation)
+	presentationTime, hasBeenSyncedUsingRTCP = stats.noteIncomingPacket(seqNum, rtpTimestamp,
+		timestampFrequency, packetSize, useForJitterCalculation)
 	return
 }
 
 func (statsDB *RTPReceptionStatsDB) noteIncomingSR(SSRC, ntpTimestampMSW, ntpTimestampLSW, rtpTimestamp uint32) {
 	stats := statsDB.lookup(SSRC)
 	if stats == nil {
-		stats = NewRTPReceptionStats(SSRC)
+		stats = NewRTPReceptionStats(SSRC, 0)
 		if stats == nil {
 			return
 		}

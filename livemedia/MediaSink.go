@@ -165,30 +165,30 @@ type MediaSink struct {
 	rtpSink IRTPSink
 }
 
-func (this *MediaSink) InitMediaSink(rtpSink IRTPSink) {
-	this.rtpSink = rtpSink
+func (sink *MediaSink) InitMediaSink(rtpSink IRTPSink) {
+	sink.rtpSink = rtpSink
 }
 
-func (this *MediaSink) StartPlaying(source IFramedSource) bool {
-	if this.Source != nil {
+func (sink *MediaSink) StartPlaying(source IFramedSource) bool {
+	if sink.Source != nil {
 		fmt.Println("This sink is already being played")
 		return false
 	}
 
-	if this.rtpSink == nil {
+	if sink.rtpSink == nil {
 		fmt.Println("This RTP Sink is nil")
 		return false
 	}
 
-	this.Source = source
-	this.rtpSink.ContinuePlaying()
+	sink.Source = source
+	sink.rtpSink.ContinuePlaying()
 	return true
 }
 
-func (this *MediaSink) StopPlaying() {
+func (sink *MediaSink) StopPlaying() {
 	// First, tell the source that we're no longer interested:
-	if this.Source != nil {
-		this.Source.stopGettingFrames()
+	if sink.Source != nil {
+		sink.Source.stopGettingFrames()
 	}
 }
 
@@ -208,7 +208,7 @@ func (sink *MediaSink) SdpMediaType() string {
 	return ""
 }
 
-func (this *MediaSink) OnSourceClosure() {
+func (sink *MediaSink) OnSourceClosure() {
 }
 
 func (sink *MediaSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {

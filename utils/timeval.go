@@ -1,8 +1,6 @@
 package utils
 
-import (
-	"time"
-)
+import "time"
 
 type Timeval struct {
 	Tv_sec  int64

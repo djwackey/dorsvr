@@ -1,6 +1,7 @@
 package livemedia
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -28,4 +29,22 @@ func Test_InitWithSDP(t *testing.T) {
 	} else {
 		t.Error("failed")
 	}
+}
+
+func Test_ConnectionEndpointName(t *testing.T) {
+	mediaSession := NewMediaSession(sdpDesc)
+	if mediaSession == nil {
+		fmt.Println("Unable to create new MediaSession")
+		t.Error("failed")
+	}
+
+	subsession := NewMediaSubSession(mediaSession)
+	if subsession == nil {
+		fmt.Println("Unable to create new MediaSubsession")
+		t.Error("failed")
+	}
+
+	//endPointName := subsession.ConnectionEndpointName()
+	//fmt.Println("Connection Endpoint Name:", endPointName)
+	t.Log("success")
 }

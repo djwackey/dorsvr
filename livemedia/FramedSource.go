@@ -42,12 +42,13 @@ func (this *FramedSource) GetNextFrame(buffTo []byte, maxSize uint,
 	this.source.doGetNextFrame()
 }
 
-func (this *FramedSource) afterGetting() {
-	this.isCurrentlyAwaitingData = false
+func (source *FramedSource) afterGetting() {
+	source.isCurrentlyAwaitingData = false
 
-	if this.afterGettingFunc != nil {
-		this.afterGettingFunc.(func(frameSize, durationInMicroseconds uint,
-			presentationTime utils.Timeval))(this.frameSize, this.durationInMicroseconds, this.presentationTime)
+	if source.afterGettingFunc != nil {
+		source.afterGettingFunc.(func(frameSize, durationInMicroseconds uint,
+			presentationTime utils.Timeval))(source.frameSize,
+			source.durationInMicroseconds, source.presentationTime)
 	}
 }
 

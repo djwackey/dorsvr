@@ -728,7 +728,7 @@ func (this *RTSPClient) constructSubSessionURL(subsession *livemedia.MediaSubSes
 	return prefix, separator, suffix
 }
 
-func (this *RTSPClient) createSessionString(sessionID string) string {
+func (client *RTSPClient) createSessionString(sessionID string) string {
 	var sessionStr string
 	if sessionID != "" {
 		sessionStr = fmt.Sprintf("Session: %s\r\n", sessionID)
@@ -736,7 +736,7 @@ func (this *RTSPClient) createSessionString(sessionID string) string {
 	return sessionStr
 }
 
-func (this *RTSPClient) createScaleString(scale, currentScale float32) string {
+func (client *RTSPClient) createScaleString(scale, currentScale float32) string {
 	var buf string
 	if scale != 1.0 || currentScale != 1.0 {
 		buf = fmt.Sprintf("Scale: %f\r\n", scale)
@@ -902,45 +902,45 @@ func (this *RTSPClient) parseTransportParams(paramsStr string) (*TransportParams
 	return transportParams, false
 }
 
-func (this *RTSPClient) parseScaleParam(paramStr string) (scale float32, ok bool) {
+func (client *RTSPClient) parseScaleParam(paramStr string) (scale float32, ok bool) {
 	n, _ := fmt.Sscanf(paramStr, "%f", &scale)
 	ok = (n == 1)
 	return
 }
 
-func (this *RTSPClient) parseRTPInfoParams(paramsStr string) (seqNum, timestamp int, ok bool) {
+func (client *RTSPClient) parseRTPInfoParams(paramsStr string) (seqNum, timestamp int, ok bool) {
 	ok = true
 	return
 }
 
-func (this *RTSPClient) handlePlayResponse(scaleParamsStr, rangeParamsStr, rtpInfoParamsStr string) bool {
+func (client *RTSPClient) handlePlayResponse(scaleParamsStr, rangeParamsStr, rtpInfoParamsStr string) bool {
 	return true
 }
 
-func (this *RTSPClient) handleTeardownResponse() bool {
+func (client *RTSPClient) handleTeardownResponse() bool {
 	return true
 }
 
-func (this *RTSPClient) handleGetParameterResponse(parameterName string) bool {
+func (client *RTSPClient) handleGetParameterResponse(parameterName string) bool {
 	fmt.Println("handleGetParameterResponse", parameterName)
 	return true
 }
 
-func (this *RTSPClient) handleAuthenticationFailure(paramsStr string) bool {
+func (client *RTSPClient) handleAuthenticationFailure(paramsStr string) bool {
 	return false
 }
 
-func (this *RTSPClient) handleIncomingRequest(reqStr string, length int) {
+func (client *RTSPClient) handleIncomingRequest(reqStr string, length int) {
 	requestString, parseSucceeded := livemedia.ParseRTSPRequestString(reqStr, length)
 	if parseSucceeded {
 		fmt.Printf("Received incoming RTSP request: %s\n", reqStr)
 
 		buffer := fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n\r\n", requestString.Cseq)
-		this.tcpConn.Write([]byte(buffer))
+		client.tcpConn.Write([]byte(buffer))
 	}
 }
 
-func (this *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (headerParams string, result bool) {
+func (client *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (headerParams string, result bool) {
 	if !strings.HasPrefix(line, headerName) {
 		return headerParams, false
 	}

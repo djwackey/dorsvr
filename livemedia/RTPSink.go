@@ -40,95 +40,95 @@ type RTPSink struct {
 	transmissionStatsDB        *RTPTransmissionStatsDB
 }
 
-func (this *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType,
+func (sink *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType,
 	rtpTimestampFrequency uint, rtpPayloadFormatName string) {
-	this.InitMediaSink(rtpSink)
-	this.rtpInterface = NewRTPInterface(this, gs)
-	this.rtpPayloadType = rtpPayloadType
-	this.rtpTimestampFrequency = rtpTimestampFrequency
-	this.rtpPayloadFormatName = rtpPayloadFormatName
+	sink.InitMediaSink(rtpSink)
+	sink.rtpInterface = NewRTPInterface(sink, gs)
+	sink.rtpPayloadType = rtpPayloadType
+	sink.rtpTimestampFrequency = rtpTimestampFrequency
+	sink.rtpPayloadFormatName = rtpPayloadFormatName
 }
 
-func (this *RTPSink) SSRC() uint {
-	return this.ssrc
+func (sink *RTPSink) SSRC() uint {
+	return sink.ssrc
 }
 
-func (this *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
-	this.rtpInterface.addStreamSocket(sockNum, streamChannelID)
+func (sink *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
+	sink.rtpInterface.addStreamSocket(sockNum, streamChannelID)
 }
 
-func (this *RTPSink) delStreamSocket() {
-	this.rtpInterface.delStreamSocket()
+func (sink *RTPSink) delStreamSocket() {
+	sink.rtpInterface.delStreamSocket()
 }
 
-func (this *RTPSink) currentSeqNo() uint {
-	return this.seqNo
+func (sink *RTPSink) currentSeqNo() uint {
+	return sink.seqNo
 }
 
-func (this *RTPSink) SdpMediaType() string {
+func (sink *RTPSink) SdpMediaType() string {
 	return "data"
 }
 
-func (this *RTPSink) RtpPayloadType() uint {
-	return this.rtpPayloadType
+func (sink *RTPSink) RtpPayloadType() uint {
+	return sink.rtpPayloadType
 }
 
-func (this *RTPSink) RtpmapLine() string {
+func (sink *RTPSink) RtpmapLine() string {
 	var rtpmapLine string
-	if this.rtpPayloadType >= 96 {
+	if sink.rtpPayloadType >= 96 {
 		encodingParamsPart := ""
 		rtpmapFmt := "a=rtpmap:%d %s/%d%s\r\n"
 		rtpmapLine = fmt.Sprintf(rtpmapFmt,
-			this.RtpPayloadType(),
-			this.RtpPayloadFormatName(),
-			this.RtpTimestampFrequency(), encodingParamsPart)
+			sink.RtpPayloadType(),
+			sink.RtpPayloadFormatName(),
+			sink.RtpTimestampFrequency(), encodingParamsPart)
 	}
 
 	return rtpmapLine
 }
 
-func (this *RTPSink) RtpPayloadFormatName() string {
-	return this.rtpPayloadFormatName
+func (sink *RTPSink) RtpPayloadFormatName() string {
+	return sink.rtpPayloadFormatName
 }
 
-func (this *RTPSink) RtpTimestampFrequency() uint {
-	return this.rtpTimestampFrequency
+func (sink *RTPSink) RtpTimestampFrequency() uint {
+	return sink.rtpTimestampFrequency
 }
 
-func (this *RTPSink) presetNextTimestamp() uint {
+func (sink *RTPSink) presetNextTimestamp() uint {
 	var timeNow utils.Timeval
 	utils.GetTimeOfDay(&timeNow)
 
-	tsNow := this.convertToRTPTimestamp(timeNow)
-	this.timestampBase = tsNow
-	this.nextTimestampHasBeenPreset = true
+	tsNow := sink.convertToRTPTimestamp(timeNow)
+	sink.timestampBase = tsNow
+	sink.nextTimestampHasBeenPreset = true
 
 	return tsNow
 }
 
-func (this *RTPSink) convertToRTPTimestamp(tv utils.Timeval) uint {
+func (sink *RTPSink) convertToRTPTimestamp(tv utils.Timeval) uint {
 	// Begin by converting from "struct timeval" units to RTP timestamp units:
-	timestampIncrement := this.timestampFrequency * uint(tv.Tv_sec)
-	timestampIncrement += (2.0*this.timestampFrequency*uint(tv.Tv_usec) + 1000000.0) / 2000000
+	timestampIncrement := sink.timestampFrequency * uint(tv.Tv_sec)
+	timestampIncrement += (2.0*sink.timestampFrequency*uint(tv.Tv_usec) + 1000000.0) / 2000000
 
 	// Then add this to our 'timestamp base':
-	if this.nextTimestampHasBeenPreset {
+	if sink.nextTimestampHasBeenPreset {
 		// Make the returned timestamp the same as the current "fTimestampBase",
 		// so that timestamps begin with the value that was previously preset:
-		this.timestampBase -= timestampIncrement
-		this.nextTimestampHasBeenPreset = false
+		sink.timestampBase -= timestampIncrement
+		sink.nextTimestampHasBeenPreset = false
 	}
 
-	rtpTimestamp := this.timestampBase + timestampIncrement
-	return rtpTimestamp
+	// return RTP Timestamp
+	return sink.timestampBase + timestampIncrement
 }
 
-func (this *RTPSink) NextTimestampHasBeenPreset() bool {
-	return this.nextTimestampHasBeenPreset
+func (sink *RTPSink) NextTimestampHasBeenPreset() bool {
+	return sink.nextTimestampHasBeenPreset
 }
 
-func (this *RTPSink) EnableRTCPReports() bool {
-	return this.enableRTCPReports
+func (sink *RTPSink) EnableRTCPReports() bool {
+	return sink.enableRTCPReports
 }
 
 //////// RTPTransmissionStatsDB ////////

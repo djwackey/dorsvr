@@ -20,34 +20,34 @@ func NewRTPInterface(owner interface{}, gs *gs.GroupSock) *RTPInterface {
 	return rtpInterface
 }
 
-func (irtp *RTPInterface) startNetworkReading(handlerProc interface{}) {
+func (r *RTPInterface) startNetworkReading(handlerProc interface{}) {
 	go handlerProc.(func())()
 }
 
-func (irtp *RTPInterface) stopNetworkReading() {
+func (r *RTPInterface) stopNetworkReading() {
 }
 
-func (irtp *RTPInterface) GS() *gs.GroupSock {
-	return irtp.gs
+func (r *RTPInterface) GS() *gs.GroupSock {
+	return r.gs
 }
 
-func (irtp *RTPInterface) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
+func (r *RTPInterface) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
 	if sockNum == nil {
 		return
 	}
 
-	irtp.tcpStreams = NewTCPStreamRecord(sockNum, streamChannelID)
+	r.tcpStreams = NewTCPStreamRecord(sockNum, streamChannelID)
 }
 
-func (irtp *RTPInterface) delStreamSocket() {
+func (r *RTPInterface) delStreamSocket() {
 }
 
-func (irtp *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
-	return irtp.gs.Output(packet, packetSize, irtp.gs.TTL())
+func (r *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
+	return r.gs.Output(packet, packetSize, r.gs.TTL())
 }
 
-func (irtp *RTPInterface) handleRead(buffer []byte) (int, error) {
-	readBytes, err := irtp.gs.HandleRead(buffer)
+func (r *RTPInterface) handleRead(buffer []byte) (int, error) {
+	readBytes, err := r.gs.HandleRead(buffer)
 	return readBytes, err
 }
 

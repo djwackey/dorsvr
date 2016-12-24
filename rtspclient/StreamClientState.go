@@ -11,6 +11,6 @@ func NewStreamClientState() *StreamClientState {
 	return new(StreamClientState)
 }
 
-func (this *StreamClientState) Next() *livemedia.MediaSubSession {
-	return this.Session.SubSession()
+func (state *StreamClientState) Next() *livemedia.MediaSubSession {
+	return state.Session.SubSession()
 }
