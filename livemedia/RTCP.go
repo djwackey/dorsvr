@@ -2,6 +2,7 @@ package livemedia
 
 import (
 	"fmt"
+
 	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/dorsvr/utils"
 )
@@ -80,8 +81,8 @@ func dTimeNow() int64 {
 	return timeNow.Tv_sec + timeNow.Tv_usec/1000000.0
 }
 
-func (this *SDESItem) totalSize() uint {
-	return 2 + uint(this.data[1])
+func (s *SDESItem) totalSize() uint {
+	return 2 + uint(s.data[1])
 }
 
 func NewRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string) *RTCPInstance {
@@ -103,36 +104,36 @@ func NewRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string) *RTC
 	return rtcp
 }
 
-func (instance *RTCPInstance) numMembers() uint {
+func (r *RTCPInstance) numMembers() uint {
 	return 0
 }
 
-func (instance *RTCPInstance) setSpecificRRHandler() {
+func (r *RTCPInstance) setSpecificRRHandler() {
 }
 
-func (this *RTCPInstance) SetByeHandler(handlerTask interface{}, clientData interface{}) {
-	this.byeHandlerTask = handlerTask
-	this.byeHandlerClientData = clientData
+func (r *RTCPInstance) SetByeHandler(handlerTask interface{}, clientData interface{}) {
+	r.byeHandlerTask = handlerTask
+	r.byeHandlerClientData = clientData
 }
 
-func (instance *RTCPInstance) setSRHandler(handlerTask interface{}, clientData interface{}) {
-	instance.SRHandlerTask = handlerTask
+func (r *RTCPInstance) setSRHandler(handlerTask interface{}, clientData interface{}) {
+	r.SRHandlerTask = handlerTask
 }
 
-func (instance *RTCPInstance) setRRHandler(handlerTask interface{}, clientData interface{}) {
-	instance.RRHandlerTask = handlerTask
+func (r *RTCPInstance) setRRHandler(handlerTask interface{}, clientData interface{}) {
+	r.RRHandlerTask = handlerTask
 }
 
-func (this *RTCPInstance) incomingReportHandler() {
+func (r *RTCPInstance) incomingReportHandler() {
 	var callByeHandler bool
 	for {
-		readBytes, err := this.rtcpInterface.handleRead(this.inBuf)
+		readBytes, err := r.rtcpInterface.handleRead(r.inBuf)
 		if err != nil {
 			fmt.Println("RTCP Interface failed to handle read.", err.Error())
 			break
 		}
 
-		packet := this.inBuf[:readBytes]
+		packet := r.inBuf[:readBytes]
 		packetSize := uint(readBytes)
 
 		var rtcpHdr uint32
@@ -191,16 +192,16 @@ func (this *RTCPInstance) incomingReportHandler() {
 					rtpTimestamp, _ := gs.Ntohl(packet)
 					packet, packetSize = ADVANCE(packet, packetSize, 4)
 
-					if this.Source != nil {
-						receptionStats := this.Source.ReceptionStatsDB()
+					if r.Source != nil {
+						receptionStats := r.Source.ReceptionStatsDB()
 						receptionStats.noteIncomingSR(reportSenderSSRC, NTPmsw, NTPlsm, rtpTimestamp)
 					}
 
 					packet, packetSize = ADVANCE(packet, packetSize, 8)
 
 					// If a 'SR handler' was set, call it now:
-					if this.SRHandlerTask != nil {
-						//this.SRHandlerTask()
+					if r.SRHandlerTask != nil {
+						//r.SRHandlerTask()
 					}
 				}
 
@@ -210,15 +211,15 @@ func (this *RTCPInstance) incomingReportHandler() {
 				if length >= reportBlocksSize {
 					length -= reportBlocksSize
 
-					if this.Sink != nil {
+					if r.Sink != nil {
 					} else {
 						packet, packetSize = ADVANCE(packet, packetSize, reportBlocksSize)
 					}
 
 					if pt == RTCP_PT_RR {
 						fmt.Println("RTCP_PT_RR")
-						if this.RRHandlerTask != nil {
-							//this.RRHandlerTask()
+						if r.RRHandlerTask != nil {
+							//r.RRHandlerTask()
 						}
 					}
 
@@ -265,58 +266,58 @@ func (this *RTCPInstance) incomingReportHandler() {
 			fmt.Println("validated entire RTCP packet")
 		}
 
-		this.onReceive(typeOfPacket, totPacketSize, uint(reportSenderSSRC))
+		r.onReceive(typeOfPacket, totPacketSize, uint(reportSenderSSRC))
 
-		if callByeHandler && this.byeHandlerTask != nil {
-			this.byeHandlerTask.(func(subsession *MediaSubSession))(this.byeHandlerClientData.(*MediaSubSession))
+		if callByeHandler && r.byeHandlerTask != nil {
+			r.byeHandlerTask.(func(subsession *MediaSubSession))(r.byeHandlerClientData.(*MediaSubSession))
 		}
 	}
 }
 
-func (this *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
+func (r *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
 	OnReceive()
 }
 
-func (this *RTCPInstance) sendReport() {
+func (r *RTCPInstance) sendReport() {
 	// Begin by including a SR and/or RR report:
-	this.addReport()
+	r.addReport()
 
 	// Then, include a SDES:
-	this.addSDES()
+	r.addSDES()
 
 	// Send the report:
-	this.sendBuiltPacket()
+	r.sendBuiltPacket()
 }
 
-func (this *RTCPInstance) sendBuiltPacket() {
-	reportSize := this.outBuf.curPacketSize()
-	this.rtcpInterface.sendPacket(this.outBuf.packet(), reportSize)
-	this.outBuf.resetOffset()
+func (r *RTCPInstance) sendBuiltPacket() {
+	reportSize := r.outBuf.curPacketSize()
+	r.rtcpInterface.sendPacket(r.outBuf.packet(), reportSize)
+	r.outBuf.resetOffset()
 
-	this.lastSentSize = uint(IP_UDP_HDR_SIZE) + reportSize
-	this.haveJustSentPacket = true
-	this.lastPacketSentSize = reportSize
+	r.lastSentSize = uint(IP_UDP_HDR_SIZE) + reportSize
+	r.haveJustSentPacket = true
+	r.lastPacketSentSize = reportSize
 }
 
-func (this *RTCPInstance) addReport() {
-	if this.Sink != nil {
-		if this.Sink.EnableRTCPReports() {
+func (r *RTCPInstance) addReport() {
+	if r.Sink != nil {
+		if r.Sink.EnableRTCPReports() {
 			return
 		}
 
-		if this.Sink.NextTimestampHasBeenPreset() {
+		if r.Sink.NextTimestampHasBeenPreset() {
 			return
 		}
 
-		this.addSR()
-	} else if this.Source != nil {
-		this.addRR()
+		r.addSR()
+	} else if r.Source != nil {
+		r.addRR()
 	}
 }
 
-func (this *RTCPInstance) addSDES() {
+func (r *RTCPInstance) addSDES() {
 	numBytes := 4
-	//numBytes += this.CNAME.totalSize()
+	//numBytes += r.CNAME.totalSize()
 	numBytes += 1
 
 	num4ByteWords := (numBytes + 3) / 4
@@ -324,36 +325,36 @@ func (this *RTCPInstance) addSDES() {
 	var rtcpHdr int64 = 0x81000000 // version 2, no padding, 1 SSRC chunk
 	rtcpHdr |= (RTCP_PT_SDES << 16)
 	rtcpHdr |= int64(num4ByteWords)
-	this.outBuf.enqueueWord(uint(rtcpHdr))
+	r.outBuf.enqueueWord(uint(rtcpHdr))
 }
 
-func (instance *RTCPInstance) addSR() {
-	//this.enqueueCommonReportPrefix(RTCP_PT_SR, this.Source.SSRC(), 0)
-	instance.enqueueCommonReportSuffix()
+func (r *RTCPInstance) addSR() {
+	//r.enqueueCommonReportPrefix(RTCP_PT_SR, r.Source.SSRC(), 0)
+	r.enqueueCommonReportSuffix()
 }
 
-func (instance *RTCPInstance) addRR() {
-	//this.enqueueCommonReportPrefix(RTCP_PT_RR, this.Source.SSRC(), 0)
-	instance.enqueueCommonReportSuffix()
+func (r *RTCPInstance) addRR() {
+	//r.enqueueCommonReportPrefix(RTCP_PT_RR, r.Source.SSRC(), 0)
+	r.enqueueCommonReportSuffix()
 }
 
-func (instance *RTCPInstance) onExpire() {
+func (r *RTCPInstance) onExpire() {
 	// Note: totsessionbw is kbits per second
-	var rtcpBW float32 = 0.05 * float32(instance.totSessionBW) * 1024 / 8
+	var rtcpBW float32 = 0.05 * float32(r.totSessionBW) * 1024 / 8
 
 	var senders uint
-	if instance.Sink != nil {
+	if r.Sink != nil {
 		senders = 1
 	}
 
-	OnExpire(instance, instance.numMembers(), senders, rtcpBW)
+	OnExpire(r, r.numMembers(), senders, rtcpBW)
 }
 
-func (instance *RTCPInstance) unsetSpecificRRHandler() {
+func (r *RTCPInstance) unsetSpecificRRHandler() {
 }
 
-func (instance *RTCPInstance) enqueueCommonReportPrefix(packetType, SSRC, numExtraWords uint) {
+func (r *RTCPInstance) enqueueCommonReportPrefix(packetType, SSRC, numExtraWords uint) {
 }
 
-func (instance *RTCPInstance) enqueueCommonReportSuffix() {
+func (r *RTCPInstance) enqueueCommonReportSuffix() {
 }

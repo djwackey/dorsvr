@@ -40,6 +40,8 @@ func (source *MultiFramedRTPSource) reset() {
 
 func (source *MultiFramedRTPSource) doGetNextFrame() {
 	source.rtpInterface.startNetworkReading(source.networkReadHandler)
+
+	source.frameSize = 0
 }
 
 func (source *MultiFramedRTPSource) doGetNextFrame1() {

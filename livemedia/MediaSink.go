@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/djwackey/dorsvr/utils"
 	"net"
+
+	"github.com/djwackey/dorsvr/utils"
 )
 
 var OutPacketBufferMaxSize uint = 60000 // default
@@ -38,121 +39,121 @@ func NewOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffe
 	return outPacketBuffer
 }
 
-func (this *OutPacketBuffer) packet() []byte {
-	return this.buff[this.packetStart:]
+func (b *OutPacketBuffer) packet() []byte {
+	return b.buff[b.packetStart:]
 }
 
-func (this *OutPacketBuffer) curPtr() []byte {
-	return this.buff[(this.packetStart + this.curOffset):]
+func (b *OutPacketBuffer) curPtr() []byte {
+	return b.buff[(b.packetStart + b.curOffset):]
 }
 
-func (this *OutPacketBuffer) curPacketSize() uint {
-	return this.curOffset
+func (b *OutPacketBuffer) curPacketSize() uint {
+	return b.curOffset
 }
 
-func (this *OutPacketBuffer) totalBufferSize() uint {
-	return this.limit
+func (b *OutPacketBuffer) totalBufferSize() uint {
+	return b.limit
 }
 
-func (this *OutPacketBuffer) increment(numBytes uint) {
-	this.curOffset += numBytes
+func (b *OutPacketBuffer) increment(numBytes uint) {
+	b.curOffset += numBytes
 }
 
-func (this *OutPacketBuffer) haveOverflowData() bool {
-	return this.overflowDataSize > 0
+func (b *OutPacketBuffer) haveOverflowData() bool {
+	return b.overflowDataSize > 0
 }
 
-func (this *OutPacketBuffer) isPreferredSize() bool {
-	return this.curOffset >= this.preferred
+func (b *OutPacketBuffer) isPreferredSize() bool {
+	return b.curOffset >= b.preferred
 }
 
-func (this *OutPacketBuffer) useOverflowData() {
-	this.enqueue(this.buff[(this.packetStart+this.overflowDataOffset):], this.overflowDataSize)
+func (b *OutPacketBuffer) useOverflowData() {
+	b.enqueue(b.buff[(b.packetStart+b.overflowDataOffset):], b.overflowDataSize)
 }
 
-func (this *OutPacketBuffer) OverflowDataSize() uint {
-	return this.overflowDataSize
+func (b *OutPacketBuffer) OverflowDataSize() uint {
+	return b.overflowDataSize
 }
 
-func (this *OutPacketBuffer) OverflowPresentationTime() utils.Timeval {
-	return this.overflowPresentationTime
+func (b *OutPacketBuffer) OverflowPresentationTime() utils.Timeval {
+	return b.overflowPresentationTime
 }
 
-func (this *OutPacketBuffer) OverflowDurationInMicroseconds() uint {
-	return this.overflowDurationInMicroseconds
+func (b *OutPacketBuffer) OverflowDurationInMicroseconds() uint {
+	return b.overflowDurationInMicroseconds
 }
 
-func (this *OutPacketBuffer) adjustPacketStart(numBytes uint) {
-	this.packetStart += numBytes
-	if this.overflowDataOffset >= numBytes {
-		this.overflowDataOffset -= numBytes
+func (b *OutPacketBuffer) adjustPacketStart(numBytes uint) {
+	b.packetStart += numBytes
+	if b.overflowDataOffset >= numBytes {
+		b.overflowDataOffset -= numBytes
 	} else {
-		this.overflowDataOffset = 0
-		this.overflowDataSize = 0
+		b.overflowDataOffset = 0
+		b.overflowDataSize = 0
 	}
 }
 
-func (this *OutPacketBuffer) totalBytesAvailable() uint {
-	return this.limit - (this.packetStart + this.curOffset)
+func (b *OutPacketBuffer) totalBytesAvailable() uint {
+	return b.limit - (b.packetStart + b.curOffset)
 }
 
-func (this *OutPacketBuffer) enqueue(from []byte, numBytes uint) {
-	if numBytes > this.totalBytesAvailable() {
-		fmt.Println("OutPacketBuffer::enqueue() warning: %d > %d", numBytes, this.totalBytesAvailable())
-		numBytes = this.totalBytesAvailable()
+func (b *OutPacketBuffer) enqueue(from []byte, numBytes uint) {
+	if numBytes > b.totalBytesAvailable() {
+		fmt.Println("OutPacketBuffer::enqueue() warning: %d > %d", numBytes, b.totalBytesAvailable())
+		numBytes = b.totalBytesAvailable()
 	}
 
-	if string(this.curPtr()) != string(from) {
-		//this.curPtr() = from
+	if string(b.curPtr()) != string(from) {
+		//b.curPtr() = from
 	}
-	this.increment(numBytes)
+	b.increment(numBytes)
 }
 
-func (this *OutPacketBuffer) enqueueWord(word uint) {
+func (b *OutPacketBuffer) enqueueWord(word uint) {
 	buf := bytes.NewBuffer([]byte{})
 	binary.Write(buf, binary.BigEndian, word)
-	this.enqueue(buf.Bytes(), 4)
+	b.enqueue(buf.Bytes(), 4)
 }
 
-func (this *OutPacketBuffer) insert(from []byte, numBytes, toPosition uint) {
-	realToPosition := this.packetStart + toPosition
-	if realToPosition+numBytes > this.limit {
-		if realToPosition > this.limit {
+func (b *OutPacketBuffer) insert(from []byte, numBytes, toPosition uint) {
+	realToPosition := b.packetStart + toPosition
+	if realToPosition+numBytes > b.limit {
+		if realToPosition > b.limit {
 			return // we can't do this
 		}
-		numBytes = this.limit - realToPosition
+		numBytes = b.limit - realToPosition
 	}
 
 	//memmove(&fBuf[realToPosition], from, numBytes)
-	if toPosition+numBytes > this.curOffset {
-		this.curOffset = toPosition + numBytes
+	if toPosition+numBytes > b.curOffset {
+		b.curOffset = toPosition + numBytes
 	}
 }
 
-func (this *OutPacketBuffer) insertWord(word byte, toPosition uint) {
+func (b *OutPacketBuffer) insertWord(word byte, toPosition uint) {
 }
 
-func (this *OutPacketBuffer) wouldOverflow(numBytes uint) bool {
-	return (this.curOffset + numBytes) > this.maxPacketSize
+func (b *OutPacketBuffer) wouldOverflow(numBytes uint) bool {
+	return (b.curOffset + numBytes) > b.maxPacketSize
 }
 
-func (this *OutPacketBuffer) skipBytes(numBytes uint) {
+func (b *OutPacketBuffer) skipBytes(numBytes uint) {
 }
 
-func (this *OutPacketBuffer) resetPacketStart() {
-	if this.overflowDataSize > 0 {
-		this.overflowDataOffset += this.packetStart
+func (b *OutPacketBuffer) resetPacketStart() {
+	if b.overflowDataSize > 0 {
+		b.overflowDataOffset += b.packetStart
 	}
-	this.packetStart = 0
+	b.packetStart = 0
 }
 
-func (this *OutPacketBuffer) resetOffset() {
-	this.curOffset = 0
+func (b *OutPacketBuffer) resetOffset() {
+	b.curOffset = 0
 }
 
-func (this *OutPacketBuffer) resetOverflowData() {
-	this.overflowDataSize = 0
-	this.overflowDataOffset = 0
+func (b *OutPacketBuffer) resetOverflowData() {
+	b.overflowDataSize = 0
+	b.overflowDataOffset = 0
 }
 
 //////// MediaSink ////////

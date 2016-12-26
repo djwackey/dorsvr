@@ -2,11 +2,13 @@ package rtspclient
 
 import (
 	"fmt"
-	gs "github.com/djwackey/dorsvr/groupsock"
-	"github.com/djwackey/dorsvr/livemedia"
 	"net"
 	"strconv"
 	"strings"
+
+	gs "github.com/djwackey/dorsvr/groupsock"
+	"github.com/djwackey/dorsvr/livemedia"
+	"github.com/djwackey/dorsvr/scheduler"
 )
 
 // default value; you can reassign this in your application if you need to
@@ -27,215 +29,172 @@ type RTSPClient struct {
 	tcpConn                       *net.TCPConn
 	scs                           *StreamClientState
 	requestsAwaitingResponse      *RequestQueue
-	requestsAwaitingConnection    *RequestQueue
 	requestsAwaitingHTTPTunneling *RequestQueue
-}
-
-type RequestRecord struct {
-	cseq         int
-	boolFlags    int
-	scale        float32
-	start        float32
-	end          float32
-	commandName  string
-	contentStr   string
-	absStartTime string
-	absEndTime   string
-	handler      interface{}
-	subsession   *livemedia.MediaSubSession
-	session      *livemedia.MediaSession
 }
 
 type ResponseHandler interface {
 	Handle(rtspClient *RTSPClient, resultCode int, resultStr string)
 }
 
-func NewRequestRecord(cseq int, commandName string, responseHandler interface{}) *RequestRecord {
-	requestRecord := new(RequestRecord)
-	requestRecord.cseq = cseq
-	requestRecord.scale = 1.0
-	requestRecord.start = 0.0
-	requestRecord.end = -1.0
-	requestRecord.handler = responseHandler
-	requestRecord.commandName = commandName
-	return requestRecord
+func New() *RTSPClient {
+	return new(RTSPClient)
 }
 
-func (record *RequestRecord) setSession(session *livemedia.MediaSession) {
-	record.session = session
-}
+func (c *RTSPClient) DialRTSP(rtspURL string) bool {
+	appName := "dorcli"
+	c.init(rtspURL, appName)
 
-func (record *RequestRecord) setSubSession(subsession *livemedia.MediaSubSession) {
-	record.subsession = subsession
-}
-
-func (record *RequestRecord) CommandName() string {
-	return record.commandName
-}
-
-func (record *RequestRecord) Session() *livemedia.MediaSession {
-	return record.session
-}
-
-func (record *RequestRecord) Subsession() *livemedia.MediaSubSession {
-	return record.subsession
-}
-
-func (record *RequestRecord) BoolFlags() int {
-	return record.boolFlags
-}
-
-func (record *RequestRecord) CSeq() int {
-	return record.cseq
-}
-
-func (record *RequestRecord) Scale() float32 {
-	return record.scale
-}
-
-func (record *RequestRecord) Start() float32 {
-	return record.start
-}
-
-func (record *RequestRecord) End() float32 {
-	return record.end
-}
-
-func (record *RequestRecord) AbsStartTime() string {
-	return record.absStartTime
-}
-
-func (record *RequestRecord) AbsEndTime() string {
-	return record.absEndTime
-}
-
-func (record *RequestRecord) ContentStr() string {
-	return record.contentStr
-}
-
-func (record *RequestRecord) Handle(rtspClient *RTSPClient, resultCode int, resultStr string) {
-	if record.handler != nil {
-		record.handler.(func(rtspClient *RTSPClient, resultCode int, resultStr string))(rtspClient, resultCode, resultStr)
+	// has already connected
+	if c.tcpConn != nil {
+		return false
 	}
+
+	if !c.openConnection() {
+		return false
+	}
+
+	return true
 }
 
-func (client *RTSPClient) InitRTSPClient(rtspURL, appName string) {
-	client.cseq = 1
-	client.responseBuffer = make([]byte, responseBufferSize)
-	client.setBaseURL(rtspURL)
+func (c *RTSPClient) SendRequest() bool {
+	sendBytes := c.sendDescribeCommand(continueAfterDESCRIBE)
+	if sendBytes == 0 {
+		fmt.Println("Failed to send describe command.")
+		return false
+	}
 
-	client.requestsAwaitingResponse = NewRequestQueue()
-	client.requestsAwaitingConnection = NewRequestQueue()
+	return true
+}
 
-	client.scs = NewStreamClientState()
+func (c *RTSPClient) Waiting() {
+	scheduler.DoEventLoop()
+}
+
+func (c *RTSPClient) Close() {
+	scs := c.SCS()
+
+	//if scs.Subsession.RtcpInstance() != nil {
+	//	scs.Subsession.RtcpInstance().SetByeHandler(nil, nil)
+	//}
+
+	c.SendTeardownCommand(scs.Session, nil)
+}
+
+func (c *RTSPClient) init(rtspURL, appName string) {
+	c.cseq = 1
+	c.responseBuffer = make([]byte, responseBufferSize)
+	c.setBaseURL(rtspURL)
+
+	c.requestsAwaitingResponse = newRequestQueue()
+
+	c.scs = NewStreamClientState()
 
 	// Set the "User-Agent:" header to use in each request:
 	libName := "Dor Streaming Media v"
 	libVersionStr := MEDIA_CLIENT_VERSION
-	libPrefix := ""
-	libSuffix := ""
+	var libPrefix, libSuffix string
 	if appName != "" {
 		libPrefix = " ("
 		libSuffix = ")"
 	}
 
 	userAgentName := fmt.Sprintf("%s%s%s%s%s", appName, libPrefix, libName, libVersionStr, libSuffix)
-	client.setUserAgentString(userAgentName)
+	c.setUserAgentString(userAgentName)
 }
 
-func (client *RTSPClient) URL() string {
-	return client.baseURL
+func (c *RTSPClient) URL() string {
+	return c.baseURL
 }
 
-func (client *RTSPClient) SCS() *StreamClientState {
-	return client.scs
+func (c *RTSPClient) SCS() *StreamClientState {
+	return c.scs
 }
 
-func (client *RTSPClient) SendOptionsCommand(responseHandler interface{}) int {
-	client.cseq++
-	return client.sendRequest(NewRequestRecord(client.cseq, "OPTIONS", responseHandler))
+func (c *RTSPClient) SendOptionsCommand(responseHandler interface{}) int {
+	c.cseq++
+	return c.sendRequest(newRequestRecord(c.cseq, "OPTIONS", responseHandler))
 }
 
-func (client *RTSPClient) SendAnnounceCommand(responseHandler interface{}) int {
-	client.cseq++
-	return client.sendRequest(NewRequestRecord(client.cseq, "ANNOUNCE", responseHandler))
+func (c *RTSPClient) SendAnnounceCommand(responseHandler interface{}) int {
+	c.cseq++
+	return c.sendRequest(newRequestRecord(c.cseq, "ANNOUNCE", responseHandler))
 }
 
-func (client *RTSPClient) SendDescribeCommand(responseHandler interface{}) int {
-	client.cseq++
-	return client.sendRequest(NewRequestRecord(client.cseq, "DESCRIBE", responseHandler))
+func (c *RTSPClient) sendDescribeCommand(responseHandler interface{}) int {
+	c.cseq++
+	return c.sendRequest(newRequestRecord(c.cseq, "DESCRIBE", responseHandler))
 }
 
-func (client *RTSPClient) SendSetupCommand(subsession *livemedia.MediaSubSession, responseHandler interface{}) int {
-	client.cseq++
-	record := NewRequestRecord(client.cseq, "SETUP", responseHandler)
+func (c *RTSPClient) SendSetupCommand(subsession *livemedia.MediaSubSession, responseHandler interface{}) int {
+	c.cseq++
+	record := newRequestRecord(c.cseq, "SETUP", responseHandler)
 	record.setSubSession(subsession)
-	return client.sendRequest(record)
+	return c.sendRequest(record)
 }
 
-func (client *RTSPClient) SendPlayCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
-	client.cseq++
-	record := NewRequestRecord(client.cseq, "PLAY", responseHandler)
+func (c *RTSPClient) SendPlayCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
+	c.cseq++
+	record := newRequestRecord(c.cseq, "PLAY", responseHandler)
 	record.setSession(session)
-	return client.sendRequest(record)
+	return c.sendRequest(record)
 }
 
-func (client *RTSPClient) SendPauseCommand(responseHandler interface{}) int {
-	client.cseq++
-	return client.sendRequest(NewRequestRecord(client.cseq, "PAUSE", responseHandler))
+func (c *RTSPClient) SendPauseCommand(responseHandler interface{}) int {
+	c.cseq++
+	return c.sendRequest(newRequestRecord(c.cseq, "PAUSE", responseHandler))
 }
 
-func (client *RTSPClient) SendRecordCommand(responseHandler interface{}) int {
-	client.cseq++
-	return client.sendRequest(NewRequestRecord(client.cseq, "RECORD", responseHandler))
+func (c *RTSPClient) SendRecordCommand(responseHandler interface{}) int {
+	c.cseq++
+	return c.sendRequest(newRequestRecord(c.cseq, "RECORD", responseHandler))
 }
 
-func (client *RTSPClient) SendTeardownCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
-	client.cseq++
-	record := NewRequestRecord(client.cseq, "TEARDOWN", responseHandler)
+func (c *RTSPClient) SendTeardownCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
+	c.cseq++
+	record := newRequestRecord(c.cseq, "TEARDOWN", responseHandler)
 	record.setSession(session)
-	return client.sendRequest(record)
+	return c.sendRequest(record)
 }
 
-func (client *RTSPClient) SendSetParameterCommand(responseHandler interface{}) int {
-	client.cseq++
-	return client.sendRequest(NewRequestRecord(client.cseq, "SET_PARAMETER", responseHandler))
+func (c *RTSPClient) SendSetParameterCommand(responseHandler interface{}) int {
+	c.cseq++
+	return c.sendRequest(newRequestRecord(c.cseq, "SET_PARAMETER", responseHandler))
 }
 
-func (client *RTSPClient) SendGetParameterCommand(responseHandler interface{}) int {
-	client.cseq++
-	return client.sendRequest(NewRequestRecord(client.cseq, "GET_PARAMETER", responseHandler))
+func (c *RTSPClient) SendGetParameterCommand(responseHandler interface{}) int {
+	c.cseq++
+	return c.sendRequest(newRequestRecord(c.cseq, "GET_PARAMETER", responseHandler))
 }
 
-func (client *RTSPClient) setUserAgentString(userAgentName string) {
-	client.userAgentHeaderStr = fmt.Sprintf("User-Agent: %s\r\n", userAgentName)
+func (c *RTSPClient) setUserAgentString(userAgentName string) {
+	c.userAgentHeaderStr = fmt.Sprintf("User-Agent: %s\r\n", userAgentName)
 }
 
-func (client *RTSPClient) setBaseURL(url string) {
-	client.baseURL = url
+func (c *RTSPClient) setBaseURL(url string) {
+	c.baseURL = url
 }
 
-func (client *RTSPClient) setupHTTPTunneling() {
+func (c *RTSPClient) setupHTTPTunneling() {
 }
 
-func (client *RTSPClient) openConnection() bool {
-	rtspUrl, result := client.parseRTSPURL(client.baseURL)
+func (c *RTSPClient) openConnection() bool {
+	rtspUrl, result := c.parseRTSPURL(c.baseURL)
 	if !result {
 		return false
 	}
 
-	client.serverAddress = rtspUrl.address
+	c.serverAddress = rtspUrl.address
 
-	result = client.connectToServer(rtspUrl.address, rtspUrl.port)
+	result = c.connectToServer(rtspUrl.address, rtspUrl.port)
 	if !result {
 		return false
 	}
 
-	go client.incomingDataHandler()
+	go c.incomingDataHandler()
 	return true
 }
 
-func (client *RTSPClient) connectToServer(host string, port int) bool {
+func (c *RTSPClient) connectToServer(host string, port int) bool {
 	tcpAddr := fmt.Sprintf("%s:%d", host, port)
 	addr, err := net.ResolveTCPAddr("tcp", tcpAddr)
 	if err != nil {
@@ -245,7 +204,7 @@ func (client *RTSPClient) connectToServer(host string, port int) bool {
 
 	fmt.Printf("Opening connection to %s, port %d...\n", host, port)
 
-	client.tcpConn, err = net.DialTCP("tcp", nil, addr)
+	c.tcpConn, err = net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		fmt.Println("Failed to connect to server.", err)
 		return false
@@ -255,11 +214,11 @@ func (client *RTSPClient) connectToServer(host string, port int) bool {
 	return true
 }
 
-func (client *RTSPClient) resetTCPSockets() {
-	client.tcpConn.Close()
+func (c *RTSPClient) resetTCPSockets() {
+	c.tcpConn.Close()
 }
 
-func (client *RTSPClient) createAuthenticatorStr(cmd, url string) string {
+func (c *RTSPClient) createAuthenticatorStr(cmd, url string) string {
 	//authFmt := "Authorization: Digest username=\"%s\", realm=\"%s\", " +
 	//	"nonce=\"%s\", uri=\"%s\", response=\"%s\"\r\n"
 	return ""
@@ -273,7 +232,7 @@ type RTSPURL struct {
 	port       int
 }
 
-func (client *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
+func (c *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
 	rtspUrl := new(RTSPURL)
 	var result bool
 	for {
@@ -333,16 +292,16 @@ func (client *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
 	return rtspUrl, result
 }
 
-func (client *RTSPClient) incomingDataHandler() {
-	defer client.tcpConn.Close()
+func (c *RTSPClient) incomingDataHandler() {
+	defer c.tcpConn.Close()
 	for {
-		readBytes, err := gs.ReadSocket(client.tcpConn, client.responseBuffer)
+		readBytes, err := gs.ReadSocket(c.tcpConn, c.responseBuffer)
 		if err != nil {
 			fmt.Println("Failed to read bytes.", err.Error())
 			break
 		}
 
-		client.handleResponseBytes(client.responseBuffer, readBytes)
+		c.handleResponseBytes(c.responseBuffer, readBytes)
 	}
 }
 
@@ -367,16 +326,16 @@ func getLine(startOfLine string) (thisLineStart, nextLineStart string) {
 	return nextLineStart, thisLineStart
 }
 
-func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
+func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 	reqStr := string(buffer)[:length]
 
 	fmt.Printf("Received %d new bytes of response data.\n", length)
 
 	nextLineStart, thisLineStart := getLine(reqStr)
-	responseCode, responseString, result := this.parseResponseCode(thisLineStart)
+	responseCode, responseString, result := c.parseResponseCode(thisLineStart)
 	if !result {
 		// This does not appear to be a RTSP response; is's a RTSP request instead?
-		this.handleIncomingRequest(reqStr, length)
+		c.handleIncomingRequest(reqStr, length)
 		return
 	}
 
@@ -394,7 +353,7 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 			break
 		}
 
-		if headerParamsStr, result = this.checkForHeader(thisLineStart, "CSeq:", 5); result {
+		if headerParamsStr, result = c.checkForHeader(thisLineStart, "CSeq:", 5); result {
 			n, _ = fmt.Sscanf(headerParamsStr, "%d", &cseq)
 			if n != 1 || cseq <= 0 {
 				fmt.Println("Bad \"CSeq\" header: \"", thisLineStart, "\"")
@@ -402,7 +361,7 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 			}
 
 			for {
-				request := this.requestsAwaitingResponse.dequeue()
+				request := c.requestsAwaitingResponse.dequeue()
 				if request == nil {
 					break
 				}
@@ -417,29 +376,29 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 					break
 				}
 			}
-		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Content-Length:", 15); result {
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Content-Length:", 15); result {
 			n, _ = fmt.Sscanf(headerParamsStr, "%d", &contentLength)
 			if n != 1 {
 				fmt.Println("Bad \"Content-Length\" header: \"", thisLineStart, "\"")
 				break
 			}
-		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Content-Base:", 13); result {
-			this.setBaseURL(headerParamsStr)
-		} else if sessionParamsStr, result = this.checkForHeader(thisLineStart, "Session:", 8); result {
-		} else if transportParamsStr, result = this.checkForHeader(thisLineStart, "Transport:", 10); result {
-		} else if scaleParamsStr, result = this.checkForHeader(thisLineStart, "Scale:", 6); result {
-		} else if rangeParamsStr, result = this.checkForHeader(thisLineStart, "Range:", 6); result {
-		} else if rtpInfoParamsStr, result = this.checkForHeader(thisLineStart, "RTP-Info:", 9); result {
-		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "WWW-Authenticate:", 17); result {
-		} else if publicParamsStr, result = this.checkForHeader(thisLineStart, "Public:", 7); result {
-		} else if publicParamsStr, result = this.checkForHeader(thisLineStart, "Allow:", 6); result {
-		} else if headerParamsStr, result = this.checkForHeader(thisLineStart, "Location:", 9); result {
-			this.setBaseURL(headerParamsStr)
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Content-Base:", 13); result {
+			c.setBaseURL(headerParamsStr)
+		} else if sessionParamsStr, result = c.checkForHeader(thisLineStart, "Session:", 8); result {
+		} else if transportParamsStr, result = c.checkForHeader(thisLineStart, "Transport:", 10); result {
+		} else if scaleParamsStr, result = c.checkForHeader(thisLineStart, "Scale:", 6); result {
+		} else if rangeParamsStr, result = c.checkForHeader(thisLineStart, "Range:", 6); result {
+		} else if rtpInfoParamsStr, result = c.checkForHeader(thisLineStart, "RTP-Info:", 9); result {
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "WWW-Authenticate:", 17); result {
+		} else if publicParamsStr, result = c.checkForHeader(thisLineStart, "Public:", 7); result {
+		} else if publicParamsStr, result = c.checkForHeader(thisLineStart, "Allow:", 6); result {
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Location:", 9); result {
+			c.setBaseURL(headerParamsStr)
 		}
 	}
 
 	if foundRequest == nil {
-		foundRequest = this.requestsAwaitingResponse.dequeue()
+		foundRequest = c.requestsAwaitingResponse.dequeue()
 	}
 
 	bodyStart := nextLineStart
@@ -447,7 +406,7 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 
 	var commandName string
 	if foundRequest != nil {
-		commandName = foundRequest.CommandName()
+		commandName = foundRequest.CommandName
 	} else {
 		commandName = "(unknown)"
 	}
@@ -457,36 +416,36 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 	var needToResendCommand bool
 	if foundRequest != nil {
 		if responseCode == 200 {
-			switch foundRequest.CommandName() {
+			switch foundRequest.CommandName {
 			case "SETUP":
-				if !this.handleSetupResponse(foundRequest.Subsession(),
+				if !c.handleSetupResponse(foundRequest.Subsession(),
 					sessionParamsStr, transportParamsStr, false) {
 					break
 				}
 			case "PLAY":
-				if !this.handlePlayResponse(scaleParamsStr, rangeParamsStr, rtpInfoParamsStr) {
+				if !c.handlePlayResponse(scaleParamsStr, rangeParamsStr, rtpInfoParamsStr) {
 					break
 				}
 			case "TEARDOWN":
-				if !this.handleTeardownResponse() {
+				if !c.handleTeardownResponse() {
 					break
 				}
 			case "GET_PARAMETER":
-				if !this.handleGetParameterResponse(foundRequest.ContentStr()) {
+				if !c.handleGetParameterResponse(foundRequest.ContentStr()) {
 					break
 				}
 			default:
 			}
-		} else if responseCode == 401 && this.handleAuthenticationFailure(wwwAuthenticateParamsStr) {
+		} else if responseCode == 401 && c.handleAuthenticationFailure(wwwAuthenticateParamsStr) {
 			// We need to resend the command, with an "Authorization:" header:
 			needToResendCommand = true
 
-			if foundRequest.CommandName() == "GET" {
-				this.resetTCPSockets()
+			if foundRequest.CommandName == "GET" {
+				c.resetTCPSockets()
 			}
 		} else if responseCode == 301 || responseCode == 302 { // redirect
 			// because we need to connect somewhere else next
-			this.resetTCPSockets()
+			c.resetTCPSockets()
 			needToResendCommand = true
 		}
 	}
@@ -514,35 +473,21 @@ func (this *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 				resultString = responseString
 			}
 
-			foundRequest.Handle(this, resultCode, resultString)
+			foundRequest.Handle(c, resultCode, resultString)
 		} else {
-			this.handleRequestError(foundRequest)
+			c.handleRequestError(foundRequest)
 		}
 	}
 }
 
-func (this *RTSPClient) handleRequestError(request *RequestRecord) {
-	request.Handle(this, -1, "FAILED")
+func (c *RTSPClient) handleRequestError(request *RequestRecord) {
+	request.Handle(c, -1, "FAILED")
 }
 
-func (this *RTSPClient) sendRequest(request *RequestRecord) int {
-	var connectionIsPending bool
-	if !this.requestsAwaitingConnection.isEmpty() {
-		connectionIsPending = true
-	} else if this.tcpConn == nil {
-		if !this.openConnection() {
-			return 0
-		}
-	}
-
-	if connectionIsPending {
-		this.requestsAwaitingConnection.enqueue(request)
-		return request.CSeq()
-	}
-
-	if this.tunnelOverHTTPPortNum != 0 {
-		this.setupHTTPTunneling()
-		this.requestsAwaitingHTTPTunneling.enqueue(request)
+func (c *RTSPClient) sendRequest(request *RequestRecord) int {
+	if c.tunnelOverHTTPPortNum != 0 {
+		c.setupHTTPTunneling()
+		c.requestsAwaitingHTTPTunneling.enqueue(request)
 		return request.CSeq()
 	}
 
@@ -555,9 +500,9 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		contentLengthHeader = fmt.Sprintf("Content-Length: %s\r\n", contentStrLen)
 	}
 
-	cmdURL := this.baseURL
+	cmdURL := c.baseURL
 	var extraHeaders string
-	switch request.CommandName() {
+	switch request.CommandName {
 	case "OPTIONS", "ANNOUNCE":
 		extraHeaders = "Content-Type: application/sdp\r\n"
 	case "DESCRIBE":
@@ -567,7 +512,7 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		streamUsingTCP := (request.BoolFlags() & 0x1) != 0
 		streamOutgoing := (request.BoolFlags() & 0x2) != 0
 
-		prefix, separator, suffix := this.constructSubSessionURL(subsession)
+		prefix, separator, suffix := c.constructSubSessionURL(subsession)
 
 		var transportFmt string
 		if subsession.ProtocolName() == "UDP" {
@@ -588,13 +533,13 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		if streamUsingTCP {
 			transportTypeStr = "/TCP;unicast"
 			portTypeStr = ";interleaved"
-			rtpNumber = this.tcpStreamIDCount
-			this.tcpStreamIDCount += 1
-			rtcpNumber = this.tcpStreamIDCount
-			this.tcpStreamIDCount += 1
+			rtpNumber = c.tcpStreamIDCount
+			c.tcpStreamIDCount += 1
+			rtcpNumber = c.tcpStreamIDCount
+			c.tcpStreamIDCount += 1
 		} else {
 			transportTypeStr = ";unicast"
-			portTypeStr = ";client_port"
+			portTypeStr = ";c_port"
 			rtpNumber = subsession.ClientPortNum()
 			rtcpNumber = rtpNumber + 1
 		}
@@ -602,43 +547,43 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		transportStr := fmt.Sprintf(transportFmt, transportTypeStr, modeStr,
 			portTypeStr, rtpNumber, rtcpNumber)
 
-		sessionStr := this.createSessionString(this.lastSessionID)
+		sessionStr := c.createSessionString(c.lastSessionID)
 
 		extraHeaders = fmt.Sprintf("%s%s", transportStr, sessionStr)
 	case "PLAY", "PAUSE", "TEARDOWN", "RECORD", "SET_PARAMETER", "GET_PARAMETER":
-		if this.lastSessionID == "" {
+		if c.lastSessionID == "" {
 			fmt.Println("No RTSP session is currently in progress")
-			this.handleRequestError(request)
+			c.handleRequestError(request)
 			return request.CSeq()
 		}
 
 		var sessionID string
 		var originalScale float32
 		if request.Session() != nil {
-			sessionID = this.lastSessionID
+			sessionID = c.lastSessionID
 			originalScale = request.Session().Scale()
 		} else {
 			subsession := request.Subsession()
-			prefix, separator, suffix := this.constructSubSessionURL(subsession)
+			prefix, separator, suffix := c.constructSubSessionURL(subsession)
 			cmdURL = fmt.Sprintf("%s%s%s", prefix, separator, suffix)
 
 			sessionID = subsession.SessionID()
 			originalScale = subsession.Scale()
 		}
 
-		if request.CommandName() == "PLAY" {
-			sessionStr := this.createSessionString(sessionID)
-			scaleStr := this.createScaleString(request.Scale(), originalScale)
-			rangeStr := this.createRangeString(request.Start(), request.End(),
-				request.AbsStartTime(), request.AbsEndTime())
+		if request.CommandName == "PLAY" {
+			sessionStr := c.createSessionString(sessionID)
+			scaleStr := c.createScaleString(request.Scale(), originalScale)
+			rangeStr := c.createRangeString(request.Start, request.End,
+				request.AbsStartTime, request.AbsEndTime)
 
 			extraHeaders = fmt.Sprintf("%s%s%s", sessionStr, scaleStr, rangeStr)
 		} else {
-			extraHeaders = this.createSessionString(sessionID)
+			extraHeaders = c.createSessionString(sessionID)
 		}
 	case "GET", "POST":
 		var extraHeadersFmt string
-		if request.CommandName() == "GET" {
+		if request.CommandName == "GET" {
 			extraHeadersFmt = "x-sessioncookie: %s\r\n" +
 				"Accept: application/x-rtsp-tunnelled\r\n" +
 				"Pragma: no-cache\r\n" +
@@ -651,11 +596,11 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 				"Content-Length: 32767\r\n" +
 				"Expires: Sun, 9 Jan 1972 00:00:00 GMT\r\n"
 		}
-		extraHeaders = fmt.Sprintf(extraHeadersFmt, this.sessionCookie)
+		extraHeaders = fmt.Sprintf(extraHeadersFmt, c.sessionCookie)
 	default:
 	}
 
-	authenticatorStr := this.createAuthenticatorStr(request.CommandName(), this.baseURL)
+	authenticatorStr := c.createAuthenticatorStr(request.CommandName, c.baseURL)
 
 	cmdFmt := "%s %s %s\r\n" +
 		"CSeq: %d\r\n" +
@@ -666,46 +611,46 @@ func (this *RTSPClient) sendRequest(request *RequestRecord) int {
 		"\r\n" +
 		"%s"
 
-	cmd := fmt.Sprintf(cmdFmt, request.CommandName(),
+	cmd := fmt.Sprintf(cmdFmt, request.CommandName,
 		cmdURL,
 		protocalStr,
 		request.CSeq(),
 		authenticatorStr,
-		this.userAgentHeaderStr,
+		c.userAgentHeaderStr,
 		extraHeaders,
 		contentLengthHeader,
 		contentStr)
 
-	writeBytes, err := this.tcpConn.Write([]byte(cmd))
+	writeBytes, err := c.tcpConn.Write([]byte(cmd))
 	if err != nil {
 		fmt.Println("RTSPClient::sendRequst", err, writeBytes)
-		this.handleRequestError(request)
+		c.handleRequestError(request)
 	}
 
-	if this.tunnelOverHTTPPortNum == 0 {
-		this.requestsAwaitingResponse.enqueue(request)
+	if c.tunnelOverHTTPPortNum == 0 {
+		c.requestsAwaitingResponse.enqueue(request)
 	}
 
 	fmt.Printf("Sending request:\n%s\n", cmd)
 	return writeBytes
 }
 
-func (this *RTSPClient) sessionURL(session *livemedia.MediaSession) string {
+func (c *RTSPClient) sessionURL(session *livemedia.MediaSession) string {
 	url := session.ControlPath()
 	if url == "" || url == "*" {
-		url = this.baseURL
+		url = c.baseURL
 	}
 	return url
 }
 
-func (this *RTSPClient) isAbsoluteURL(url string) bool {
+func (c *RTSPClient) isAbsoluteURL(url string) bool {
 	var isAbsolute bool
-	for _, c := range url {
-		if c == '/' {
+	for _, ch := range url {
+		if ch == '/' {
 			break
 		}
 
-		if c == ':' {
+		if ch == ':' {
 			isAbsolute = true
 			break
 		}
@@ -713,13 +658,13 @@ func (this *RTSPClient) isAbsoluteURL(url string) bool {
 	return isAbsolute
 }
 
-func (this *RTSPClient) constructSubSessionURL(subsession *livemedia.MediaSubSession) (
+func (c *RTSPClient) constructSubSessionURL(subsession *livemedia.MediaSubSession) (
 	prefix string, separator string, suffix string) {
 
-	prefix = this.sessionURL(subsession.ParentSession())
+	prefix = c.sessionURL(subsession.ParentSession())
 	suffix = subsession.ControlPath()
 
-	if this.isAbsoluteURL(suffix) {
+	if c.isAbsoluteURL(suffix) {
 		prefix = ""
 		separator = ""
 	} else {
@@ -728,7 +673,7 @@ func (this *RTSPClient) constructSubSessionURL(subsession *livemedia.MediaSubSes
 	return prefix, separator, suffix
 }
 
-func (client *RTSPClient) createSessionString(sessionID string) string {
+func (c *RTSPClient) createSessionString(sessionID string) string {
 	var sessionStr string
 	if sessionID != "" {
 		sessionStr = fmt.Sprintf("Session: %s\r\n", sessionID)
@@ -736,7 +681,7 @@ func (client *RTSPClient) createSessionString(sessionID string) string {
 	return sessionStr
 }
 
-func (client *RTSPClient) createScaleString(scale, currentScale float32) string {
+func (c *RTSPClient) createScaleString(scale, currentScale float32) string {
 	var buf string
 	if scale != 1.0 || currentScale != 1.0 {
 		buf = fmt.Sprintf("Scale: %f\r\n", scale)
@@ -744,7 +689,7 @@ func (client *RTSPClient) createScaleString(scale, currentScale float32) string 
 	return buf
 }
 
-func (this *RTSPClient) createRangeString(start, end float32, absStartTime, absEndTime string) string {
+func (c *RTSPClient) createRangeString(start, end float32, absStartTime, absEndTime string) string {
 	var buf string
 	if absStartTime != "" {
 		// Create a "Range:" header that specifies 'absolute' time values:
@@ -770,7 +715,7 @@ func (this *RTSPClient) createRangeString(start, end float32, absStartTime, absE
 	return buf
 }
 
-func (this *RTSPClient) parseResponseCode(line string) (responseCode int, responseString string, result bool) {
+func (c *RTSPClient) parseResponseCode(line string) (responseCode int, responseString string, result bool) {
 	var version string
 	responseString = line
 
@@ -802,7 +747,7 @@ func (this *RTSPClient) parseResponseCode(line string) (responseCode int, respon
 	return responseCode, responseString, result
 }
 
-func (this *RTSPClient) handleSetupResponse(subsession *livemedia.MediaSubSession,
+func (c *RTSPClient) handleSetupResponse(subsession *livemedia.MediaSubSession,
 	sessionParamsStr, transportParamsStr string, streamUsingTCP bool) bool {
 	var success bool
 	for {
@@ -815,10 +760,10 @@ func (this *RTSPClient) handleSetupResponse(subsession *livemedia.MediaSubSessio
 
 		subsession.SetSessionID(sessionID)
 
-		this.lastSessionID = sessionID
+		c.lastSessionID = sessionID
 
 		// Parse the "Transport:" header parameters:
-		transportParams, ok := this.parseTransportParams(transportParamsStr)
+		transportParams, ok := c.parseTransportParams(transportParamsStr)
 		if !ok {
 			fmt.Println("Missing or bad \"Transport:\" header ")
 			break
@@ -834,7 +779,7 @@ func (this *RTSPClient) handleSetupResponse(subsession *livemedia.MediaSubSessio
 				subsession.RTPSource.SetStreamSocket()
 			}
 		} else {
-			destAddress := this.serverAddress
+			destAddress := c.serverAddress
 			subsession.SetDestinations(destAddress)
 		}
 
@@ -852,7 +797,7 @@ type TransportParams struct {
 	serverAddressStr string
 }
 
-func (this *RTSPClient) parseTransportParams(paramsStr string) (*TransportParams, bool) {
+func (c *RTSPClient) parseTransportParams(paramsStr string) (*TransportParams, bool) {
 	var n int
 	var serverPortNum, clientPortNum, multicastPortNumRTP, multicastPortNumRTCP uint
 	var foundServerPortNum, foundClientPortNum, foundChannelIDs, foundMulticastPortNum bool
@@ -866,7 +811,7 @@ func (this *RTSPClient) parseTransportParams(paramsStr string) (*TransportParams
 			isMulticast = false
 		} else if n, _ = fmt.Sscanf(param, "server_port=%d", &serverPortNum); n == 1 {
 			foundServerPortNum = true
-		} else if n, _ = fmt.Sscanf(param, "client_port=%d", &clientPortNum); n == 1 {
+		} else if n, _ = fmt.Sscanf(param, "c_port=%d", &clientPortNum); n == 1 {
 			foundClientPortNum = true
 		} else if n, _ = fmt.Sscanf(param, "destination=%s", &foundDestinationStr); n == 1 {
 		} else if n, _ = fmt.Sscanf(param, "source=%s", &foundServerAddressStr); n == 1 {
@@ -902,45 +847,45 @@ func (this *RTSPClient) parseTransportParams(paramsStr string) (*TransportParams
 	return transportParams, false
 }
 
-func (client *RTSPClient) parseScaleParam(paramStr string) (scale float32, ok bool) {
+func (c *RTSPClient) parseScaleParam(paramStr string) (scale float32, ok bool) {
 	n, _ := fmt.Sscanf(paramStr, "%f", &scale)
 	ok = (n == 1)
 	return
 }
 
-func (client *RTSPClient) parseRTPInfoParams(paramsStr string) (seqNum, timestamp int, ok bool) {
+func (c *RTSPClient) parseRTPInfoParams(paramsStr string) (seqNum, timestamp int, ok bool) {
 	ok = true
 	return
 }
 
-func (client *RTSPClient) handlePlayResponse(scaleParamsStr, rangeParamsStr, rtpInfoParamsStr string) bool {
+func (c *RTSPClient) handlePlayResponse(scaleParamsStr, rangeParamsStr, rtpInfoParamsStr string) bool {
 	return true
 }
 
-func (client *RTSPClient) handleTeardownResponse() bool {
+func (c *RTSPClient) handleTeardownResponse() bool {
 	return true
 }
 
-func (client *RTSPClient) handleGetParameterResponse(parameterName string) bool {
+func (c *RTSPClient) handleGetParameterResponse(parameterName string) bool {
 	fmt.Println("handleGetParameterResponse", parameterName)
 	return true
 }
 
-func (client *RTSPClient) handleAuthenticationFailure(paramsStr string) bool {
+func (c *RTSPClient) handleAuthenticationFailure(paramsStr string) bool {
 	return false
 }
 
-func (client *RTSPClient) handleIncomingRequest(reqStr string, length int) {
+func (c *RTSPClient) handleIncomingRequest(reqStr string, length int) {
 	requestString, parseSucceeded := livemedia.ParseRTSPRequestString(reqStr, length)
 	if parseSucceeded {
 		fmt.Printf("Received incoming RTSP request: %s\n", reqStr)
 
 		buffer := fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\nCSeq: %s\r\n\r\n", requestString.Cseq)
-		client.tcpConn.Write([]byte(buffer))
+		c.tcpConn.Write([]byte(buffer))
 	}
 }
 
-func (client *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (headerParams string, result bool) {
+func (c *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (headerParams string, result bool) {
 	if !strings.HasPrefix(line, headerName) {
 		return headerParams, false
 	}
@@ -955,37 +900,102 @@ func (client *RTSPClient) checkForHeader(line, headerName string, headerNameLeng
 	return line[index:], true
 }
 
+type RequestRecord struct {
+	cseq         int
+	boolFlags    int
+	scale        float32
+	Start        float32
+	End          float32
+	CommandName  string
+	contentStr   string
+	AbsStartTime string
+	AbsEndTime   string
+	handler      interface{}
+	subsession   *livemedia.MediaSubSession
+	session      *livemedia.MediaSession
+}
+
+func newRequestRecord(cseq int, commandName string, responseHandler interface{}) *RequestRecord {
+	requestRecord := new(RequestRecord)
+	requestRecord.cseq = cseq
+	requestRecord.scale = 1.0
+	requestRecord.Start = 0.0
+	requestRecord.End = -1.0
+	requestRecord.handler = responseHandler
+	requestRecord.CommandName = commandName
+	return requestRecord
+}
+
+func (record *RequestRecord) setSession(session *livemedia.MediaSession) {
+	record.session = session
+}
+
+func (record *RequestRecord) setSubSession(subsession *livemedia.MediaSubSession) {
+	record.subsession = subsession
+}
+
+func (record *RequestRecord) Session() *livemedia.MediaSession {
+	return record.session
+}
+
+func (r *RequestRecord) Subsession() *livemedia.MediaSubSession {
+	return r.subsession
+}
+
+func (r *RequestRecord) BoolFlags() int {
+	return r.boolFlags
+}
+
+func (r *RequestRecord) CSeq() int {
+	return r.cseq
+}
+
+func (r *RequestRecord) Scale() float32 {
+	return r.scale
+}
+
+func (r *RequestRecord) ContentStr() string {
+	return r.contentStr
+}
+
+func (r *RequestRecord) Handle(rtspClient *RTSPClient, resultCode int, resultStr string) {
+	if r.handler != nil {
+		r.handler.(func(rtspClient *RTSPClient,
+			resultCode int, resultStr string))(rtspClient, resultCode, resultStr)
+	}
+}
+
 type RequestQueue struct {
 	index          int
 	requestRecords []*RequestRecord
 }
 
-func NewRequestQueue() *RequestQueue {
+func newRequestQueue() *RequestQueue {
 	requestQueue := new(RequestQueue)
 	return requestQueue
 }
 
-func (this *RequestQueue) enqueue(request *RequestRecord) {
-	this.requestRecords = append(this.requestRecords, request)
+func (q *RequestQueue) enqueue(request *RequestRecord) {
+	q.requestRecords = append(q.requestRecords, request)
 }
 
-func (this *RequestQueue) dequeue() *RequestRecord {
-	if len(this.requestRecords) <= this.index {
-		this.index = 0
+func (q *RequestQueue) dequeue() *RequestRecord {
+	if len(q.requestRecords) <= q.index {
+		q.index = 0
 		return nil
 	}
 
-	requestRecord := this.requestRecords[this.index]
-	this.index += 1
+	requestRecord := q.requestRecords[q.index]
+	q.index += 1
 	return requestRecord
 }
 
-func (this *RequestQueue) putAtHead(request *RequestRecord) {
+func (q *RequestQueue) putAtHead(request *RequestRecord) {
 }
 
-func (this *RequestQueue) findByCSeq(cseq uint) {
+func (q *RequestQueue) findByCSeq(cseq uint) {
 }
 
-func (this *RequestQueue) isEmpty() bool {
-	return len(this.requestRecords) < 1
+func (q *RequestQueue) isEmpty() bool {
+	return len(q.requestRecords) < 1
 }

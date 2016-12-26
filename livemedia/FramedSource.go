@@ -23,47 +23,47 @@ type FramedSource struct {
 	presentationTime        utils.Timeval
 }
 
-func (this *FramedSource) InitFramedSource(source IFramedSource) {
-	this.source = source
+func (f *FramedSource) InitFramedSource(source IFramedSource) {
+	f.source = source
 }
 
-func (this *FramedSource) GetNextFrame(buffTo []byte, maxSize uint,
+func (f *FramedSource) GetNextFrame(buffTo []byte, maxSize uint,
 	afterGettingFunc interface{}, onCloseFunc interface{}) {
-	if this.isCurrentlyAwaitingData {
+	if f.isCurrentlyAwaitingData {
 		panic("FramedSource::GetNextFrame(): attempting to read more than once at the same time!")
 	}
 
-	this.buffTo = buffTo
-	this.maxSize = maxSize
-	this.onCloseFunc = onCloseFunc
-	this.afterGettingFunc = afterGettingFunc
-	this.isCurrentlyAwaitingData = true
+	f.buffTo = buffTo
+	f.maxSize = maxSize
+	f.onCloseFunc = onCloseFunc
+	f.afterGettingFunc = afterGettingFunc
+	f.isCurrentlyAwaitingData = true
 
-	this.source.doGetNextFrame()
+	f.source.doGetNextFrame()
 }
 
-func (source *FramedSource) afterGetting() {
-	source.isCurrentlyAwaitingData = false
+func (f *FramedSource) afterGetting() {
+	f.isCurrentlyAwaitingData = false
 
-	if source.afterGettingFunc != nil {
-		source.afterGettingFunc.(func(frameSize, durationInMicroseconds uint,
-			presentationTime utils.Timeval))(source.frameSize,
-			source.durationInMicroseconds, source.presentationTime)
+	if f.afterGettingFunc != nil {
+		f.afterGettingFunc.(func(frameSize, durationInMicroseconds uint,
+			presentationTime utils.Timeval))(f.frameSize,
+			f.durationInMicroseconds, f.presentationTime)
 	}
 }
 
-func (this *FramedSource) handleClosure() {
-	this.isCurrentlyAwaitingData = false
+func (f *FramedSource) handleClosure() {
+	f.isCurrentlyAwaitingData = false
 
-	if this.onCloseFunc != nil {
-		this.onCloseFunc.(func())()
+	if f.onCloseFunc != nil {
+		f.onCloseFunc.(func())()
 	}
 }
 
-func (this *FramedSource) stopGettingFrames() {
-	this.isCurrentlyAwaitingData = false
+func (f *FramedSource) stopGettingFrames() {
+	f.isCurrentlyAwaitingData = false
 }
 
-func (this *FramedSource) maxFrameSize() uint {
+func (f *FramedSource) maxFrameSize() uint {
 	return 0
 }

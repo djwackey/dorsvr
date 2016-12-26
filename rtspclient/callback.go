@@ -2,40 +2,9 @@ package rtspclient
 
 import (
 	"fmt"
+
 	"github.com/djwackey/dorsvr/livemedia"
-	"github.com/djwackey/dorsvr/scheduler"
 )
-
-func New() *RTSPClient {
-	return new(RTSPClient)
-}
-
-func (client *RTSPClient) DialRTSP(rtspURL string) bool {
-	appName := "dorcli"
-	client.InitRTSPClient(rtspURL, appName)
-
-	sendBytes := client.SendDescribeCommand(continueAfterDESCRIBE)
-	if sendBytes == 0 {
-		fmt.Println("Failed to send describe command.")
-		return false
-	}
-
-	return true
-}
-
-func (client *RTSPClient) Waiting() {
-	scheduler.DoEventLoop()
-}
-
-func (client *RTSPClient) Close() {
-	scs := client.SCS()
-
-	//if scs.Subsession.RtcpInstance() != nil {
-	//	scs.Subsession.RtcpInstance().SetByeHandler(nil, nil)
-	//}
-
-	client.SendTeardownCommand(scs.Session, nil)
-}
 
 func continueAfterDESCRIBE(rtspClient *RTSPClient, resultCode int, resultStr string) {
 	for {

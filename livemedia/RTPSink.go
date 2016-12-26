@@ -2,9 +2,10 @@ package livemedia
 
 import (
 	"fmt"
+	"net"
+
 	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/dorsvr/utils"
-	"net"
 )
 
 //////// RTPSink ////////

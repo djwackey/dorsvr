@@ -2,6 +2,7 @@ package rtspclient
 
 import (
 	"fmt"
+
 	"github.com/djwackey/dorsvr/livemedia"
 	"github.com/djwackey/dorsvr/utils"
 )
@@ -26,15 +27,15 @@ func NewDummySink(subsession *livemedia.MediaSubSession, streamID string) *Dummy
 	return sink
 }
 
-func (sink *DummySink) AfterGettingFrame(frameSize, durationInMicroseconds uint,
+func (s *DummySink) AfterGettingFrame(frameSize, durationInMicroseconds uint,
 	presentationTime utils.Timeval) {
 	//return
 	fmt.Printf("Stream \"%s\"; %s/%s:\tReceived %d bytes.\tPresentation Time: %f\n",
-		sink.streamID, sink.subsession.MediumName(), sink.subsession.CodecName(), frameSize,
+		s.streamID, s.subsession.MediumName(), s.subsession.CodecName(), frameSize,
 		float32(presentationTime.Tv_sec/1000/1000+presentationTime.Tv_usec))
 }
 
-func (sink *DummySink) ContinuePlaying() {
-	sink.Source.GetNextFrame(sink.receiveBuffer, dummySinkReceiveBufferSize,
-		sink.AfterGettingFrame, sink.OnSourceClosure)
+func (s *DummySink) ContinuePlaying() {
+	s.Source.GetNextFrame(s.receiveBuffer, dummySinkReceiveBufferSize,
+		s.AfterGettingFrame, s.OnSourceClosure)
 }
