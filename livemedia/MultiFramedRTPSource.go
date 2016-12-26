@@ -2,8 +2,9 @@ package livemedia
 
 import (
 	"fmt"
+	s "syscall"
+
 	gs "github.com/djwackey/dorsvr/groupsock"
-	"github.com/djwackey/dorsvr/utils"
 )
 
 type MultiFramedRTPSource struct {
@@ -224,8 +225,8 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 					timestampFrequency, uint32(packet.dataSize()), usableInJitterCalculation)
 
 			// Fill in the rest of the packet descriptor, and store it:
-			var timeNow utils.Timeval
-			utils.GetTimeOfDay(&timeNow)
+			var timeNow s.Timeval
+			s.Gettimeofday(&timeNow)
 			packet.assignMiscParams(rtpSeqNo, rtpTimestamp, presentationTime, timeNow,
 				hasBeenSyncedUsingRTCP, rtpMarkerBit)
 
@@ -255,13 +256,13 @@ type IBufferedPacket interface {
 	hasUsableData() bool
 	markFirstPacket(flag bool)
 	removePadding(numBytes uint)
-	TimeReceived() utils.Timeval
+	TimeReceived() s.Timeval
 	NextPacket() IBufferedPacket
 	use(buff []byte, size uint) *PacketInfo
 	setNextPacket(nextPacket IBufferedPacket)
 	fillInData(rtpInterface *RTPInterface) error
 	assignMiscParams(rtpSeqNo, rtpTimestamp uint32,
-		presentationTime, timeReceived utils.Timeval,
+		presentationTime, timeReceived s.Timeval,
 		hasBeenSyncedUsingRTCP, rtpMarkerBit bool)
 }
 
@@ -274,8 +275,8 @@ type BufferedPacket struct {
 	RTPSeqNo               uint32
 	RTPTimestamp           uint32
 	nextPacket             IBufferedPacket
-	timeReceived           utils.Timeval
-	presentationTime       utils.Timeval
+	timeReceived           s.Timeval
+	presentationTime       s.Timeval
 	nextEnclosedFrameProc  interface{}
 	hasBeenSyncedUsingRTCP bool
 	firstPacketFlag        bool
@@ -287,7 +288,7 @@ type PacketInfo struct {
 	bytesTruncated         uint
 	rtpSeqNo               uint32
 	rtpTimestamp           uint32
-	presentationTime       utils.Timeval
+	presentationTime       s.Timeval
 	hasBeenSyncedUsingRTCP bool
 	rtpMarkerBit           bool
 }
@@ -330,10 +331,10 @@ func (packet *BufferedPacket) use(buff []byte, size uint) *PacketInfo {
 	packetInfo.rtpMarkerBit = packet.RTPMarkerBit
 
 	// Update "presentationTime" for the next enclosed frame (if any):
-	packet.presentationTime.Tv_usec += int64(frameDurationInMicroseconds)
-	if packet.presentationTime.Tv_usec >= 1000000 {
-		packet.presentationTime.Tv_sec += packet.presentationTime.Tv_usec / 1000000
-		packet.presentationTime.Tv_usec = packet.presentationTime.Tv_usec % 1000000
+	packet.presentationTime.Usec += int64(frameDurationInMicroseconds)
+	if packet.presentationTime.Usec >= 1000000 {
+		packet.presentationTime.Sec += packet.presentationTime.Usec / 1000000
+		packet.presentationTime.Usec = packet.presentationTime.Usec % 1000000
 	}
 
 	return packetInfo
@@ -382,7 +383,7 @@ func (packet *BufferedPacket) removePadding(numBytes uint) {
 	packet.tail -= numBytes
 }
 
-func (packet *BufferedPacket) TimeReceived() utils.Timeval {
+func (packet *BufferedPacket) TimeReceived() s.Timeval {
 	return packet.timeReceived
 }
 
@@ -401,7 +402,7 @@ func (packet *BufferedPacket) getNextEnclosedFrameParameters(framePtr []byte, da
 }
 
 func (packet *BufferedPacket) assignMiscParams(rtpSeqNo, rtpTimestamp uint32,
-	presentationTime, timeReceived utils.Timeval, hasBeenSyncedUsingRTCP, rtpMarkerBit bool) {
+	presentationTime, timeReceived s.Timeval, hasBeenSyncedUsingRTCP, rtpMarkerBit bool) {
 	packet.RTPSeqNo = rtpSeqNo
 	packet.timeReceived = timeReceived
 	packet.RTPMarkerBit = rtpMarkerBit
@@ -497,12 +498,12 @@ func (buffer *ReorderingPacketBuffer) getNextCompletedPacket() (IBufferedPacket,
 	if buffer.thresholdTime == 0 {
 		timeThresholdHasBeenExceeded = true
 	} else {
-		var timeNow utils.Timeval
-		utils.GetTimeOfDay(&timeNow)
+		var timeNow s.Timeval
+		s.Gettimeofday(&timeNow)
 
 		timeReceived := buffer.headPacket.TimeReceived()
-		uSecondsSinceReceived := (timeNow.Tv_sec-timeReceived.Tv_sec)*1000000 +
-			(timeNow.Tv_usec - timeReceived.Tv_usec)
+		uSecondsSinceReceived := (timeNow.Sec-timeReceived.Sec)*1000000 +
+			(timeNow.Usec - timeReceived.Usec)
 		timeThresholdHasBeenExceeded = uSecondsSinceReceived > buffer.thresholdTime
 	}
 

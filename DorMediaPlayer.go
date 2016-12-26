@@ -23,6 +23,8 @@ func main() {
 		return
 	}
 
+	client.SendRequest()
+
 	//go TimeCloser(client)
 	client.Waiting()
 

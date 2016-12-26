@@ -1,6 +1,6 @@
 package livemedia
 
-import "github.com/djwackey/dorsvr/utils"
+import s "syscall"
 
 type IFramedSource interface {
 	GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{})
@@ -20,7 +20,7 @@ type FramedSource struct {
 	numTruncatedBytes       uint
 	durationInMicroseconds  uint
 	isCurrentlyAwaitingData bool
-	presentationTime        utils.Timeval
+	presentationTime        s.Timeval
 }
 
 func (f *FramedSource) InitFramedSource(source IFramedSource) {
@@ -47,7 +47,7 @@ func (f *FramedSource) afterGetting() {
 
 	if f.afterGettingFunc != nil {
 		f.afterGettingFunc.(func(frameSize, durationInMicroseconds uint,
-			presentationTime utils.Timeval))(f.frameSize,
+			presentationTime s.Timeval))(f.frameSize,
 			f.durationInMicroseconds, f.presentationTime)
 	}
 }

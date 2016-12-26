@@ -2,9 +2,9 @@ package livemedia
 
 import (
 	"fmt"
+	s "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
-	"github.com/djwackey/dorsvr/utils"
 )
 
 const (
@@ -76,9 +76,9 @@ func NewSDESItem(tag int, value string) *SDESItem {
 }
 
 func dTimeNow() int64 {
-	var timeNow utils.Timeval
-	utils.GetTimeOfDay(&timeNow)
-	return timeNow.Tv_sec + timeNow.Tv_usec/1000000.0
+	var timeNow s.Timeval
+	s.Gettimeofday(&timeNow)
+	return timeNow.Sec + timeNow.Usec/1000000.0
 }
 
 func (s *SDESItem) totalSize() uint {

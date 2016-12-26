@@ -539,7 +539,7 @@ func (c *RTSPClient) sendRequest(request *RequestRecord) int {
 			c.tcpStreamIDCount += 1
 		} else {
 			transportTypeStr = ";unicast"
-			portTypeStr = ";c_port"
+			portTypeStr = ";client_port"
 			rtpNumber = subsession.ClientPortNum()
 			rtcpNumber = rtpNumber + 1
 		}

@@ -5,8 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-
-	"github.com/djwackey/dorsvr/utils"
+	s "syscall"
 )
 
 var OutPacketBufferMaxSize uint = 60000 // default
@@ -22,7 +21,7 @@ type OutPacketBuffer struct {
 	overflowDataSize               uint
 	overflowDataOffset             uint
 	overflowDurationInMicroseconds uint
-	overflowPresentationTime       utils.Timeval
+	overflowPresentationTime       s.Timeval
 }
 
 func NewOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffer {
@@ -75,7 +74,7 @@ func (b *OutPacketBuffer) OverflowDataSize() uint {
 	return b.overflowDataSize
 }
 
-func (b *OutPacketBuffer) OverflowPresentationTime() utils.Timeval {
+func (b *OutPacketBuffer) OverflowPresentationTime() s.Timeval {
 	return b.overflowPresentationTime
 }
 

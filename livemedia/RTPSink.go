@@ -3,9 +3,9 @@ package livemedia
 import (
 	"fmt"
 	"net"
+	s "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
-	"github.com/djwackey/dorsvr/utils"
 )
 
 //////// RTPSink ////////
@@ -97,8 +97,8 @@ func (sink *RTPSink) RtpTimestampFrequency() uint {
 }
 
 func (sink *RTPSink) presetNextTimestamp() uint {
-	var timeNow utils.Timeval
-	utils.GetTimeOfDay(&timeNow)
+	var timeNow s.Timeval
+	s.Gettimeofday(&timeNow)
 
 	tsNow := sink.convertToRTPTimestamp(timeNow)
 	sink.timestampBase = tsNow
@@ -107,10 +107,10 @@ func (sink *RTPSink) presetNextTimestamp() uint {
 	return tsNow
 }
 
-func (sink *RTPSink) convertToRTPTimestamp(tv utils.Timeval) uint {
+func (sink *RTPSink) convertToRTPTimestamp(tv s.Timeval) uint {
 	// Begin by converting from "struct timeval" units to RTP timestamp units:
-	timestampIncrement := sink.timestampFrequency * uint(tv.Tv_sec)
-	timestampIncrement += (2.0*sink.timestampFrequency*uint(tv.Tv_usec) + 1000000.0) / 2000000
+	timestampIncrement := sink.timestampFrequency * uint(tv.Sec)
+	timestampIncrement += (2.0*sink.timestampFrequency*uint(tv.Usec) + 1000000.0) / 2000000
 
 	// Then add this to our 'timestamp base':
 	if sink.nextTimestampHasBeenPreset {
@@ -144,6 +144,6 @@ type RTPTransmissionStats struct {
 	packetLossRatio       uint
 	totNumPacketsLost     uint
 	lastPacketNumReceived uint
-	timeCreated           utils.Timeval
-	timeReceived          utils.Timeval
+	timeCreated           s.Timeval
+	timeReceived          s.Timeval
 }
