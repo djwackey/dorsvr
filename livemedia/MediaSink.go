@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	s "syscall"
+	sys "syscall"
 )
 
 var OutPacketBufferMaxSize uint = 60000 // default
@@ -21,7 +21,7 @@ type OutPacketBuffer struct {
 	overflowDataSize               uint
 	overflowDataOffset             uint
 	overflowDurationInMicroseconds uint
-	overflowPresentationTime       s.Timeval
+	overflowPresentationTime       sys.Timeval
 }
 
 func NewOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffer {
@@ -74,7 +74,7 @@ func (b *OutPacketBuffer) OverflowDataSize() uint {
 	return b.overflowDataSize
 }
 
-func (b *OutPacketBuffer) OverflowPresentationTime() s.Timeval {
+func (b *OutPacketBuffer) OverflowPresentationTime() sys.Timeval {
 	return b.overflowPresentationTime
 }
 

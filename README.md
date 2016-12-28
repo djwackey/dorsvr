@@ -7,7 +7,6 @@
 * groupsock  - group socket
 * scheduler  - task scheduler
 * livemedia  - live media handler
-* utils      - tools: time, net, etc.
 
 ### Install ###
 	go get github.com/djwackey/dorsvr

@@ -2,7 +2,7 @@ package livemedia
 
 import (
 	"fmt"
-	s "syscall"
+	sys "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
@@ -76,8 +76,8 @@ func NewSDESItem(tag int, value string) *SDESItem {
 }
 
 func dTimeNow() int64 {
-	var timeNow s.Timeval
-	s.Gettimeofday(&timeNow)
+	var timeNow sys.Timeval
+	sys.Gettimeofday(&timeNow)
 	return timeNow.Sec + timeNow.Usec/1000000.0
 }
 
@@ -193,8 +193,7 @@ func (r *RTCPInstance) incomingReportHandler() {
 					packet, packetSize = ADVANCE(packet, packetSize, 4)
 
 					if r.Source != nil {
-						receptionStats := r.Source.ReceptionStatsDB()
-						receptionStats.noteIncomingSR(reportSenderSSRC, NTPmsw, NTPlsm, rtpTimestamp)
+						r.Source.receptionStatsDB.noteIncomingSR(reportSenderSSRC, NTPmsw, NTPlsm, rtpTimestamp)
 					}
 
 					packet, packetSize = ADVANCE(packet, packetSize, 8)
@@ -301,11 +300,11 @@ func (r *RTCPInstance) sendBuiltPacket() {
 
 func (r *RTCPInstance) addReport() {
 	if r.Sink != nil {
-		if r.Sink.EnableRTCPReports() {
+		if r.Sink.enableRTCPReports {
 			return
 		}
 
-		if r.Sink.NextTimestampHasBeenPreset() {
+		if r.Sink.nextTimestampHasBeenPreset {
 			return
 		}
 

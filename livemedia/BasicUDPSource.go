@@ -2,6 +2,7 @@ package livemedia
 
 import (
 	"fmt"
+
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
@@ -18,24 +19,24 @@ func NewBasicUDPSource(inputSocket *gs.GroupSock) *BasicUDPSource {
 	return source
 }
 
-func (source *BasicUDPSource) doGetNextFrame() {
-	go source.incomingPacketHandler()
+func (s *BasicUDPSource) doGetNextFrame() {
+	go s.incomingPacketHandler()
 }
 
-func (source *BasicUDPSource) doStopGettingFrames() {
-	source.haveStartedReading = false
+func (s *BasicUDPSource) doStopGettingFrames() {
+	s.haveStartedReading = false
 }
 
-func (source *BasicUDPSource) incomingPacketHandler() {
+func (s *BasicUDPSource) incomingPacketHandler() {
 	for {
-		numBytes, err := source.inputSocket.HandleRead(source.buffTo)
+		numBytes, err := s.inputSocket.HandleRead(s.buffTo)
 		if err != nil {
 			fmt.Println("Failed to read from input socket.", err.Error())
 			break
 		}
 
-		source.frameSize = uint(numBytes)
+		s.frameSize = uint(numBytes)
 
-		source.afterGetting()
+		s.afterGetting()
 	}
 }

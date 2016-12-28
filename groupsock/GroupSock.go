@@ -22,13 +22,9 @@ type OutputSocket struct {
 	lastSentTTL uint
 }
 
-func (this *OutputSocket) write(destAddr string, portNum uint, buffer []byte, bufferSize uint) bool {
+func (o *OutputSocket) write(destAddr string, portNum uint, buffer []byte, bufferSize uint) bool {
 	udpConn := SetupDatagramSocket(destAddr, portNum)
 	return writeSocket(udpConn, buffer)
-}
-
-func (this *OutputSocket) sourcePortNum() uint {
-	return this.sourcePort
 }
 
 type GroupSock struct {
@@ -51,19 +47,19 @@ func NewGroupSock(addrStr string, portNum uint) *GroupSock {
 	return gs
 }
 
-func (this *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
+func (g *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
 	var writeSuccess bool
-	for i := 0; i < len(this.dests); i++ {
-		dest := this.dests[i]
-		if this.write(dest.addrStr, dest.portNum, buffer, bufferSize) {
+	for i := 0; i < len(g.dests); i++ {
+		dest := g.dests[i]
+		if g.write(dest.addrStr, dest.portNum, buffer, bufferSize) {
 			writeSuccess = true
 		}
 	}
 	return writeSuccess
 }
 
-func (this *GroupSock) HandleRead(buffer []byte) (int, error) {
-	numBytes, err := ReadSocket(this.socketNum, buffer)
+func (g *GroupSock) HandleRead(buffer []byte) (int, error) {
+	numBytes, err := ReadSocket(g.socketNum, buffer)
 	if err != nil {
 		fmt.Printf("GroupSock read failed: %s\n", err.Error())
 		return numBytes, err
@@ -72,9 +68,9 @@ func (this *GroupSock) HandleRead(buffer []byte) (int, error) {
 	return numBytes, err
 }
 
-func (this *GroupSock) GetSourcePort() uint {
-	if this.socketNum != nil {
-		localAddr := strings.Split(this.socketNum.LocalAddr().String(), ":")
+func (g *GroupSock) GetSourcePort() uint {
+	if g.socketNum != nil {
+		localAddr := strings.Split(g.socketNum.LocalAddr().String(), ":")
 		sourcePort, err := strconv.Atoi(localAddr[1])
 		if err == nil {
 			return uint(sourcePort)
@@ -83,15 +79,15 @@ func (this *GroupSock) GetSourcePort() uint {
 	return 0
 }
 
-func (this *GroupSock) TTL() uint {
-	return this.ttl
+func (g *GroupSock) TTL() uint {
+	return g.ttl
 }
 
-func (this *GroupSock) AddDestination(addr string, port uint) {
-	this.dests = append(this.dests, NewDestRecord(addr, port))
+func (g *GroupSock) AddDestination(addr string, port uint) {
+	g.dests = append(g.dests, NewDestRecord(addr, port))
 }
 
-func (this *GroupSock) delDestination(addr string, port uint) {
+func (g *GroupSock) delDestination(addr string, port uint) {
 }
 
 type destRecord struct {

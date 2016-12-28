@@ -1,6 +1,6 @@
 package livemedia
 
-import s "syscall"
+import sys "syscall"
 
 ////////// RTPReceptionStats //////////
 const MILLION = 1000000
@@ -20,10 +20,10 @@ type RTPReceptionStats struct {
 	previousPacketRTPTimestamp       uint32
 	lastResetExtSeqNumReceived       uint32
 	numPacketsReceivedSinceLastReset uint32
-	syncTime                         s.Timeval
-	lastReceivedSR_time              s.Timeval
-	lastPacketReceptionTime          s.Timeval
-	totalInterPacketGaps             s.Timeval
+	syncTime                         sys.Timeval
+	lastReceivedSR_time              sys.Timeval
+	lastPacketReceptionTime          sys.Timeval
+	totalInterPacketGaps             sys.Timeval
 	hasBeenSynchronized              bool
 	haveSeenInitialSequenceNumber    bool
 	lastTransit                      int
@@ -74,7 +74,7 @@ func (stats *RTPReceptionStats) initSeqNum(initialSeqNum uint32) {
 }
 
 func (stats *RTPReceptionStats) noteIncomingPacket(seqNum, rtpTimestamp, timestampFrequency, packetSize uint32,
-	useForJitterCalculation bool) (resultPresentationTime s.Timeval, resultHasBeenSyncedUsingRTCP bool) {
+	useForJitterCalculation bool) (resultPresentationTime sys.Timeval, resultHasBeenSyncedUsingRTCP bool) {
 	if !stats.haveSeenInitialSequenceNumber {
 		stats.initSeqNum(seqNum)
 	}
@@ -121,8 +121,8 @@ func (stats *RTPReceptionStats) noteIncomingPacket(seqNum, rtpTimestamp, timesta
 	}
 
 	// Record the inter-packet delay
-	var timeNow s.Timeval
-	s.Gettimeofday(&timeNow)
+	var timeNow sys.Timeval
+	sys.Gettimeofday(&timeNow)
 	if stats.lastPacketReceptionTime.Sec != 0 ||
 		stats.lastPacketReceptionTime.Usec != 0 {
 		gap := (timeNow.Sec-stats.lastPacketReceptionTime.Sec)*MILLION +
@@ -215,7 +215,7 @@ func (stats *RTPReceptionStats) noteIncomingSR(ntpTimestampMSW, ntpTimestampLSW,
 	stats.lastReceivedSR_NTPmsw = ntpTimestampMSW
 	stats.lastReceivedSR_NTPlsw = ntpTimestampLSW
 
-	s.Gettimeofday(&stats.lastReceivedSR_time)
+	sys.Gettimeofday(&stats.lastReceivedSR_time)
 
 	// Use this SR to update time synchronization information:
 	stats.syncTimestamp = rtpTimestamp
@@ -254,7 +254,7 @@ func (statsDB *RTPReceptionStatsDB) lookup(SSRC uint32) *RTPReceptionStats {
 
 func (statsDB *RTPReceptionStatsDB) noteIncomingPacket(SSRC, seqNum,
 	rtpTimestamp, timestampFrequency, packetSize uint32,
-	useForJitterCalculation bool) (presentationTime s.Timeval, hasBeenSyncedUsingRTCP bool) {
+	useForJitterCalculation bool) (presentationTime sys.Timeval, hasBeenSyncedUsingRTCP bool) {
 	statsDB.totNumPacketsReceived++
 
 	stats := statsDB.lookup(SSRC)

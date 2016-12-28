@@ -5,9 +5,6 @@ import (
 	"net"
 )
 
-func InitWinSocket() {
-}
-
 func SetupDatagramSocket(address string, port uint) *net.UDPConn {
 	addr := fmt.Sprintf("%s:%d", address, port)
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)

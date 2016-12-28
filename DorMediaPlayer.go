@@ -19,10 +19,12 @@ func main() {
 
 	client := rtspclient.New()
 
+	// to connect rtsp server
 	if !client.DialRTSP(rtsp_url) {
 		return
 	}
 
+	// send the options/describe request
 	client.SendRequest()
 
 	//go TimeCloser(client)

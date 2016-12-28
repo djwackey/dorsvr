@@ -3,7 +3,7 @@ package livemedia
 import (
 	"fmt"
 	"net"
-	s "syscall"
+	sys "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
@@ -80,56 +80,40 @@ func (sink *RTPSink) RtpmapLine() string {
 		encodingParamsPart := ""
 		rtpmapFmt := "a=rtpmap:%d %s/%d%s\r\n"
 		rtpmapLine = fmt.Sprintf(rtpmapFmt,
-			sink.RtpPayloadType(),
-			sink.RtpPayloadFormatName(),
-			sink.RtpTimestampFrequency(), encodingParamsPart)
+			sink.rtpPayloadType,
+			sink.rtpPayloadFormatName,
+			sink.rtpTimestampFrequency, encodingParamsPart)
 	}
 
 	return rtpmapLine
 }
 
-func (sink *RTPSink) RtpPayloadFormatName() string {
-	return sink.rtpPayloadFormatName
-}
+func (s *RTPSink) presetNextTimestamp() uint {
+	var timeNow sys.Timeval
+	sys.Gettimeofday(&timeNow)
 
-func (sink *RTPSink) RtpTimestampFrequency() uint {
-	return sink.rtpTimestampFrequency
-}
-
-func (sink *RTPSink) presetNextTimestamp() uint {
-	var timeNow s.Timeval
-	s.Gettimeofday(&timeNow)
-
-	tsNow := sink.convertToRTPTimestamp(timeNow)
-	sink.timestampBase = tsNow
-	sink.nextTimestampHasBeenPreset = true
+	tsNow := s.convertToRTPTimestamp(timeNow)
+	s.timestampBase = tsNow
+	s.nextTimestampHasBeenPreset = true
 
 	return tsNow
 }
 
-func (sink *RTPSink) convertToRTPTimestamp(tv s.Timeval) uint {
+func (s *RTPSink) convertToRTPTimestamp(tv sys.Timeval) uint {
 	// Begin by converting from "struct timeval" units to RTP timestamp units:
-	timestampIncrement := sink.timestampFrequency * uint(tv.Sec)
-	timestampIncrement += (2.0*sink.timestampFrequency*uint(tv.Usec) + 1000000.0) / 2000000
+	timestampIncrement := s.timestampFrequency * uint(tv.Sec)
+	timestampIncrement += (2.0*s.timestampFrequency*uint(tv.Usec) + 1000000.0) / 2000000
 
 	// Then add this to our 'timestamp base':
-	if sink.nextTimestampHasBeenPreset {
+	if s.nextTimestampHasBeenPreset {
 		// Make the returned timestamp the same as the current "fTimestampBase",
 		// so that timestamps begin with the value that was previously preset:
-		sink.timestampBase -= timestampIncrement
-		sink.nextTimestampHasBeenPreset = false
+		s.timestampBase -= timestampIncrement
+		s.nextTimestampHasBeenPreset = false
 	}
 
 	// return RTP Timestamp
-	return sink.timestampBase + timestampIncrement
-}
-
-func (sink *RTPSink) NextTimestampHasBeenPreset() bool {
-	return sink.nextTimestampHasBeenPreset
-}
-
-func (sink *RTPSink) EnableRTCPReports() bool {
-	return sink.enableRTCPReports
+	return s.timestampBase + timestampIncrement
 }
 
 //////// RTPTransmissionStatsDB ////////
@@ -144,6 +128,6 @@ type RTPTransmissionStats struct {
 	packetLossRatio       uint
 	totNumPacketsLost     uint
 	lastPacketNumReceived uint
-	timeCreated           s.Timeval
-	timeReceived          s.Timeval
+	timeCreated           sys.Timeval
+	timeReceived          sys.Timeval
 }

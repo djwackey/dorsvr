@@ -21,29 +21,17 @@ func NewRTPSource() *RTPSource {
 	return source
 }
 
-func (source *RTPSource) InitRTPSouce(isource IFramedSource, RTPgs *gs.GroupSock,
+func (s *RTPSource) InitRTPSouce(isource IFramedSource, RTPgs *gs.GroupSock,
 	rtpPayloadFormat, rtpTimestampFrequency uint) {
-	source.rtpInterface = NewRTPInterface(source, RTPgs)
-	source.lastReceivedSSRC = 0
-	source.rtpPayloadFormat = rtpPayloadFormat
-	source.timestampFrequency = rtpTimestampFrequency
-	source.SSRC = gs.OurRandom32()
-	source.curPacketSyncUsingRTCP = false
-	source.receptionStatsDB = NewRTPReceptionStatsDB()
-	source.InitFramedSource(isource)
+	s.rtpInterface = NewRTPInterface(s, RTPgs)
+	s.lastReceivedSSRC = 0
+	s.rtpPayloadFormat = rtpPayloadFormat
+	s.timestampFrequency = rtpTimestampFrequency
+	s.SSRC = gs.OurRandom32()
+	s.curPacketSyncUsingRTCP = false
+	s.receptionStatsDB = NewRTPReceptionStatsDB()
+	s.InitFramedSource(isource)
 }
 
-func (source *RTPSource) RTPPayloadFormat() uint {
-	return source.rtpPayloadFormat
-}
-
-func (source *RTPSource) TimestampFrequency() uint {
-	return source.timestampFrequency
-}
-
-func (source *RTPSource) SetStreamSocket() {
-}
-
-func (source *RTPSource) ReceptionStatsDB() *RTPReceptionStatsDB {
-	return source.receptionStatsDB
+func (s *RTPSource) SetStreamSocket() {
 }

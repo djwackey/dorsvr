@@ -32,10 +32,6 @@ type RTSPClient struct {
 	requestsAwaitingHTTPTunneling *RequestQueue
 }
 
-type ResponseHandler interface {
-	Handle(rtspClient *RTSPClient, resultCode int, resultStr string)
-}
-
 func New() *RTSPClient {
 	return new(RTSPClient)
 }
@@ -71,13 +67,7 @@ func (c *RTSPClient) Waiting() {
 }
 
 func (c *RTSPClient) Close() {
-	scs := c.SCS()
-
-	//if scs.Subsession.RtcpInstance() != nil {
-	//	scs.Subsession.RtcpInstance().SetByeHandler(nil, nil)
-	//}
-
-	c.SendTeardownCommand(scs.Session, nil)
+	c.sendTeardownCommand(c.scs.Session, nil)
 }
 
 func (c *RTSPClient) init(rtspURL, appName string) {
@@ -102,20 +92,12 @@ func (c *RTSPClient) init(rtspURL, appName string) {
 	c.setUserAgentString(userAgentName)
 }
 
-func (c *RTSPClient) URL() string {
-	return c.baseURL
-}
-
-func (c *RTSPClient) SCS() *StreamClientState {
-	return c.scs
-}
-
-func (c *RTSPClient) SendOptionsCommand(responseHandler interface{}) int {
+func (c *RTSPClient) sendOptionsCommand(responseHandler interface{}) int {
 	c.cseq++
 	return c.sendRequest(newRequestRecord(c.cseq, "OPTIONS", responseHandler))
 }
 
-func (c *RTSPClient) SendAnnounceCommand(responseHandler interface{}) int {
+func (c *RTSPClient) sendAnnounceCommand(responseHandler interface{}) int {
 	c.cseq++
 	return c.sendRequest(newRequestRecord(c.cseq, "ANNOUNCE", responseHandler))
 }
@@ -125,43 +107,43 @@ func (c *RTSPClient) sendDescribeCommand(responseHandler interface{}) int {
 	return c.sendRequest(newRequestRecord(c.cseq, "DESCRIBE", responseHandler))
 }
 
-func (c *RTSPClient) SendSetupCommand(subsession *livemedia.MediaSubSession, responseHandler interface{}) int {
+func (c *RTSPClient) sendSetupCommand(subsession *livemedia.MediaSubSession, responseHandler interface{}) int {
 	c.cseq++
 	record := newRequestRecord(c.cseq, "SETUP", responseHandler)
 	record.setSubSession(subsession)
 	return c.sendRequest(record)
 }
 
-func (c *RTSPClient) SendPlayCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
+func (c *RTSPClient) sendPlayCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
 	c.cseq++
 	record := newRequestRecord(c.cseq, "PLAY", responseHandler)
 	record.setSession(session)
 	return c.sendRequest(record)
 }
 
-func (c *RTSPClient) SendPauseCommand(responseHandler interface{}) int {
+func (c *RTSPClient) sendPauseCommand(responseHandler interface{}) int {
 	c.cseq++
 	return c.sendRequest(newRequestRecord(c.cseq, "PAUSE", responseHandler))
 }
 
-func (c *RTSPClient) SendRecordCommand(responseHandler interface{}) int {
+func (c *RTSPClient) sendRecordCommand(responseHandler interface{}) int {
 	c.cseq++
 	return c.sendRequest(newRequestRecord(c.cseq, "RECORD", responseHandler))
 }
 
-func (c *RTSPClient) SendTeardownCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
+func (c *RTSPClient) sendTeardownCommand(session *livemedia.MediaSession, responseHandler interface{}) int {
 	c.cseq++
 	record := newRequestRecord(c.cseq, "TEARDOWN", responseHandler)
 	record.setSession(session)
 	return c.sendRequest(record)
 }
 
-func (c *RTSPClient) SendSetParameterCommand(responseHandler interface{}) int {
+func (c *RTSPClient) sendSetParameterCommand(responseHandler interface{}) int {
 	c.cseq++
 	return c.sendRequest(newRequestRecord(c.cseq, "SET_PARAMETER", responseHandler))
 }
 
-func (c *RTSPClient) SendGetParameterCommand(responseHandler interface{}) int {
+func (c *RTSPClient) sendGetParameterCommand(responseHandler interface{}) int {
 	c.cseq++
 	return c.sendRequest(newRequestRecord(c.cseq, "GET_PARAMETER", responseHandler))
 }
@@ -366,9 +348,9 @@ func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 					break
 				}
 
-				if request.CSeq() < cseq {
+				if request.cseq < cseq {
 					//fmt.Println("WARNING: The server did not respond to our \"", request.CommandName(), "\"")
-				} else if request.CSeq() == cseq {
+				} else if request.cseq == cseq {
 					// This is the handler that we want. Remove its record, but remember it,
 					// so that we can later call its handler:
 					foundRequest = request
@@ -406,7 +388,7 @@ func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 
 	var commandName string
 	if foundRequest != nil {
-		commandName = foundRequest.CommandName
+		commandName = foundRequest.commandName
 	} else {
 		commandName = "(unknown)"
 	}
@@ -416,9 +398,9 @@ func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 	var needToResendCommand bool
 	if foundRequest != nil {
 		if responseCode == 200 {
-			switch foundRequest.CommandName {
+			switch foundRequest.commandName {
 			case "SETUP":
-				if !c.handleSetupResponse(foundRequest.Subsession(),
+				if !c.handleSetupResponse(foundRequest.subsession,
 					sessionParamsStr, transportParamsStr, false) {
 					break
 				}
@@ -431,7 +413,7 @@ func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 					break
 				}
 			case "GET_PARAMETER":
-				if !c.handleGetParameterResponse(foundRequest.ContentStr()) {
+				if !c.handleGetParameterResponse(foundRequest.contentStr) {
 					break
 				}
 			default:
@@ -440,7 +422,7 @@ func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 			// We need to resend the command, with an "Authorization:" header:
 			needToResendCommand = true
 
-			if foundRequest.CommandName == "GET" {
+			if foundRequest.commandName == "GET" {
 				c.resetTCPSockets()
 			}
 		} else if responseCode == 301 || responseCode == 302 { // redirect
@@ -488,29 +470,28 @@ func (c *RTSPClient) sendRequest(request *RequestRecord) int {
 	if c.tunnelOverHTTPPortNum != 0 {
 		c.setupHTTPTunneling()
 		c.requestsAwaitingHTTPTunneling.enqueue(request)
-		return request.CSeq()
+		return request.cseq
 	}
 
 	protocalStr := "RTSP/1.0"
-	contentLengthHeader := ""
+	var contentLengthHeader string
 
-	contentStr := request.ContentStr()
-	contentStrLen := len(contentStr)
+	contentStrLen := len(request.contentStr)
 	if contentStrLen > 0 {
 		contentLengthHeader = fmt.Sprintf("Content-Length: %s\r\n", contentStrLen)
 	}
 
 	cmdURL := c.baseURL
 	var extraHeaders string
-	switch request.CommandName {
+	switch request.commandName {
 	case "OPTIONS", "ANNOUNCE":
 		extraHeaders = "Content-Type: application/sdp\r\n"
 	case "DESCRIBE":
 		extraHeaders = "Accept: application/sdp\r\n"
 	case "SETUP":
-		subsession := request.Subsession()
-		streamUsingTCP := (request.BoolFlags() & 0x1) != 0
-		streamOutgoing := (request.BoolFlags() & 0x2) != 0
+		subsession := request.subsession
+		streamUsingTCP := (request.boolFlags & 0x1) != 0
+		streamOutgoing := (request.boolFlags & 0x2) != 0
 
 		prefix, separator, suffix := c.constructSubSessionURL(subsession)
 
@@ -554,16 +535,16 @@ func (c *RTSPClient) sendRequest(request *RequestRecord) int {
 		if c.lastSessionID == "" {
 			fmt.Println("No RTSP session is currently in progress")
 			c.handleRequestError(request)
-			return request.CSeq()
+			return request.cseq
 		}
 
 		var sessionID string
 		var originalScale float32
-		if request.Session() != nil {
+		if request.session != nil {
 			sessionID = c.lastSessionID
-			originalScale = request.Session().Scale()
+			originalScale = request.session.Scale()
 		} else {
-			subsession := request.Subsession()
+			subsession := request.subsession
 			prefix, separator, suffix := c.constructSubSessionURL(subsession)
 			cmdURL = fmt.Sprintf("%s%s%s", prefix, separator, suffix)
 
@@ -571,11 +552,11 @@ func (c *RTSPClient) sendRequest(request *RequestRecord) int {
 			originalScale = subsession.Scale()
 		}
 
-		if request.CommandName == "PLAY" {
+		if request.commandName == "PLAY" {
 			sessionStr := c.createSessionString(sessionID)
-			scaleStr := c.createScaleString(request.Scale(), originalScale)
-			rangeStr := c.createRangeString(request.Start, request.End,
-				request.AbsStartTime, request.AbsEndTime)
+			scaleStr := c.createScaleString(request.scale, originalScale)
+			rangeStr := c.createRangeString(request.start, request.end,
+				request.absStartTime, request.absEndTime)
 
 			extraHeaders = fmt.Sprintf("%s%s%s", sessionStr, scaleStr, rangeStr)
 		} else {
@@ -583,7 +564,7 @@ func (c *RTSPClient) sendRequest(request *RequestRecord) int {
 		}
 	case "GET", "POST":
 		var extraHeadersFmt string
-		if request.CommandName == "GET" {
+		if request.commandName == "GET" {
 			extraHeadersFmt = "x-sessioncookie: %s\r\n" +
 				"Accept: application/x-rtsp-tunnelled\r\n" +
 				"Pragma: no-cache\r\n" +
@@ -600,7 +581,7 @@ func (c *RTSPClient) sendRequest(request *RequestRecord) int {
 	default:
 	}
 
-	authenticatorStr := c.createAuthenticatorStr(request.CommandName, c.baseURL)
+	authenticatorStr := c.createAuthenticatorStr(request.commandName, c.baseURL)
 
 	cmdFmt := "%s %s %s\r\n" +
 		"CSeq: %d\r\n" +
@@ -611,15 +592,15 @@ func (c *RTSPClient) sendRequest(request *RequestRecord) int {
 		"\r\n" +
 		"%s"
 
-	cmd := fmt.Sprintf(cmdFmt, request.CommandName,
+	cmd := fmt.Sprintf(cmdFmt, request.commandName,
 		cmdURL,
 		protocalStr,
-		request.CSeq(),
+		request.cseq,
 		authenticatorStr,
 		c.userAgentHeaderStr,
 		extraHeaders,
 		contentLengthHeader,
-		contentStr)
+		request.contentStr)
 
 	writeBytes, err := c.tcpConn.Write([]byte(cmd))
 	if err != nil {
@@ -885,14 +866,14 @@ func (c *RTSPClient) handleIncomingRequest(reqStr string, length int) {
 	}
 }
 
-func (c *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (headerParams string, result bool) {
+func (c *RTSPClient) checkForHeader(line, headerName string, headerNameLength int) (string, bool) {
 	if !strings.HasPrefix(line, headerName) {
-		return headerParams, false
+		return "", false
 	}
 
 	index := headerNameLength
-	for _, c := range line[headerNameLength:] {
-		if c == ' ' || c == '\t' {
+	for _, ch := range line[headerNameLength:] {
+		if ch == ' ' || ch == '\t' {
 			index += 1
 		}
 	}
@@ -904,12 +885,12 @@ type RequestRecord struct {
 	cseq         int
 	boolFlags    int
 	scale        float32
-	Start        float32
-	End          float32
-	CommandName  string
+	start        float32
+	end          float32
+	commandName  string
 	contentStr   string
-	AbsStartTime string
-	AbsEndTime   string
+	absStartTime string
+	absEndTime   string
 	handler      interface{}
 	subsession   *livemedia.MediaSubSession
 	session      *livemedia.MediaSession
@@ -919,10 +900,10 @@ func newRequestRecord(cseq int, commandName string, responseHandler interface{})
 	requestRecord := new(RequestRecord)
 	requestRecord.cseq = cseq
 	requestRecord.scale = 1.0
-	requestRecord.Start = 0.0
-	requestRecord.End = -1.0
+	requestRecord.start = 0.0
+	requestRecord.end = -1.0
 	requestRecord.handler = responseHandler
-	requestRecord.CommandName = commandName
+	requestRecord.commandName = commandName
 	return requestRecord
 }
 
@@ -932,30 +913,6 @@ func (record *RequestRecord) setSession(session *livemedia.MediaSession) {
 
 func (record *RequestRecord) setSubSession(subsession *livemedia.MediaSubSession) {
 	record.subsession = subsession
-}
-
-func (record *RequestRecord) Session() *livemedia.MediaSession {
-	return record.session
-}
-
-func (r *RequestRecord) Subsession() *livemedia.MediaSubSession {
-	return r.subsession
-}
-
-func (r *RequestRecord) BoolFlags() int {
-	return r.boolFlags
-}
-
-func (r *RequestRecord) CSeq() int {
-	return r.cseq
-}
-
-func (r *RequestRecord) Scale() float32 {
-	return r.scale
-}
-
-func (r *RequestRecord) ContentStr() string {
-	return r.contentStr
 }
 
 func (r *RequestRecord) Handle(rtspClient *RTSPClient, resultCode int, resultStr string) {

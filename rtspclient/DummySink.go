@@ -2,9 +2,9 @@ package rtspclient
 
 import (
 	"fmt"
+	sys "syscall"
 
 	"github.com/djwackey/dorsvr/livemedia"
-	"github.com/djwackey/dorsvr/utils"
 )
 
 type DummySink struct {
@@ -28,11 +28,11 @@ func NewDummySink(subsession *livemedia.MediaSubSession, streamID string) *Dummy
 }
 
 func (s *DummySink) AfterGettingFrame(frameSize, durationInMicroseconds uint,
-	presentationTime utils.Timeval) {
+	presentationTime sys.Timeval) {
 	//return
 	fmt.Printf("Stream \"%s\"; %s/%s:\tReceived %d bytes.\tPresentation Time: %f\n",
 		s.streamID, s.subsession.MediumName(), s.subsession.CodecName(), frameSize,
-		float32(presentationTime.Tv_sec/1000/1000+presentationTime.Tv_usec))
+		float32(presentationTime.Sec/1000/1000+presentationTime.Usec))
 }
 
 func (s *DummySink) ContinuePlaying() {
