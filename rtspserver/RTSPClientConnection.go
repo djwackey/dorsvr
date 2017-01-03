@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
+
+	gs "github.com/djwackey/dorsvr/groupsock"
+	"github.com/djwackey/dorsvr/livemedia"
 )
 
 type RTSPClientConnection struct {
@@ -68,21 +71,21 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 
 	var existed bool
 	var clientSession *RTSPClientSession
-	requestString, parseSucceeded := ParseRTSPRequestString(reqStr, length)
+	requestString, parseSucceeded := livemedia.ParseRTSPRequestString(reqStr, length)
 	if parseSucceeded {
-		c.currentCSeq = requestString.cseq
-		sessionIDStr := requestString.sessionIDStr
-		switch requestString.cmdName {
+		c.currentCSeq = requestString.Cseq
+		sessionIDStr := requestString.SessionIDStr
+		switch requestString.CmdName {
 		case "OPTIONS":
 			c.handleCommandOptions()
 		case "DESCRIBE":
-			c.handleCommandDescribe(requestString.urlPreSuffix, requestString.urlSuffix, reqStr)
+			c.handleCommandDescribe(requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 		case "SETUP":
 			{
 				if sessionIDStr == "" {
 					var sessionID uint
 					for {
-						sessionID = OurRandom32()
+						sessionID = uint(gs.OurRandom32())
 						sessionIDStr = fmt.Sprintf("%08X", sessionID)
 
 						if _, existed = c.rtspServer.clientSessions[sessionIDStr]; !existed {
@@ -98,14 +101,14 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 				}
 
 				if clientSession != nil {
-					clientSession.HandleCommandSetup(requestString.urlPreSuffix, requestString.urlSuffix, reqStr)
+					clientSession.HandleCommandSetup(requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 				}
 			}
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
 			{
 				if clientSession, existed = c.rtspServer.clientSessions[sessionIDStr]; existed {
-					clientSession.handleCommandWithinSession(requestString.cmdName,
-						requestString.urlPreSuffix, requestString.urlSuffix, reqStr)
+					clientSession.handleCommandWithinSession(requestString.CmdName,
+						requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 				} else {
 					c.handleCommandSessionNotFound()
 				}
@@ -115,15 +118,15 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 			c.handleCommandNotSupported()
 		}
 	} else {
-		requestString, parseSucceeded := ParseHTTPRequestString(reqStr, length)
+		requestString, parseSucceeded := livemedia.ParseHTTPRequestString(reqStr, length)
 		if parseSucceeded {
-			switch requestString.cmdName {
+			switch requestString.CmdName {
 			case "GET":
-				c.handleHTTPCommandTunnelingGET(requestString.sessionCookie)
+				c.handleHTTPCommandTunnelingGET(requestString.SessionCookie)
 			case "POST":
 				extraData := ""
 				extraDataSize := uint(0)
-				c.handleHTTPCommandTunnelingPOST(requestString.sessionCookie, extraData, extraDataSize)
+				c.handleHTTPCommandTunnelingPOST(requestString.SessionCookie, extraData, extraDataSize)
 			default:
 				c.handleHTTPCommandNotSupported()
 			}
@@ -144,7 +147,7 @@ func (c *RTSPClientConnection) handleCommandOptions() {
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 		"CSeq: %s\r\n"+
 		"%sPublic: %s\r\n\r\n",
-		c.currentCSeq, DateHeader(), allowedCommandNames)
+		c.currentCSeq, livemedia.DateHeader(), livemedia.AllowedCommandNames)
 }
 
 func (c *RTSPClientConnection) handleCommandGetParameter() {
@@ -175,7 +178,7 @@ func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fu
 
 	c.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
 
-	var session *ServerMediaSession
+	var session *livemedia.ServerMediaSession
 	session = c.rtspServer.LookupServerMediaSession(urlTotalSuffix)
 	if session == nil {
 		c.handleCommandNotFound()
@@ -198,28 +201,28 @@ func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fu
 		"Content-Type: application/sdp\r\n"+
 		"Content-Length: %d\r\n\r\n"+
 		"%s",
-		c.currentCSeq, DateHeader(), rtspURL, sdpDescriptionSize, sdpDescription)
+		c.currentCSeq, livemedia.DateHeader(), rtspURL, sdpDescriptionSize, sdpDescription)
 }
 
 func (c *RTSPClientConnection) handleCommandBad() {
 	// Don't do anything with "currentCSeq", because it might be nonsense
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 400 Bad Request\r\n"+
-		"%sAllow: %s\r\n\r\n", DateHeader(), allowedCommandNames)
+		"%sAllow: %s\r\n\r\n", livemedia.DateHeader(), livemedia.AllowedCommandNames)
 }
 
 func (c *RTSPClientConnection) handleCommandNotSupported() {
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 405 Method Not Allowed\r\n"+
 		"CSeq: %s\r\n"+
 		"%sAllow: %s\r\n\r\n",
-		c.currentCSeq, DateHeader(), allowedCommandNames)
+		c.currentCSeq, livemedia.DateHeader(), livemedia.AllowedCommandNames)
 }
 
 func (c *RTSPClientConnection) handleHTTPCommandNotSupported() {
-	c.responseBuffer = fmt.Sprintf("HTTP/1.0 405 Method Not Allowed\r\n%s\r\n\r\n", DateHeader())
+	c.responseBuffer = fmt.Sprintf("HTTP/1.0 405 Method Not Allowed\r\n%s\r\n\r\n", livemedia.DateHeader())
 }
 
 func (c *RTSPClientConnection) handleHTTPCommandNotFound() {
-	c.responseBuffer = fmt.Sprintf("HTTP/1.0 404 Not Found\r\n%s\r\n\r\n", DateHeader())
+	c.responseBuffer = fmt.Sprintf("HTTP/1.0 404 Not Found\r\n%s\r\n\r\n", livemedia.DateHeader())
 }
 
 func (c *RTSPClientConnection) handleHTTPCommandTunnelingGET(sessionCookie string) {
@@ -247,7 +250,7 @@ func (c *RTSPClientConnection) setRTSPResponse(responseStr string) {
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 %s\r\n"+
 		"CSeq: %s\r\n"+
 		"%s\r\n",
-		responseStr, c.currentCSeq, DateHeader())
+		responseStr, c.currentCSeq, livemedia.DateHeader())
 }
 
 func (c *RTSPClientConnection) setRTSPResponseWithSessionID(responseStr string, sessionID uint) {
@@ -255,7 +258,7 @@ func (c *RTSPClientConnection) setRTSPResponseWithSessionID(responseStr string, 
 		"CSeq: %s\r\n"+
 		"%s\r\n"+
 		"Session: %08X\r\n\r\n",
-		responseStr, c.currentCSeq, DateHeader(), sessionID)
+		responseStr, c.currentCSeq, livemedia.DateHeader(), sessionID)
 }
 
 func (c *RTSPClientConnection) AuthenticationOK(cmdName, urlSuffix, fullRequestStr string) bool {

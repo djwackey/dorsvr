@@ -12,4 +12,6 @@ fi
 if [ "$1" = "test" ]; then
     go test ./groupsock
     go test ./livemedia
+    go test ./rtspclient
+    go test ./rtspserver
 fi

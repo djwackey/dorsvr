@@ -18,9 +18,9 @@ type ServerMediaSession struct {
 	infoSDPStr        string
 	miscSDPLines      string
 	referenceCount    int
-	subsessionCounter int
+	SubsessionCounter int
 	creationTime      sys.Timeval
-	subSessions       []IServerMediaSubSession
+	SubSessions       []IServerMediaSubSession
 }
 
 func NewServerMediaSession(description, streamName string) *ServerMediaSession {
@@ -28,7 +28,7 @@ func NewServerMediaSession(description, streamName string) *ServerMediaSession {
 	session.descSDPStr = description + ", streamed by the Dor Media Server"
 	session.infoSDPStr = streamName
 	session.streamName = streamName
-	session.subSessions = make([]IServerMediaSubSession, 1024)
+	session.SubSessions = make([]IServerMediaSubSession, 1024)
 	session.ipAddr, _ = gs.OurIPAddress()
 
 	sys.Gettimeofday(&session.creationTime)
@@ -81,8 +81,8 @@ func (s *ServerMediaSession) GenerateSDPDescription() string {
 		s.miscSDPLines)
 
 	// Then, add the (media-level) lines for each subsession:
-	for i := 0; i < s.subsessionCounter; i++ {
-		sdpLines := s.subSessions[i].SDPLines()
+	for i := 0; i < s.SubsessionCounter; i++ {
+		sdpLines := s.SubSessions[i].SDPLines()
 		sdp += sdpLines
 	}
 
@@ -94,8 +94,8 @@ func (s *ServerMediaSession) StreamName() string {
 }
 
 func (s *ServerMediaSession) AddSubSession(subSession IServerMediaSubSession) {
-	s.subSessions[s.subsessionCounter] = subSession
-	s.subsessionCounter++
+	s.SubSessions[s.SubsessionCounter] = subSession
+	s.SubsessionCounter++
 	subSession.IncrTrackNumber()
 }
 
@@ -103,6 +103,6 @@ func (s *ServerMediaSession) Duration() float32 {
 	return 0.0
 }
 
-func (s *ServerMediaSession) testScaleFactor() float32 {
+func (s *ServerMediaSession) TestScaleFactor() float32 {
 	return 1.0
 }

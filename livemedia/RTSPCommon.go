@@ -9,7 +9,7 @@ import (
 const maxCommandNum = 9
 
 // Handler routines for specific RTSP commands:
-var allowedCommandNames [maxCommandNum]string = [maxCommandNum]string{
+var AllowedCommandNames [maxCommandNum]string = [maxCommandNum]string{
 	"OPTIONS",
 	"DESCRIBE",
 	"SETUP",
@@ -23,37 +23,37 @@ var allowedCommandNames [maxCommandNum]string = [maxCommandNum]string{
 
 type RTSPRequestInfo struct {
 	Cseq          string
-	cmdName       string
-	sessionIDStr  string
-	urlPreSuffix  string
-	urlSuffix     string
-	contentLength string
+	CmdName       string
+	SessionIDStr  string
+	UrlPreSuffix  string
+	UrlSuffix     string
+	ContentLength string
 }
 
 type HTTPRequestInfo struct {
-	cmdName       string
-	urlPreSuffix  string
-	urlSuffix     string
-	acceptStr     string
-	sessionCookie string
+	CmdName       string
+	UrlPreSuffix  string
+	UrlSuffix     string
+	AcceptStr     string
+	SessionCookie string
 }
 
 type TransportHeader struct {
-	streamingMode     uint
-	clientRTPPortNum  uint
-	clientRTCPPortNum uint
-	rtpChannelID      uint
-	rtcpChannelID     uint
-	destinationTTL    uint
-	destinationAddr   string
-	streamingModeStr  string
+	StreamingMode     uint
+	ClientRTPPortNum  uint
+	ClientRTCPPortNum uint
+	RTPChannelID      uint
+	RTCPChannelID     uint
+	DestinationTTL    uint
+	DestinationAddr   string
+	StreamingModeStr  string
 }
 
 type RangeHeader struct {
-	rangeStart   float32
-	rangeEnd     float32
-	absStartTime string
-	absEndTime   string
+	RangeStart   float32
+	RangeEnd     float32
+	AbsStartTime string
+	AbsEndTime   string
 }
 
 const (
@@ -68,7 +68,7 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 	// Read everything up to the first space as the command name:
 	i := 0
 	for i = 0; i < reqStrSize && reqStr[i] != ' ' && reqStr[i] != '\t'; i++ {
-		reqInfo.cmdName += string(reqStr[i])
+		reqInfo.CmdName += string(reqStr[i])
 	}
 	if i >= reqStrSize {
 		return nil, false // parse failed
@@ -113,13 +113,13 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 			k2 := k1 + 1
 			if i <= k {
 				for ; k2 <= k; k2++ {
-					reqInfo.urlSuffix += string(reqStr[k2])
+					reqInfo.UrlSuffix += string(reqStr[k2])
 				}
 			}
 			k2 = i + 1
 			if i <= k {
 				for ; k2 <= k1-1; k2++ {
-					reqInfo.urlPreSuffix += string(reqStr[k2])
+					reqInfo.UrlPreSuffix += string(reqStr[k2])
 				}
 			}
 
@@ -147,7 +147,7 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
 			}
 			for ; reqStr[j] != '\r' && reqStr[j] != '\n'; j++ {
-				reqInfo.sessionIDStr += string(reqStr[j])
+				reqInfo.SessionIDStr += string(reqStr[j])
 			}
 		}
 	}
@@ -158,7 +158,7 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 			j += 15
 			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
 			}
-			if num, _ := fmt.Sscanf(reqStr[j:j+15], "%d", &reqInfo.contentLength); num == 1 {
+			if num, _ := fmt.Sscanf(reqStr[j:j+15], "%d", &reqInfo.ContentLength); num == 1 {
 				break
 			}
 		}
@@ -172,7 +172,7 @@ func ParseHTTPRequestString(reqStr string, reqStrSize int) (*HTTPRequestInfo, bo
 
 	i := 0
 	for i = 0; i < reqStrSize && reqStr[i] != ' ' && reqStr[i] != '\t'; i++ {
-		reqInfo.cmdName += string(reqStr[i])
+		reqInfo.CmdName += string(reqStr[i])
 	}
 	if i >= reqStrSize {
 		return nil, false // parse failed
@@ -191,8 +191,8 @@ func ParseHTTPRequestString(reqStr string, reqStrSize int) (*HTTPRequestInfo, bo
 	}
 
 	// Look for various headers that we're interested in:
-	reqInfo.sessionCookie, _ = lookForHeader("x-sessioncookie", reqStr[i:], reqStrSize-i)
-	reqInfo.acceptStr, _ = lookForHeader("Accept", reqStr[i:], reqStrSize-i)
+	reqInfo.SessionCookie, _ = lookForHeader("x-sessioncookie", reqStr[i:], reqStrSize-i)
+	reqInfo.AcceptStr, _ = lookForHeader("Accept", reqStr[i:], reqStrSize-i)
 	return reqInfo, true
 }
 
@@ -215,15 +215,15 @@ func lookForHeader(headerName string, source string, sourceLen int) (string, int
 	return resultStr, resultMaxSize
 }
 
-func parseTransportHeader(reqStr string) *TransportHeader {
+func ParseTransportHeader(reqStr string) *TransportHeader {
 	// Initialize the result parameters to default values:
 	header := new(TransportHeader)
-	header.streamingMode = RTP_UDP
-	header.destinationTTL = 255
-	header.clientRTPPortNum = 0
-	header.clientRTCPPortNum = 1
-	header.rtpChannelID = 0xFF
-	header.rtcpChannelID = 0xFF
+	header.StreamingMode = RTP_UDP
+	header.DestinationTTL = 255
+	header.ClientRTPPortNum = 0
+	header.ClientRTCPPortNum = 1
+	header.RTPChannelID = 0xFF
+	header.RTCPChannelID = 0xFF
 
 	for {
 		// First, find "Transport:"
@@ -242,32 +242,32 @@ func parseTransportHeader(reqStr string) *TransportHeader {
 			field = strings.TrimSpace(field)
 
 			if strings.EqualFold(field, "RTP/AVP/TCP") {
-				header.streamingMode = RTP_TCP
+				header.StreamingMode = RTP_TCP
 			} else if strings.EqualFold(field, "RAW/RAW/UDP") ||
 				strings.EqualFold(field, "MP2T/H2221/UDP") {
-				header.streamingMode = RAW_UDP
-				header.streamingModeStr = field
+				header.StreamingMode = RAW_UDP
+				header.StreamingModeStr = field
 			} else if strings.Index(field, "destination=") != -1 {
-				header.destinationAddr = field[12:]
+				header.DestinationAddr = field[12:]
 			} else if num, _ = fmt.Sscanf(field, "ttl%d", &ttl); num == 1 {
-				header.destinationTTL = ttl
+				header.DestinationTTL = ttl
 			} else if num, _ = fmt.Sscanf(field, "client_port=%d-%d", &p1, &p2); num == 2 {
-				header.clientRTPPortNum = p1
-				if header.streamingMode == RAW_UDP {
-					header.clientRTCPPortNum = 0
+				header.ClientRTPPortNum = p1
+				if header.StreamingMode == RAW_UDP {
+					header.ClientRTCPPortNum = 0
 				} else {
-					header.clientRTCPPortNum = p2
+					header.ClientRTCPPortNum = p2
 				}
 			} else if num, _ = fmt.Sscanf(field, "client_port=%s", &p1); num == 1 {
-				header.clientRTPPortNum = p1
-				if header.streamingMode == RAW_UDP {
-					header.clientRTCPPortNum = 0
+				header.ClientRTPPortNum = p1
+				if header.StreamingMode == RAW_UDP {
+					header.ClientRTCPPortNum = 0
 				} else {
-					header.clientRTCPPortNum = p1
+					header.ClientRTCPPortNum = p1
 				}
 			} else if num, _ = fmt.Sscanf(field, "interleaved=%d-%d", &rtpCid, &rtcpCid); num == 2 {
-				header.rtpChannelID = rtpCid
-				header.rtcpChannelID = rtcpCid
+				header.RTPChannelID = rtpCid
+				header.RTCPChannelID = rtcpCid
 			}
 		}
 		break
@@ -287,8 +287,8 @@ func parseRangeParam(paramStr string) *RangeHeader {
 	}
 
 	if num == 2 {
-		rangeHeader.rangeStart = start
-		rangeHeader.rangeEnd = end
+		rangeHeader.RangeStart = start
+		rangeHeader.RangeEnd = end
 	} else {
 		num, err = fmt.Sscanf(paramStr, "npt = %lf -", &start)
 		if err != nil {
@@ -296,11 +296,11 @@ func parseRangeParam(paramStr string) *RangeHeader {
 		}
 
 		if num == 1 {
-			rangeHeader.rangeStart = start
+			rangeHeader.RangeStart = start
 		} else {
 			if strings.EqualFold(paramStr, "npt = now -") {
-				rangeHeader.rangeStart = 0.0
-				rangeHeader.rangeEnd = 0.0
+				rangeHeader.RangeStart = 0.0
+				rangeHeader.RangeEnd = 0.0
 			} else {
 				num, err = fmt.Sscanf(paramStr, "clock = %n", &numCharsMatched)
 				if err != nil {
@@ -316,10 +316,10 @@ func parseRangeParam(paramStr string) *RangeHeader {
 					}
 
 					if num == 2 {
-						rangeHeader.absStartTime = as
-						rangeHeader.absEndTime = ae
+						rangeHeader.AbsStartTime = as
+						rangeHeader.AbsEndTime = ae
 					} else if num == 1 {
-						rangeHeader.absStartTime = as
+						rangeHeader.AbsStartTime = as
 					}
 				} else {
 					fmt.Sscanf(paramStr, "smtpe = %n", &numCharsMatched)
@@ -331,7 +331,7 @@ func parseRangeParam(paramStr string) *RangeHeader {
 	return rangeHeader
 }
 
-func parseRangeHeader(buf string) (*RangeHeader, bool) {
+func ParseRangeHeader(buf string) (*RangeHeader, bool) {
 	var rangeParam *RangeHeader
 	var result bool
 
@@ -359,7 +359,7 @@ func parseRangeHeader(buf string) (*RangeHeader, bool) {
 	return rangeParam, result
 }
 
-func parsePlayNowHeader(buf string) bool {
+func ParsePlayNowHeader(buf string) bool {
 	// Find "x-playNow:" header, if present
 	var finded bool
 	index := strings.Index(buf, "x-playNow:")
@@ -370,7 +370,7 @@ func parsePlayNowHeader(buf string) bool {
 	return finded
 }
 
-func parseScaleHeader(buf string) (float32, bool) {
+func ParseScaleHeader(buf string) (float32, bool) {
 	// Initialize the result parameter to a default value:
 	var scale float32 = 1.0
 	var result bool

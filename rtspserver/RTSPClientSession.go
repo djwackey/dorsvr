@@ -5,6 +5,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/djwackey/dorsvr/livemedia"
 )
 
 type RTSPClientSession struct {
@@ -17,7 +19,7 @@ type RTSPClientSession struct {
 	streamStates         *StreamServerState
 	rtspServer           *RTSPServer
 	rtspClientConn       *RTSPClientConnection
-	serverMediaSession   *ServerMediaSession
+	serverMediaSession   *livemedia.ServerMediaSession
 	livenessTimeoutTimer *time.Timer
 }
 
@@ -51,22 +53,22 @@ func (s *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 	}
 
 	if s.streamStates == nil {
-		s.numStreamStates = s.serverMediaSession.subsessionCounter
+		s.numStreamStates = s.serverMediaSession.SubsessionCounter
 
-		s.streamStates = new(streamState)
+		s.streamStates = new(StreamServerState)
 		for i := 0; i < s.numStreamStates; i++ {
-			s.streamStates.subsession = s.serverMediaSession.subSessions[i]
+			s.streamStates.subsession = s.serverMediaSession.SubSessions[i]
 		}
 	}
 
 	// Look up information for the specified subsession (track):
 	//var streamNum int
-	var subsession IServerMediaSubSession
-	if trackId != "" {
+	var subsession livemedia.IServerMediaSubSession
+	if trackID != "" {
 		for streamNum := 0; streamNum < s.numStreamStates; streamNum++ {
 			subsession = s.streamStates.subsession
 			fmt.Println("Look up", subsession)
-			if subsession != nil && strings.EqualFold(trackId, subsession.TrackID()) {
+			if subsession != nil && strings.EqualFold(trackID, subsession.TrackID()) {
 				break
 			}
 		}
@@ -79,26 +81,26 @@ func (s *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 	}
 
 	// Look for a "Transport:" header in the request string, to extract client parameters:
-	transportHeader := parseTransportHeader(reqStr)
-	rtpChannelID := transportHeader.rtpChannelID
-	rtcpChannelID := transportHeader.rtcpChannelID
-	streamingMode := transportHeader.streamingMode
-	clientRTPPort := transportHeader.clientRTPPortNum
-	clientRTCPPort := transportHeader.clientRTCPPortNum
-	streamingModeStr := transportHeader.streamingModeStr
+	transportHeader := livemedia.ParseTransportHeader(reqStr)
+	rtpChannelID := transportHeader.RTPChannelID
+	rtcpChannelID := transportHeader.RTCPChannelID
+	streamingMode := transportHeader.StreamingMode
+	clientRTPPort := transportHeader.ClientRTPPortNum
+	clientRTCPPort := transportHeader.ClientRTCPPortNum
+	streamingModeStr := transportHeader.StreamingModeStr
 
-	if streamingMode == RTP_TCP && rtpChannelID == 0xFF {
+	if streamingMode == livemedia.RTP_TCP && rtpChannelID == 0xFF {
 		rtpChannelID = s.TCPStreamIDCount
 		rtcpChannelID = s.TCPStreamIDCount + 1
 	}
-	if streamingMode == RTP_TCP {
+	if streamingMode == livemedia.RTP_TCP {
 		rtcpChannelID = s.TCPStreamIDCount + 2
 	}
 
-	_, sawRangeHeader := parseRangeHeader(reqStr)
+	_, sawRangeHeader := livemedia.ParseRangeHeader(reqStr)
 	if sawRangeHeader {
 		s.streamAfterSETUP = true
-	} else if parsePlayNowHeader(reqStr) {
+	} else if livemedia.ParsePlayNowHeader(reqStr) {
 		s.streamAfterSETUP = true
 	} else {
 		s.streamAfterSETUP = false
@@ -108,66 +110,66 @@ func (s *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 	destAddrStr := s.rtspClientConn.remoteAddr
 
 	var tcpSocketNum net.Conn
-	if streamingMode == RTP_TCP {
+	if streamingMode == livemedia.RTP_TCP {
 		tcpSocketNum = s.rtspClientConn.clientOutputSocket
 	}
 
-	streamParameter := subsession.getStreamParameters(tcpSocketNum,
+	streamParameter := subsession.GetStreamParameters(tcpSocketNum,
 		destAddrStr,
 		string(s.ourSessionID),
 		clientRTPPort,
 		clientRTCPPort,
 		rtpChannelID,
 		rtcpChannelID)
-	serverRTPPort := streamParameter.serverRTPPort
-	serverRTCPPort := streamParameter.serverRTCPPort
+	serverRTPPort := streamParameter.ServerRTPPort
+	serverRTCPPort := streamParameter.ServerRTCPPort
 
 	//fmt.Println("RTSPClientSession::getStreamParameters", streamParameter, transportHeader)
 
-	s.streamStates.streamToken = streamParameter.streamToken
+	s.streamStates.streamToken = streamParameter.StreamToken
 
 	if s.isMulticast {
 		switch streamingMode {
-		case RTP_UDP:
+		case livemedia.RTP_UDP:
 			s.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 				"CSeq: %s\r\n"+
 				"%s"+
 				"Transport: RTP/AVP;multicast;destination=%s;source=%s;port=%d-%d;ttl=%d\r\n"+
 				"Session: %08X\r\n\r\n", s.rtspClientConn.currentCSeq,
-				DateHeader(),
+				livemedia.DateHeader(),
 				destAddrStr,
 				sourceAddrStr,
 				serverRTPPort,
 				serverRTCPPort,
-				transportHeader.destinationTTL,
+				transportHeader.DestinationTTL,
 				s.ourSessionID)
-		case RTP_TCP:
+		case livemedia.RTP_TCP:
 			// multicast streams can't be sent via TCP
 			s.rtspClientConn.HandleCommandUnsupportedTransport()
-		case RAW_UDP:
+		case livemedia.RAW_UDP:
 			s.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 				"CSeq: %s\r\n"+
 				"%s"+
 				"Transport: %s;multicast;destination=%s;source=%s;port=%d;ttl=%d\r\n"+
 				"Session: %08X\r\n\r\n", s.rtspClientConn.currentCSeq,
-				DateHeader(),
+				livemedia.DateHeader(),
 				destAddrStr,
 				sourceAddrStr,
 				serverRTPPort,
 				serverRTCPPort,
-				transportHeader.destinationTTL,
+				transportHeader.DestinationTTL,
 				s.ourSessionID)
 		default:
 		}
 	} else {
 		switch streamingMode {
-		case RTP_UDP:
+		case livemedia.RTP_UDP:
 			s.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 				"CSeq: %s\r\n"+
 				"%s"+
 				"Transport: RTP/AVP;unicast;destination=%s;source=%s;client_port=%d-%d;server_port=%d-%d\r\n"+
 				"Session: %08X\r\n\r\n", s.rtspClientConn.currentCSeq,
-				DateHeader(),
+				livemedia.DateHeader(),
 				destAddrStr,
 				sourceAddrStr,
 				clientRTPPort,
@@ -175,25 +177,25 @@ func (s *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 				serverRTPPort,
 				serverRTCPPort,
 				s.ourSessionID)
-		case RTP_TCP:
+		case livemedia.RTP_TCP:
 			s.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 				"CSeq: %s\r\n"+
 				"%s"+
 				"Transport: RTP/AVP/TCP;unicast;destination=%s;source=%s;interleaved=%d-%d\r\n"+
 				"Session: %08X\r\n\r\n", s.rtspClientConn.currentCSeq,
-				DateHeader(),
+				livemedia.DateHeader(),
 				destAddrStr,
 				sourceAddrStr,
 				rtpChannelID,
 				rtcpChannelID,
 				s.ourSessionID)
-		case RAW_UDP:
+		case livemedia.RAW_UDP:
 			s.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 				"CSeq: %s\r\n"+
 				"%s"+
 				"Transport: %s;unicast;destination=%s;source=%s;client_port=%d;server_port=%d\r\n"+
 				"Session: %08X\r\n\r\n", s.rtspClientConn.currentCSeq,
-				DateHeader(),
+				livemedia.DateHeader(),
 				streamingModeStr,
 				destAddrStr,
 				sourceAddrStr,
@@ -209,15 +211,15 @@ func (s *RTSPClientSession) handleCommandWithinSession(cmdName, urlPreSuffix, ur
 
 	s.noteLiveness()
 
-	var subsession IServerMediaSubSession
+	var subsession livemedia.IServerMediaSubSession
 	if s.serverMediaSession == nil { // There wasn't a previous SETUP!
 		s.rtspClientConn.handleCommandNotSupported()
 		return
 	} else if urlSuffix != "" && strings.EqualFold(s.serverMediaSession.StreamName(), urlPreSuffix) {
 		// Non-aggregated operation.
 		// Look up the media subsession whose track id is "urlSuffix":
-		for i := 0; i < s.serverMediaSession.subsessionCounter; i++ {
-			subsession = s.serverMediaSession.subSessions[i]
+		for i := 0; i < s.serverMediaSession.SubsessionCounter; i++ {
+			subsession = s.serverMediaSession.SubSessions[i]
 
 			if strings.EqualFold(subsession.TrackID(), urlSuffix) {
 				break
@@ -261,17 +263,17 @@ func (s *RTSPClientSession) handleCommandWithinSession(cmdName, urlPreSuffix, ur
 	}
 }
 
-func (s *RTSPClientSession) handleCommandPlay(subsession IServerMediaSubSession, fullRequestStr string) {
+func (s *RTSPClientSession) handleCommandPlay(subsession livemedia.IServerMediaSubSession, fullRequestStr string) {
 	rtspURL := s.rtspServer.RtspURL(s.serverMediaSession.StreamName())
 
 	// Parse the client's "Scale:" header, if any:
-	scale, sawScaleHeader := parseScaleHeader(fullRequestStr)
+	scale, sawScaleHeader := livemedia.ParseScaleHeader(fullRequestStr)
 
 	// Try to set the stream's scale factor to this value:
 	if subsession == nil {
-		scale = s.serverMediaSession.testScaleFactor()
+		scale = s.serverMediaSession.TestScaleFactor()
 	} else {
-		scale = subsession.testScaleFactor(scale)
+		scale = subsession.TestScaleFactor(scale)
 	}
 
 	var buf string
@@ -284,8 +286,8 @@ func (s *RTSPClientSession) handleCommandPlay(subsession IServerMediaSubSession,
 	var rangeStart, rangeEnd, duration float32
 	var absStartTime, absEndTime string
 
-	rangeHeader, sawRangeHeader := parseRangeHeader(fullRequestStr)
-	if sawRangeHeader && rangeHeader.absStartTime == "" {
+	rangeHeader, sawRangeHeader := livemedia.ParseRangeHeader(fullRequestStr)
+	if sawRangeHeader && rangeHeader.AbsStartTime == "" {
 		if subsession == nil {
 			duration = s.serverMediaSession.Duration()
 		} else {
@@ -295,10 +297,10 @@ func (s *RTSPClientSession) handleCommandPlay(subsession IServerMediaSubSession,
 			duration = -duration
 		}
 
-		rangeStart = rangeHeader.rangeStart
-		rangeEnd = rangeHeader.rangeEnd
-		absStartTime = rangeHeader.absStartTime
-		absEndTime = rangeHeader.absEndTime
+		rangeStart = rangeHeader.RangeStart
+		rangeEnd = rangeHeader.RangeEnd
+		absStartTime = rangeHeader.AbsStartTime
+		absEndTime = rangeHeader.AbsEndTime
 
 		if rangeStart < 0 {
 			rangeStart = 0
@@ -364,7 +366,7 @@ func (s *RTSPClientSession) handleCommandPlay(subsession IServerMediaSubSession,
 
 	rangeHeaderStr := buf
 
-	rtpSeqNum, rtpTimestamp := s.streamStates.subsession.startStream(s.ourSessionID, s.streamStates.streamToken)
+	rtpSeqNum, rtpTimestamp := s.streamStates.subsession.StartStream(s.ourSessionID, s.streamStates.streamToken)
 	urlSuffix := s.streamStates.subsession.TrackID()
 
 	// Create a "RTP-INFO" line. It will get filled in from each subsession's state:
@@ -384,7 +386,7 @@ func (s *RTSPClientSession) handleCommandPlay(subsession IServerMediaSubSession,
 		"%s"+
 		"Session: %08X\r\n"+
 		"%s\r\n", s.rtspClientConn.currentCSeq,
-		DateHeader(),
+		livemedia.DateHeader(),
 		scaleHeaderStr,
 		rangeHeaderStr,
 		s.ourSessionID,
@@ -392,7 +394,7 @@ func (s *RTSPClientSession) handleCommandPlay(subsession IServerMediaSubSession,
 }
 
 func (s *RTSPClientSession) handleCommandPause() {
-	s.streamStates.subsession.pauseStream(s.streamStates.streamToken)
+	s.streamStates.subsession.PauseStream(s.streamStates.streamToken)
 	/*
 		for i := 0; i < s.numStreamStates; i++ {
 			s.streamStates[i].subsession.pauseStream()
@@ -410,7 +412,7 @@ func (s *RTSPClientSession) handleCommandSetParameter() {
 }
 
 func (s *RTSPClientSession) handleCommandTearDown() {
-	s.streamStates.subsession.deleteStream(s.streamStates.streamToken)
+	s.streamStates.subsession.DeleteStream(s.streamStates.streamToken)
 	/*
 		for i := 0; i < s.numStreamStates; i++ {
 			s.streamStates[i].subsession.deleteStream()

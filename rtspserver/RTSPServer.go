@@ -10,6 +10,9 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	gs "github.com/djwackey/dorsvr/groupsock"
+	"github.com/djwackey/dorsvr/livemedia"
 )
 
 type RTSPServer struct {
@@ -19,8 +22,8 @@ type RTSPServer struct {
 	rtspListen                        *net.TCPListener
 	httpListen                        *net.TCPListener
 	clientSessions                    map[string]*RTSPClientSession
-	serverMediaSessions               map[string]*ServerMediaSession
 	clientConnectionsForHTTPTunneling map[string]*RTSPClientConnection
+	serverMediaSessions               map[string]*livemedia.ServerMediaSession
 	reclamationTestSeconds            time.Duration
 }
 
@@ -30,7 +33,7 @@ func New() *RTSPServer {
 	runtime.GOMAXPROCS(server.numCPU())
 
 	server.clientSessions = make(map[string]*RTSPClientSession)
-	server.serverMediaSessions = make(map[string]*ServerMediaSession)
+	server.serverMediaSessions = make(map[string]*livemedia.ServerMediaSession)
 	server.clientConnectionsForHTTPTunneling = make(map[string]*RTSPClientConnection)
 	server.reclamationTestSeconds = 65
 	return server
@@ -91,7 +94,7 @@ func (s *RTSPServer) RtspURL(streamName string) string {
 }
 
 func (s *RTSPServer) RtspURLPrefix() string {
-	s.urlPrefix, _ = OurIPAddress()
+	s.urlPrefix, _ = gs.OurIPAddress()
 	return fmt.Sprintf("rtsp://%s:%d/", s.urlPrefix, s.rtspPort)
 }
 
@@ -121,46 +124,46 @@ func (s *RTSPServer) NewClientConnection(conn net.Conn) {
 	}
 }
 
-func (s *RTSPServer) LookupServerMediaSession(streamName string) *ServerMediaSession {
+func (s *RTSPServer) LookupServerMediaSession(streamName string) *livemedia.ServerMediaSession {
 	// Next, check whether we already have a "ServerMediaSession" for server file:
 	sms, smsExists := s.serverMediaSessions[streamName]
 
 	fid, err := os.Open(streamName)
 	if err != nil {
 		if smsExists {
-			server.RemoveServerMediaSession(sms)
+			s.RemoveServerMediaSession(sms)
 		}
 		return nil
 	}
 	defer fid.Close()
 
 	if !smsExists {
-		sms = server.CreateNewSMS(streamName)
-		server.AddServerMediaSession(sms)
+		sms = s.CreateNewSMS(streamName)
+		s.AddServerMediaSession(sms)
 	}
 
 	return sms
 }
 
-func (s *RTSPServer) AddServerMediaSession(serverMediaSession *ServerMediaSession) {
+func (s *RTSPServer) AddServerMediaSession(serverMediaSession *livemedia.ServerMediaSession) {
 	sessionName := serverMediaSession.StreamName()
 
 	// in case an existing "ServerMediaSession" with server name already exists
-	session, _ := server.serverMediaSessions[sessionName]
-	server.RemoveServerMediaSession(session)
+	session, _ := s.serverMediaSessions[sessionName]
+	s.RemoveServerMediaSession(session)
 
-	server.serverMediaSessions[sessionName] = serverMediaSession
+	s.serverMediaSessions[sessionName] = serverMediaSession
 }
 
-func (s *RTSPServer) RemoveServerMediaSession(serverMediaSession *ServerMediaSession) {
+func (s *RTSPServer) RemoveServerMediaSession(serverMediaSession *livemedia.ServerMediaSession) {
 	if serverMediaSession != nil {
 		sessionName := serverMediaSession.StreamName()
-		delete(server.serverMediaSessions, sessionName)
+		delete(s.serverMediaSessions, sessionName)
 	}
 }
 
-func (s *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
-	var serverMediaSession *ServerMediaSession
+func (s *RTSPServer) CreateNewSMS(fileName string) *livemedia.ServerMediaSession {
+	var serverMediaSession *livemedia.ServerMediaSession
 
 	array := strings.Split(fileName, ".")
 	if len(array) < 2 {
@@ -172,12 +175,12 @@ func (s *RTSPServer) CreateNewSMS(fileName string) *ServerMediaSession {
 	switch extension {
 	case "264":
 		// Assumed to be a H.264 Video Elementary Stream file:
-		serverMediaSession = NewServerMediaSession("H.264 Video", fileName)
-		serverMediaSession.AddSubSession(NewH264FileMediaSubSession(fileName))
+		serverMediaSession = livemedia.NewServerMediaSession("H.264 Video", fileName)
+		serverMediaSession.AddSubSession(livemedia.NewH264FileMediaSubSession(fileName))
 	case "ts":
 		//indexFileName := fmt.Sprintf("%sx", fileName)
-		serverMediaSession = NewServerMediaSession("MPEG Transport Stream", fileName)
-		serverMediaSession.AddSubSession(NewM2TSFileMediaSubSession(fileName))
+		serverMediaSession = livemedia.NewServerMediaSession("MPEG Transport Stream", fileName)
+		serverMediaSession.AddSubSession(livemedia.NewM2TSFileMediaSubSession(fileName))
 	default:
 	}
 	return serverMediaSession
