@@ -1,4 +1,4 @@
-package rtspserver
+package livemedia
 
 var MAX_LENGTH uint = 32
 var singleBitMask = [8]byte{0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01}
@@ -16,13 +16,13 @@ func NewBitVector(baseByte []byte, baseBitOffset, totNumBits uint) *BitVector {
 	return bitVector
 }
 
-func (this *BitVector) init(baseByte []byte, baseBitOffset, totNumBits uint) {
-	this.baseByte = baseByte
-	this.baseBitOffset = baseBitOffset
-	this.totNumBits = totNumBits
+func (v *BitVector) init(baseByte []byte, baseBitOffset, totNumBits uint) {
+	v.baseByte = baseByte
+	v.baseBitOffset = baseBitOffset
+	v.totNumBits = totNumBits
 }
 
-func (this *BitVector) getBits(numBits uint) uint {
+func (v *BitVector) getBits(numBits uint) uint {
 	if numBits == 0 {
 		return 0
 	}
@@ -34,12 +34,12 @@ func (this *BitVector) getBits(numBits uint) uint {
 	}
 
 	var overflowingBits uint
-	if numBits > this.totNumBits-this.curBitIndex {
-		overflowingBits = numBits - (this.totNumBits - this.curBitIndex)
+	if numBits > v.totNumBits-v.curBitIndex {
+		overflowingBits = numBits - (v.totNumBits - v.curBitIndex)
 	}
 
-	this.shiftBits(tmpBuf, this.baseByte, 0, this.baseBitOffset+this.curBitIndex, numBits-overflowingBits)
-	this.curBitIndex += (numBits - overflowingBits)
+	v.shiftBits(tmpBuf, v.baseByte, 0, v.baseBitOffset+v.curBitIndex, numBits-overflowingBits)
+	v.curBitIndex += (numBits - overflowingBits)
 
 	result := uint((tmpBuf[0] << 24) | (tmpBuf[1] << 16) | (tmpBuf[2] << 8) | tmpBuf[3])
 	result >>= (MAX_LENGTH - numBits)         // move into low-order part of word
@@ -47,25 +47,25 @@ func (this *BitVector) getBits(numBits uint) uint {
 	return result
 }
 
-func (this *BitVector) get1Bit() uint {
+func (v *BitVector) get1Bit() uint {
 	// The following is equivalent to "getBits(1)", except faster:
 
-	if this.curBitIndex >= this.totNumBits { /* overflow */
+	if v.curBitIndex >= v.totNumBits { /* overflow */
 		return 0
 	} else {
-		this.curBitIndex++
-		totBitOffset := this.baseBitOffset + this.curBitIndex
-		curFromByte := this.baseByte[totBitOffset/8]
+		v.curBitIndex++
+		totBitOffset := v.baseBitOffset + v.curBitIndex
+		curFromByte := v.baseByte[totBitOffset/8]
 		result := (curFromByte >> (7 - (totBitOffset % 8))) & 0x01
 		return uint(result)
 	}
 }
 
-func (this *BitVector) get1BitBoolean() bool {
-	return (this.get1Bit() != 0)
+func (v *BitVector) get1BitBoolean() bool {
+	return (v.get1Bit() != 0)
 }
 
-func (this *BitVector) shiftBits(toBaseByte, fromBaseByte []byte, toBitOffset, fromBitOffset, numBits uint) {
+func (v *BitVector) shiftBits(toBaseByte, fromBaseByte []byte, toBitOffset, fromBitOffset, numBits uint) {
 	if numBits == 0 {
 		return
 	}
@@ -101,22 +101,22 @@ func (this *BitVector) shiftBits(toBaseByte, fromBaseByte []byte, toBitOffset, f
 	}
 }
 
-func (this *BitVector) skipBits(numBits uint) {
-	if numBits > this.totNumBits-this.curBitIndex { /* overflow */
-		this.curBitIndex = this.totNumBits
+func (v *BitVector) skipBits(numBits uint) {
+	if numBits > v.totNumBits-v.curBitIndex { /* overflow */
+		v.curBitIndex = v.totNumBits
 	} else {
-		this.curBitIndex += numBits
+		v.curBitIndex += numBits
 	}
 }
 
-func (this *BitVector) get_expGolomb() uint {
+func (v *BitVector) getExpGolomb() uint {
 	var numLeadingZeroBits uint
 	var codeStart uint = 1
 
-	for this.get1Bit() == 0 && this.curBitIndex < this.totNumBits {
+	for v.get1Bit() == 0 && v.curBitIndex < v.totNumBits {
 		numLeadingZeroBits++
 		codeStart *= 2
 	}
 
-	return codeStart - 1 + this.getBits(numLeadingZeroBits)
+	return codeStart - 1 + v.getBits(numLeadingZeroBits)
 }

@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/djwackey/dorsvr/rtspclient"
 	"os"
 	"time"
+
+	"github.com/djwackey/dorsvr/rtspclient"
 )
 
 func main() {

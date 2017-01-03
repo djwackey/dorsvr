@@ -1,7 +1,10 @@
-package rtspserver
+package livemedia
 
 import (
 	"fmt"
+	sys "syscall"
+
+	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
 var libNameStr string = "Dor Streaming Media v"
@@ -16,33 +19,33 @@ type ServerMediaSession struct {
 	miscSDPLines      string
 	referenceCount    int
 	subsessionCounter int
-	creationTime      Timeval
+	creationTime      sys.Timeval
 	subSessions       []IServerMediaSubSession
 }
 
 func NewServerMediaSession(description, streamName string) *ServerMediaSession {
-	serverMediaSession := new(ServerMediaSession)
-	serverMediaSession.descSDPStr = description + ", streamed by the Dor Media Server"
-	serverMediaSession.infoSDPStr = streamName
-	serverMediaSession.streamName = streamName
-	serverMediaSession.subSessions = make([]IServerMediaSubSession, 1024)
-	serverMediaSession.ipAddr, _ = OurIPAddress()
+	session := new(ServerMediaSession)
+	session.descSDPStr = description + ", streamed by the Dor Media Server"
+	session.infoSDPStr = streamName
+	session.streamName = streamName
+	session.subSessions = make([]IServerMediaSubSession, 1024)
+	session.ipAddr, _ = gs.OurIPAddress()
 
-	GetTimeOfDay(&serverMediaSession.creationTime)
-	return serverMediaSession
+	sys.Gettimeofday(&session.creationTime)
+	return session
 }
 
-func (this *ServerMediaSession) GenerateSDPDescription() string {
+func (s *ServerMediaSession) GenerateSDPDescription() string {
 	var sourceFilterLine string
-	if this.isSSM {
+	if s.isSSM {
 		sourceFilterLine = fmt.Sprintf("a=source-filter: incl IN IP4 * %s\r\n"+
-			"a=rtcp-unicast: reflection\r\n", this.ipAddr)
+			"a=rtcp-unicast: reflection\r\n", s.ipAddr)
 	} else {
 		sourceFilterLine = ""
 	}
 
 	var rangeLine string
-	dur := this.Duration()
+	dur := s.Duration()
 	if dur == 0.0 {
 		rangeLine = "a=range:npt=0-\r\n"
 	} else if dur > 0.0 {
@@ -64,42 +67,42 @@ func (this *ServerMediaSession) GenerateSDPDescription() string {
 		"%s"
 
 	sdp := fmt.Sprintf(sdpPrefixFmt,
-		this.creationTime.Tv_sec,
-		this.creationTime.Tv_usec,
+		s.creationTime.Sec,
+		s.creationTime.Usec,
 		1,
-		this.ipAddr,
-		this.descSDPStr,
-		this.infoSDPStr,
+		s.ipAddr,
+		s.descSDPStr,
+		s.infoSDPStr,
 		libNameStr, libVersionStr,
 		sourceFilterLine,
 		rangeLine,
-		this.descSDPStr,
-		this.infoSDPStr,
-		this.miscSDPLines)
+		s.descSDPStr,
+		s.infoSDPStr,
+		s.miscSDPLines)
 
 	// Then, add the (media-level) lines for each subsession:
-	for i := 0; i < this.subsessionCounter; i++ {
-		sdpLines := this.subSessions[i].SDPLines()
+	for i := 0; i < s.subsessionCounter; i++ {
+		sdpLines := s.subSessions[i].SDPLines()
 		sdp += sdpLines
 	}
 
 	return sdp
 }
 
-func (this *ServerMediaSession) StreamName() string {
-	return this.streamName
+func (s *ServerMediaSession) StreamName() string {
+	return s.streamName
 }
 
-func (this *ServerMediaSession) AddSubSession(subSession IServerMediaSubSession) {
-	this.subSessions[this.subsessionCounter] = subSession
-	this.subsessionCounter++
+func (s *ServerMediaSession) AddSubSession(subSession IServerMediaSubSession) {
+	s.subSessions[s.subsessionCounter] = subSession
+	s.subsessionCounter++
 	subSession.IncrTrackNumber()
 }
 
-func (this *ServerMediaSession) Duration() float32 {
+func (s *ServerMediaSession) Duration() float32 {
 	return 0.0
 }
 
-func (this *ServerMediaSession) testScaleFactor() float32 {
+func (s *ServerMediaSession) testScaleFactor() float32 {
 	return 1.0
 }

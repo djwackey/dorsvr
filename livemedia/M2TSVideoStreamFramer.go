@@ -1,4 +1,4 @@
-package rtspserver
+package livemedia
 
 import (
 	"fmt"
@@ -30,50 +30,49 @@ func NewM2TSVideoStreamFramer(inputSource IFramedSource) *M2TSVideoStreamFramer 
 	return new(M2TSVideoStreamFramer)
 }
 
-func (this *M2TSVideoStreamFramer) GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
+func (f *M2TSVideoStreamFramer) GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
 }
 
-func (this *M2TSVideoStreamFramer) doGetNextFrame() {
-	if this.limitNumTSPacketsToStream {
-		if this.numTSPacketsToStream == 0 {
-			//this.handleClosure(this)
+func (f *M2TSVideoStreamFramer) doGetNextFrame() {
+	if f.limitNumTSPacketsToStream {
+		if f.numTSPacketsToStream == 0 {
+			//f.handleClosure(this)
 			return
 		}
-		if this.numTSPacketsToStream*TRANSPORT_PACKET_SIZE < this.maxSize {
-			this.maxSize = this.numTSPacketsToStream * TRANSPORT_PACKET_SIZE
+		if f.numTSPacketsToStream*TRANSPORT_PACKET_SIZE < f.maxSize {
+			f.maxSize = f.numTSPacketsToStream * TRANSPORT_PACKET_SIZE
 		}
 	}
 }
 
-func (this *M2TSVideoStreamFramer) doStopGettingFrames() {
-	//FramedFilter::doStopGettingFrames()
-	this.tsPacketCount = 0
-	this.tsPCRCount = 0
+func (f *M2TSVideoStreamFramer) doStopGettingFrames() {
+	f.tsPacketCount = 0
+	f.tsPCRCount = 0
 
-	this.clearPIDStatusTable()
+	f.clearPIDStatusTable()
 }
 
-func (this *M2TSVideoStreamFramer) afterGettingFrame() {
+func (f *M2TSVideoStreamFramer) afterGettingFrame() {
 }
 
-func (this *M2TSVideoStreamFramer) setNumTSPacketsToStream(numTSRecordsToStream uint) {
-	this.numTSPacketsToStream = numTSRecordsToStream
+func (f *M2TSVideoStreamFramer) setNumTSPacketsToStream(numTSRecordsToStream uint) {
+	f.numTSPacketsToStream = numTSRecordsToStream
 	if numTSRecordsToStream > 0 {
-		this.limitNumTSPacketsToStream = true
+		f.limitNumTSPacketsToStream = true
 	} else {
-		this.limitNumTSPacketsToStream = false
+		f.limitNumTSPacketsToStream = false
 	}
 }
 
-func (this *M2TSVideoStreamFramer) clearPIDStatusTable() {
+func (f *M2TSVideoStreamFramer) clearPIDStatusTable() {
 }
 
-func (this *M2TSVideoStreamFramer) updateTSPacketDurationEstimate(pkt []byte, timeNow float32) bool {
+func (f *M2TSVideoStreamFramer) updateTSPacketDurationEstimate(pkt []byte, timeNow float32) bool {
 	if pkt[0] == TRANSPORT_SYNC_BYTE {
 		fmt.Println("Missing sync byte!")
 		return false
 	}
-	this.tsPacketCount++
+	f.tsPacketCount++
 
 	// If this packet doesn't contain a PCR, then we're not interested in it:
 	adaptation_field_control := (pkt[3] & 0x30) >> 4
@@ -95,7 +94,7 @@ func (this *M2TSVideoStreamFramer) updateTSPacketDurationEstimate(pkt []byte, ti
 	}
 
 	// There's a PCR.  Get it, and the PID:
-	this.tsPCRCount++
+	f.tsPCRCount++
 	pcrBaseHigh := float32((pkt[6] << 24) | (pkt[7] << 16) | (pkt[8] << 8) | pkt[9])
 	clock := pcrBaseHigh / 45000.0
 	if (pkt[10] & 0x80) != 0 {
@@ -103,21 +102,21 @@ func (this *M2TSVideoStreamFramer) updateTSPacketDurationEstimate(pkt []byte, ti
 	}
 	pcrExt := float32(((pkt[10] & 0x01) << 8) | pkt[11])
 	clock += pcrExt / 27000000.0
-	if this.limitTSPacketsToStreamByPCR {
-		if clock > this.pcrLimit {
+	if f.limitTSPacketsToStreamByPCR {
+		if clock > f.pcrLimit {
 			// We've hit a preset limit within the stream:
 			return false
 		}
 	}
 
 	pid := ((pkt[1] & 0x1F) << 8) | pkt[2]
-	pidStatus := this.pidStatusDict[pid]
+	pidStatus := f.pidStatusDict[pid]
 	if pidStatus == nil {
 		pidStatus = NewPIDStatus()
 	}
 
 	pidStatus.lastClock = clock
 	pidStatus.lastRealTime = timeNow
-	pidStatus.lastPacketNum = this.tsPacketCount
+	pidStatus.lastPacketNum = f.tsPacketCount
 	return true
 }

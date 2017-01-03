@@ -1,0 +1,148 @@
+package livemedia
+
+import (
+	"encoding/base64"
+	"fmt"
+
+	gs "github.com/djwackey/dorsvr/groupsock"
+)
+
+//////// H264VideoRTPSink ////////
+type H264VideoRTPSink struct {
+	VideoRTPSink
+	ourFragmenter *H264FUAFragmenter
+	sps           string
+	pps           string
+	spsSize       int
+	ppsSize       int
+}
+
+func NewH264VideoRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) *H264VideoRTPSink {
+	sink := new(H264VideoRTPSink)
+	sink.InitVideoRTPSink(sink, rtpGroupSock, rtpPayloadType, 90000, "H264")
+	return sink
+}
+
+func (s *H264VideoRTPSink) ContinuePlaying() {
+	//fmt.Println(fmt.Sprintf("H264VideoRTPSink::ContinuePlaying -> %p", f.source))
+	if s.ourFragmenter == nil {
+		s.ourFragmenter = NewH264FUAFragmenter(s.Source, OutPacketBufferMaxSize)
+	} else {
+		s.ourFragmenter.reAssignInputSource(s.Source)
+	}
+
+	s.Source = s.ourFragmenter
+	s.multiFramedPlaying()
+}
+
+func (s *H264VideoRTPSink) AuxSDPLine() string {
+	sps := s.sps
+	pps := s.pps
+	spsSize := s.spsSize
+	//ppsSize := s.ppsSize
+	if sps == "" || pps == "" {
+		if s.ourFragmenter == nil {
+			return ""
+		}
+
+		framerSource := s.ourFragmenter.InputSource()
+		if framerSource == nil {
+			return ""
+		}
+
+		//framerSource.getSPSandPPS()
+	}
+
+	spsBase64 := base64.NewEncoding(sps)
+	ppsBase64 := base64.NewEncoding(pps)
+
+	var profileLevelId uint8
+	if spsSize >= 4 {
+		profileLevelId = (sps[1] << 16) | (sps[2] << 8) | sps[3] // profile_idc|constraint_setN_flag|level_idc
+	}
+
+	fmtpFmt := "a=fmtp:%d packetization-mode=1;profile-level-id=%06X;sprop-parameter-sets=%s,%s\r\n"
+	fmt.Sprintf(fmtpFmt, s.RtpPayloadType(), profileLevelId, spsBase64, ppsBase64)
+	return ""
+}
+
+//////// H264FUAFragmenter ////////
+type H264FUAFragmenter struct {
+	FramedFilter
+	saveNumTruncatedBytes        uint
+	maxOutputPacketSize          uint
+	numValidDataBytes            uint
+	inputBufferSize              uint
+	curDataOffset                uint
+	inputBuffer                  []byte
+	lastFragmentCompletedNALUnit bool
+}
+
+func NewH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264FUAFragmenter {
+	fragment := new(H264FUAFragmenter)
+	fragment.numValidDataBytes = 1
+	fragment.inputBufferSize = inputBufferMax + 1
+	fragment.inputBuffer = make([]byte, fragment.inputBufferSize)
+	fragment.InitFramedFilter(inputSource)
+	fragment.InitFramedSource(fragment)
+	return fragment
+}
+
+func (f *H264FUAFragmenter) doGetNextFrame() {
+	fmt.Println(fmt.Sprintf("H264FUAFragmenter::doGetNextFrame -> %p", f.inputSource))
+	if f.numValidDataBytes == 1 {
+		f.inputSource.GetNextFrame(f.buffTo, f.maxSize, f.afterGettingFunc, f.onCloseFunc)
+	} else {
+		if f.maxSize < f.maxOutputPacketSize {
+		} else {
+			f.maxSize = f.maxOutputPacketSize
+		}
+
+		if f.curDataOffset == 1 {
+			if f.numValidDataBytes-1 <= f.maxSize { // case 1
+				f.buffTo = f.inputBuffer[1 : f.numValidDataBytes-1]
+				f.frameSize = f.numValidDataBytes - 1
+				f.curDataOffset = f.numValidDataBytes
+			} else { // case 2
+				// We need to send the NAL unit data as FU-A packets.  Deliver the first
+				// packet now.  Note that we add FU indicator and FU header bytes to the front
+				// of the packet (reusing the existing NAL header byte for the FU header).
+				f.inputBuffer[0] = (f.inputBuffer[1] & 0xE0) | 28   // FU indicator
+				f.inputBuffer[1] = 0x80 | (f.inputBuffer[1] & 0x1F) // FU header (with S bit)
+				f.buffTo = f.inputBuffer[:f.maxSize]
+				f.frameSize = f.maxSize
+				f.curDataOffset += f.maxSize - 1
+				f.lastFragmentCompletedNALUnit = false
+			}
+		} else {
+			f.inputBuffer[f.curDataOffset-2] = f.inputBuffer[0]         // FU indicator
+			f.inputBuffer[f.curDataOffset-1] = f.inputBuffer[1] &^ 0x80 // FU header (no S bit)
+			numBytesToSend := 2 + f.numValidDataBytes - f.curDataOffset
+			if numBytesToSend > f.maxSize {
+				// We can't send all of the remaining data this time:
+				numBytesToSend = f.maxSize
+				f.lastFragmentCompletedNALUnit = false
+			} else {
+				// This is the last fragment:
+				f.inputBuffer[f.curDataOffset-1] |= 0x40 // set the E bit in the FU header
+				f.numTruncatedBytes = f.saveNumTruncatedBytes
+			}
+			f.buffTo = f.inputBuffer[f.curDataOffset-2 : numBytesToSend]
+			f.frameSize = numBytesToSend
+			f.curDataOffset += numBytesToSend - 2
+		}
+	}
+
+	if f.curDataOffset >= f.numValidDataBytes {
+		// We're done with this data.  Reset the pointers for receiving new data:
+		f.numValidDataBytes = 1
+		f.curDataOffset = 1
+	}
+
+	// Complete delivery to the client:
+	f.inputSource.afterGetting()
+}
+
+func (f *H264FUAFragmenter) afterGettingFrame(frameSize uint) {
+	f.numValidDataBytes += frameSize
+}

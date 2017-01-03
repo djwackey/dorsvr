@@ -1,13 +1,14 @@
-package rtspserver
+package livemedia
 
 import (
 	"fmt"
 	"os"
+	sys "syscall"
 )
 
 type ByteStreamFileSource struct {
 	FramedFileSource
-	presentationTime      Timeval
+	presentationTime      sys.Timeval
 	fileSize              int64
 	numBytesToStream      int64
 	lastPlayTime          uint
@@ -35,22 +36,22 @@ func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
 	return fileSource
 }
 
-func (this *ByteStreamFileSource) doGetNextFrame() {
-	if this.limitNumBytesToStream && this.numBytesToStream == 0 {
-		this.handleClosure()
+func (s *ByteStreamFileSource) doGetNextFrame() {
+	if s.limitNumBytesToStream && s.numBytesToStream == 0 {
+		s.handleClosure()
 		return
 	}
 
-	this.doReadFromFile()
+	s.doReadFromFile()
 }
 
-func (this *ByteStreamFileSource) doStopGettingFrames() {
-	defer this.fid.Close()
-	this.haveStartedReading = false
+func (s *ByteStreamFileSource) doStopGettingFrames() {
+	defer s.fid.Close()
+	s.haveStartedReading = false
 }
 
-func (this *ByteStreamFileSource) doReadFromFile() bool {
-	/*readBytes*/ _, err := this.fid.Read(this.buffTo)
+func (s *ByteStreamFileSource) doReadFromFile() bool {
+	/*readBytes*/ _, err := s.fid.Read(s.buffTo)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -60,30 +61,30 @@ func (this *ByteStreamFileSource) doReadFromFile() bool {
 	//fmt.Println(this.buffTo)
 
 	// Set the 'presentation time':
-	if this.playTimePerFrame > 0 && this.preferredFrameSize > 0 {
-		if this.presentationTime.Tv_sec == 0 && this.presentationTime.Tv_usec == 0 {
+	if s.playTimePerFrame > 0 && s.preferredFrameSize > 0 {
+		if s.presentationTime.Sec == 0 && s.presentationTime.Usec == 0 {
 			// This is the first frame, so use the current time:
-			GetTimeOfDay(&this.presentationTime)
+			sys.Gettimeofday(&s.presentationTime)
 		} else {
 			// Increment by the play time of the previous data:
-			uSeconds := this.presentationTime.Tv_usec + int64(this.lastPlayTime)
-			this.presentationTime.Tv_sec += uSeconds / 1000000
-			this.presentationTime.Tv_usec = uSeconds % 1000000
+			uSeconds := s.presentationTime.Usec + int64(s.lastPlayTime)
+			s.presentationTime.Sec += uSeconds / 1000000
+			s.presentationTime.Usec = uSeconds % 1000000
 		}
 
 		// Remember the play time of this data:
-		this.lastPlayTime = (this.playTimePerFrame * this.frameSize) / this.preferredFrameSize
-		this.durationInMicroseconds = this.lastPlayTime
+		s.lastPlayTime = (s.playTimePerFrame * s.frameSize) / s.preferredFrameSize
+		s.durationInMicroseconds = s.lastPlayTime
 	} else {
 		// We don't know a specific play time duration for this data,
 		// so just record the current time as being the 'presentation time':
-		GetTimeOfDay(&this.presentationTime)
+		sys.Gettimeofday(&s.presentationTime)
 	}
 
-	this.afterGetting()
+	s.afterGetting()
 	return true
 }
 
-func (this *ByteStreamFileSource) FileSize() int64 {
-	return this.fileSize
+func (s *ByteStreamFileSource) FileSize() int64 {
+	return s.fileSize
 }

@@ -1,4 +1,6 @@
-package rtspserver
+package livemedia
+
+import gs "github.com/djwackey/dorsvr/groupsock"
 
 var TRANSPORT_PACKET_SIZE uint = 188
 var TRANSPORT_PACKETS_PER_NETWORK_PACKET uint = 7
@@ -9,20 +11,20 @@ type M2TSFileMediaSubSession struct {
 }
 
 func NewM2TSFileMediaSubSession(fileName string) *M2TSFileMediaSubSession {
-	m2tsFileMediaSubSession := new(M2TSFileMediaSubSession)
-	m2tsFileMediaSubSession.InitFileServerMediaSubSession(m2tsFileMediaSubSession, fileName)
-	return m2tsFileMediaSubSession
+	subsession := new(M2TSFileMediaSubSession)
+	subsession.InitFileServerMediaSubSession(subsession, fileName)
+	return subsession
 }
 
-func (this *M2TSFileMediaSubSession) createNewStreamSource() IFramedSource {
+func (s *M2TSFileMediaSubSession) createNewStreamSource() IFramedSource {
 	//inputDataChunkSize := TRANSPORT_PACKETS_PER_NETWORK_PACKET * TRANSPORT_PACKET_SIZE
 
 	// Create the video source:
-	fileSource := NewByteStreamFileSource(this.fileName)
+	fileSource := NewByteStreamFileSource(s.fileName)
 	if fileSource == nil {
 		return nil
 	}
-	this.fileSize = fileSource.FileSize()
+	s.fileSize = fileSource.FileSize()
 
 	// Use the file size and the duration to estimate the stream's bitrate:
 	//var estBitrate float32 = 5000   // kbps, estimate
@@ -35,10 +37,10 @@ func (this *M2TSFileMediaSubSession) createNewStreamSource() IFramedSource {
 	return framer
 }
 
-func (this *M2TSFileMediaSubSession) createNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink {
+func (s *M2TSFileMediaSubSession) createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IRTPSink {
 	return NewSimpleRTPSink(rtpGroupSock, 33, 90000, 1, "video", "MP2T", true, false)
 }
 
-func (this *M2TSFileMediaSubSession) Duration() float32 {
-	return this.duration
+func (s *M2TSFileMediaSubSession) Duration() float32 {
+	return s.duration
 }

@@ -1,13 +1,15 @@
-package rtspserver
+package livemedia
 
 import (
 	"fmt"
 	"net"
+
+	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
 type IServerMediaSubSession interface {
 	createNewStreamSource() IFramedSource
-	createNewRTPSink(rtpGroupSock *GroupSock, rtpPayloadType uint) IRTPSink
+	createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IRTPSink
 	getStreamParameters(tcpSocketNum net.Conn, destAddr, clientSessionID string,
 		clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID uint) *StreamParameter
 	testScaleFactor(float32) float32
@@ -28,30 +30,30 @@ type ServerMediaSubSession struct {
 	isubsession IServerMediaSubSession
 }
 
-func (this *ServerMediaSubSession) InitServerMediaSubSession(isubsession IServerMediaSubSession) {
-	this.isubsession = isubsession
+func (s *ServerMediaSubSession) InitServerMediaSubSession(isubsession IServerMediaSubSession) {
+	s.isubsession = isubsession
 }
 
-func (this *ServerMediaSubSession) TrackID() string {
-	if this.trackID == "" {
-		this.trackID = fmt.Sprintf("track%d", this.trackNumber)
+func (s *ServerMediaSubSession) TrackID() string {
+	if s.trackID == "" {
+		s.trackID = fmt.Sprintf("track%d", s.trackNumber)
 	}
-	return this.trackID
+	return s.trackID
 }
 
-func (this *ServerMediaSubSession) TrackNumber() uint {
-	return this.trackNumber
+func (s *ServerMediaSubSession) TrackNumber() uint {
+	return s.trackNumber
 }
 
-func (this *ServerMediaSubSession) IncrTrackNumber() {
-	this.trackNumber++
+func (s *ServerMediaSubSession) IncrTrackNumber() {
+	s.trackNumber++
 }
 
-func (this *ServerMediaSubSession) rangeSDPLine() string {
+func (s *ServerMediaSubSession) rangeSDPLine() string {
 	return "a=range:npt=0-\r\n"
 }
 
-func (this *ServerMediaSubSession) testScaleFactor(scale float32) float32 {
+func (s *ServerMediaSubSession) testScaleFactor(scale float32) float32 {
 	// default implementation: Support scale = 1 only
 	scale = 1.0
 	return scale
