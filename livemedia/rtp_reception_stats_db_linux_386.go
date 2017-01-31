@@ -181,7 +181,7 @@ func (stats *RTPReceptionStats) noteIncomingPacket(seqNum, rtpTimestamp, timesta
 
 	// Add this to the 'sync time' to get our result:
 	var million float32 = 1000000
-	var seconds, uSeconds int64
+	var seconds, uSeconds int32
 	if timeDiff >= 0.0 {
 		seconds = stats.syncTime.Sec + int32(timeDiff)
 		uSeconds = stats.syncTime.Usec + int32((timeDiff-float32(int32(timeDiff)))*million)
