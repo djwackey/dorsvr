@@ -185,43 +185,43 @@ func (sink *MediaSink) StartPlaying(source IFramedSource) bool {
 	return true
 }
 
-func (sink *MediaSink) StopPlaying() {
+func (s *MediaSink) StopPlaying() {
 	// First, tell the source that we're no longer interested:
-	if sink.Source != nil {
-		sink.Source.stopGettingFrames()
+	if s.Source != nil {
+		s.Source.stopGettingFrames()
 	}
 }
 
-func (sink *MediaSink) AuxSDPLine() string {
+func (s *MediaSink) AuxSDPLine() string {
 	return ""
 }
 
-func (sink *MediaSink) RtpPayloadType() uint {
+func (s *MediaSink) RtpPayloadType() uint {
 	return 0
 }
 
-func (sink *MediaSink) RtpmapLine() string {
+func (s *MediaSink) RtpmapLine() string {
 	return ""
 }
 
-func (sink *MediaSink) SdpMediaType() string {
+func (s *MediaSink) SdpMediaType() string {
 	return ""
 }
 
-func (sink *MediaSink) OnSourceClosure() {
+func (s *MediaSink) OnSourceClosure() {
 }
 
-func (sink *MediaSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
+func (s *MediaSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
 	return
 }
 
-func (sink *MediaSink) delStreamSocket() {
+func (s *MediaSink) delStreamSocket() {
 }
 
-func (sink *MediaSink) currentSeqNo() uint {
+func (s *MediaSink) currentSeqNo() uint {
 	return 0
 }
 
-func (sink *MediaSink) presetNextTimestamp() uint {
+func (s *MediaSink) presetNextTimestamp() uint {
 	return 0
 }

@@ -1,7 +1,6 @@
 package livemedia
 
 import (
-	"fmt"
 	sys "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
@@ -41,7 +40,6 @@ func (s *MultiFramedRTPSink) setPacketSizes(preferredPacketSize, maxPacketSize u
 }
 
 func (s *MultiFramedRTPSink) multiFramedPlaying() {
-	fmt.Println("MultiFramedRTPSink::ContinuePlaying")
 	s.buildAndSendPacket(true)
 }
 
@@ -85,14 +83,12 @@ func (s *MultiFramedRTPSink) packFrame() {
 		if s.Source == nil {
 			return
 		}
-		fmt.Println("packFrame", s.afterGettingFrame)
 		s.Source.GetNextFrame(s.outBuf.curPtr(), s.outBuf.totalBytesAvailable(),
 			s.afterGettingFrame, s.ourHandlerClosure)
 	}
 }
 
 func (s *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds uint, presentationTime sys.Timeval) {
-	fmt.Println("MultiFramedRTPSink::afterGettingFrame")
 	if s.isFirstPacket {
 		// Record the fact that we're starting to play now:
 		sys.Gettimeofday(&s.nextSendTime)
@@ -146,7 +142,6 @@ func (s *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds
 }
 
 func (s *MultiFramedRTPSink) sendPacketIfNecessary() {
-	//fmt.Println("sendPacketIfNecessary", this.outBuf.packet(), this.outBuf.curPacketSize())
 	if s.numFramesUsedSoFar > 0 {
 		if !s.rtpInterface.sendPacket(s.outBuf.packet(), s.outBuf.curPacketSize()) {
 			// if failure handler has been specified, call it
@@ -202,7 +197,6 @@ func (s *MultiFramedRTPSink) sendNext() {
 }
 
 func (s *MultiFramedRTPSink) ourHandlerClosure() {
-	fmt.Println("MultiFramedRTPSink::ourHandlerClosure")
 	s.noFramesLeft = true
 }
 

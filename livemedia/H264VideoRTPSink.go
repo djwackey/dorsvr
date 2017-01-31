@@ -24,7 +24,6 @@ func NewH264VideoRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) *H264V
 }
 
 func (s *H264VideoRTPSink) ContinuePlaying() {
-	//fmt.Println(fmt.Sprintf("H264VideoRTPSink::ContinuePlaying -> %p", f.source))
 	if s.ourFragmenter == nil {
 		s.ourFragmenter = NewH264FUAFragmenter(s.Source, OutPacketBufferMaxSize)
 	} else {
@@ -89,7 +88,6 @@ func NewH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264F
 }
 
 func (f *H264FUAFragmenter) doGetNextFrame() {
-	fmt.Println(fmt.Sprintf("H264FUAFragmenter::doGetNextFrame -> %p", f.inputSource))
 	if f.numValidDataBytes == 1 {
 		f.inputSource.GetNextFrame(f.buffTo, f.maxSize, f.afterGettingFunc, f.onCloseFunc)
 	} else {

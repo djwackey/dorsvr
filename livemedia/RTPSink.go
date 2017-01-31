@@ -41,29 +41,29 @@ type RTPSink struct {
 	transmissionStatsDB        *RTPTransmissionStatsDB
 }
 
-func (sink *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType,
+func (s *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType,
 	rtpTimestampFrequency uint, rtpPayloadFormatName string) {
-	sink.InitMediaSink(rtpSink)
-	sink.rtpInterface = NewRTPInterface(sink, gs)
-	sink.rtpPayloadType = rtpPayloadType
-	sink.rtpTimestampFrequency = rtpTimestampFrequency
-	sink.rtpPayloadFormatName = rtpPayloadFormatName
+	s.InitMediaSink(rtpSink)
+	s.rtpInterface = NewRTPInterface(s, gs)
+	s.rtpPayloadType = rtpPayloadType
+	s.rtpTimestampFrequency = rtpTimestampFrequency
+	s.rtpPayloadFormatName = rtpPayloadFormatName
 }
 
-func (sink *RTPSink) SSRC() uint {
-	return sink.ssrc
+func (s *RTPSink) SSRC() uint {
+	return s.ssrc
 }
 
-func (sink *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
-	sink.rtpInterface.addStreamSocket(sockNum, streamChannelID)
+func (s *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
+	s.rtpInterface.addStreamSocket(sockNum, streamChannelID)
 }
 
-func (sink *RTPSink) delStreamSocket() {
-	sink.rtpInterface.delStreamSocket()
+func (s *RTPSink) delStreamSocket() {
+	s.rtpInterface.delStreamSocket()
 }
 
-func (sink *RTPSink) currentSeqNo() uint {
-	return sink.seqNo
+func (s *RTPSink) currentSeqNo() uint {
+	return s.seqNo
 }
 
 func (sink *RTPSink) SdpMediaType() string {

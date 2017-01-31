@@ -67,7 +67,6 @@ func (s *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 	if trackID != "" {
 		for streamNum := 0; streamNum < s.numStreamStates; streamNum++ {
 			subsession = s.streamStates.subsession
-			fmt.Println("Look up", subsession)
 			if subsession != nil && strings.EqualFold(trackID, subsession.TrackID()) {
 				break
 			}
@@ -207,8 +206,6 @@ func (s *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 }
 
 func (s *RTSPClientSession) handleCommandWithinSession(cmdName, urlPreSuffix, urlSuffix, fullRequestStr string) {
-	fmt.Println("RTSPClientSession::HandleCommandWithinSession", urlPreSuffix, urlSuffix, s.serverMediaSession.StreamName())
-
 	s.noteLiveness()
 
 	var subsession livemedia.IServerMediaSubSession

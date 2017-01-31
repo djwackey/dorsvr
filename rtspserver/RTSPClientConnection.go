@@ -20,22 +20,18 @@ type RTSPClientConnection struct {
 	rtspServer         *RTSPServer
 }
 
-func NewRTSPClientConnection(rtspServer *RTSPServer, socket net.Conn) *RTSPClientConnection {
-	rtspClientConn := new(RTSPClientConnection)
-	rtspClientConn.rtspServer = rtspServer
-	rtspClientConn.clientOutputSocket = socket
+func NewRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnection {
+	connection := new(RTSPClientConnection)
+	connection.rtspServer = s
+	connection.clientOutputSocket = socket
 	localAddr := strings.Split(socket.LocalAddr().String(), ":")
 	remoteAddr := strings.Split(socket.RemoteAddr().String(), ":")
-	rtspClientConn.localAddr = localAddr[0]
-	rtspClientConn.localPort = localAddr[1]
-	rtspClientConn.remoteAddr = remoteAddr[0]
-	rtspClientConn.remotePort = remoteAddr[1]
-	return rtspClientConn
+	connection.localAddr = localAddr[0]
+	connection.localPort = localAddr[1]
+	connection.remoteAddr = remoteAddr[0]
+	connection.remotePort = remoteAddr[1]
+	return connection
 }
-
-//func (c *RTSPClientConnection) GetRTSPServer() *RTSPServer {
-//	return c.rtspServer
-//}
 
 func (c *RTSPClientConnection) IncomingRequestHandler() {
 	defer c.clientOutputSocket.Close()
@@ -64,15 +60,16 @@ func (c *RTSPClientConnection) IncomingRequestHandler() {
 }
 
 func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
-	reqStr := string(buffer)
+	reqStr := string(buffer[:length])
 
-	fmt.Println("[---HandleRequestBytes---]")
-	fmt.Println(reqStr[:length])
+	fmt.Printf("Received %d new bytes of request data.\n", length)
 
 	var existed bool
 	var clientSession *RTSPClientSession
 	requestString, parseSucceeded := livemedia.ParseRTSPRequestString(reqStr, length)
 	if parseSucceeded {
+		fmt.Printf("Received a complete %s request:\n%s\n", requestString.CmdName, reqStr)
+
 		c.currentCSeq = requestString.Cseq
 		sessionIDStr := requestString.SessionIDStr
 		switch requestString.CmdName {
@@ -134,8 +131,6 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 			c.handleCommandBad()
 		}
 	}
-
-	fmt.Println(c.responseBuffer)
 
 	sendBytes, err := c.clientOutputSocket.Write([]byte(c.responseBuffer))
 	if err != nil {

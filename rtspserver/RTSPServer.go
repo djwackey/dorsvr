@@ -30,7 +30,7 @@ type RTSPServer struct {
 func New() *RTSPServer {
 	server := new(RTSPServer)
 
-	runtime.GOMAXPROCS(server.numCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	server.clientSessions = make(map[string]*RTSPClientSession)
 	server.serverMediaSessions = make(map[string]*livemedia.ServerMediaSession)
@@ -98,10 +98,6 @@ func (s *RTSPServer) RtspURLPrefix() string {
 	return fmt.Sprintf("rtsp://%s:%d/", s.urlPrefix, s.rtspPort)
 }
 
-func (s *RTSPServer) numCPU() int {
-	return runtime.NumCPU()
-}
-
 func (s *RTSPServer) IncomingConnectionHandler(serverListen *net.TCPListener) {
 	for {
 		tcpConn, err := serverListen.AcceptTCP()
@@ -118,9 +114,9 @@ func (s *RTSPServer) IncomingConnectionHandler(serverListen *net.TCPListener) {
 }
 
 func (s *RTSPServer) NewClientConnection(conn net.Conn) {
-	rtspClientConnection := NewRTSPClientConnection(s, conn)
-	if rtspClientConnection != nil {
-		rtspClientConnection.IncomingRequestHandler()
+	connection := NewRTSPClientConnection(s, conn)
+	if connection != nil {
+		connection.IncomingRequestHandler()
 	}
 }
 
