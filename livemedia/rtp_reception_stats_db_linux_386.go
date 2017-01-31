@@ -183,24 +183,24 @@ func (stats *RTPReceptionStats) noteIncomingPacket(seqNum, rtpTimestamp, timesta
 	var million float32 = 1000000
 	var seconds, uSeconds int64
 	if timeDiff >= 0.0 {
-		seconds = stats.syncTime.Sec + int64(timeDiff)
-		uSeconds = stats.syncTime.Usec + int64((timeDiff-float32(int64(timeDiff)))*million)
-		if uSeconds >= int64(million) {
-			uSeconds -= int64(million)
+		seconds = stats.syncTime.Sec + int32(timeDiff)
+		uSeconds = stats.syncTime.Usec + int32((timeDiff-float32(int32(timeDiff)))*million)
+		if uSeconds >= int32(million) {
+			uSeconds -= int32(million)
 			seconds++
 		}
 	} else {
 		timeDiff = -timeDiff
-		seconds = stats.syncTime.Sec - int64(timeDiff)
-		uSeconds = stats.syncTime.Usec - int64((timeDiff-float32(int64(timeDiff)))*million)
+		seconds = stats.syncTime.Sec - int32(timeDiff)
+		uSeconds = stats.syncTime.Usec - int32((timeDiff-float32(int32(timeDiff)))*million)
 		if uSeconds < 0 {
-			uSeconds += int64(million)
+			uSeconds += int32(million)
 			seconds--
 		}
 	}
 
-	resultPresentationTime.Sec = int64(seconds)
-	resultPresentationTime.Usec = int64(uSeconds)
+	resultPresentationTime.Sec = int32(seconds)
+	resultPresentationTime.Usec = int32(uSeconds)
 	resultHasBeenSyncedUsingRTCP = stats.hasBeenSynchronized
 
 	// Save these as the new synchronization timestamp & time:
@@ -219,9 +219,9 @@ func (stats *RTPReceptionStats) noteIncomingSR(ntpTimestampMSW, ntpTimestampLSW,
 
 	// Use this SR to update time synchronization information:
 	stats.syncTimestamp = rtpTimestamp
-	stats.syncTime.Sec = int64(ntpTimestampMSW - 0x83AA7E80)          // 1/1/1900 -> 1/1/1970
+	stats.syncTime.Sec = int32(ntpTimestampMSW - 0x83AA7E80)          // 1/1/1900 -> 1/1/1970
 	microseconds := float32((ntpTimestampLSW * 15625.0) / 0x04000000) // 10^6/2^32
-	stats.syncTime.Usec = int64(microseconds + 0.5)
+	stats.syncTime.Usec = int32(microseconds + 0.5)
 	stats.hasBeenSynchronized = true
 }
 

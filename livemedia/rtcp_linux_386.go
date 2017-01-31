@@ -49,8 +49,8 @@ type RTCPInstance struct {
 	totSessionBW         uint
 	lastPacketSentSize   uint
 	haveJustSentPacket   bool
-	prevReportTime       int64
-	nextReportTime       int64
+	prevReportTime       int32
+	nextReportTime       int32
 	inBuf                []byte
 	CNAME                *SDESItem
 	Sink                 *RTPSink
