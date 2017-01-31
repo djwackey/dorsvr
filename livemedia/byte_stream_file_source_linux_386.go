@@ -57,9 +57,6 @@ func (s *ByteStreamFileSource) doReadFromFile() bool {
 		return false
 	}
 
-	//fmt.Println(readBytes)
-	//fmt.Println(this.buffTo)
-
 	// Set the 'presentation time':
 	if s.playTimePerFrame > 0 && s.preferredFrameSize > 0 {
 		if s.presentationTime.Sec == 0 && s.presentationTime.Usec == 0 {
@@ -67,7 +64,7 @@ func (s *ByteStreamFileSource) doReadFromFile() bool {
 			sys.Gettimeofday(&s.presentationTime)
 		} else {
 			// Increment by the play time of the previous data:
-			uSeconds := s.presentationTime.Usec + int64(s.lastPlayTime)
+			uSeconds := s.presentationTime.Usec + int32(s.lastPlayTime)
 			s.presentationTime.Sec += uSeconds / 1000000
 			s.presentationTime.Usec = uSeconds % 1000000
 		}
