@@ -18,7 +18,7 @@ type ByteStreamFileSource struct {
 	limitNumBytesToStream bool
 }
 
-func NewByteStreamFileSource(fileName string) *ByteStreamFileSource {
+func newByteStreamFileSource(fileName string) *ByteStreamFileSource {
 	fid, err := os.Open(fileName)
 	if err != nil {
 		fmt.Println(err, fileName)

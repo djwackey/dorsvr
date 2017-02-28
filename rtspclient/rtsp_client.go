@@ -192,7 +192,7 @@ func (c *RTSPClient) connectToServer(host string, port int) bool {
 		return false
 	}
 
-	fmt.Println("...remote connection opened\n")
+	fmt.Println("...remote connection opened")
 	return true
 }
 
@@ -478,7 +478,7 @@ func (c *RTSPClient) sendRequest(request *RequestRecord) int {
 
 	contentStrLen := len(request.contentStr)
 	if contentStrLen > 0 {
-		contentLengthHeader = fmt.Sprintf("Content-Length: %s\r\n", contentStrLen)
+		contentLengthHeader = fmt.Sprintf("Content-Length: %d\r\n", contentStrLen)
 	}
 
 	cmdURL := c.baseURL

@@ -10,13 +10,13 @@ import (
 func main() {
 	server := rtspserver.New()
 
-	rtspServerPortNum := 8554
-	server.Listen(rtspServerPortNum)
+	portNum := 8554
+	server.Listen(portNum)
 
 	if !server.SetUpTunnelingOverHTTP(80) ||
 		!server.SetUpTunnelingOverHTTP(8000) ||
 		!server.SetUpTunnelingOverHTTP(8080) {
-		fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling,"+
+		fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling, "+
 			"or for HTTP live streaming (for indexed Transport Stream files only).)",
 			server.HttpServerPortNum()))
 	} else {

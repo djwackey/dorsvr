@@ -10,7 +10,7 @@ type BitVector struct {
 	baseByte      []byte
 }
 
-func NewBitVector(baseByte []byte, baseBitOffset, totNumBits uint) *BitVector {
+func newBitVector(baseByte []byte, baseBitOffset, totNumBits uint) *BitVector {
 	bitVector := new(BitVector)
 	bitVector.init(baseByte, baseBitOffset, totNumBits)
 	return bitVector

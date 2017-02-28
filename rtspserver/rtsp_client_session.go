@@ -23,7 +23,7 @@ type RTSPClientSession struct {
 	livenessTimeoutTimer *time.Timer
 }
 
-func NewRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionID uint) *RTSPClientSession {
+func newRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionID uint) *RTSPClientSession {
 	session := new(RTSPClientSession)
 	session.ourSessionID = sessionID
 	session.rtspClientConn = rtspClientConn

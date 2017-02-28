@@ -1,7 +1,6 @@
 package livemedia
 
 import (
-	"fmt"
 	sys "syscall"
 )
 
@@ -31,7 +30,7 @@ type MPEGVideoStreamFramer struct {
 	parser               *H264VideoStreamParser
 }
 
-func (f *MPEGVideoStreamFramer) InitMPEGVideoStreamFramer(parser *H264VideoStreamParser) {
+func (f *MPEGVideoStreamFramer) initMPEGVideoStreamFramer(parser *H264VideoStreamParser) {
 	f.parser = parser
 	f.reset()
 }
@@ -76,7 +75,6 @@ func (f *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures ui
 }
 
 func (f *MPEGVideoStreamFramer) doGetNextFrame() {
-	fmt.Println(fmt.Sprintf("MPEGVideoStreamFramer::doGetNextFrame -> %p", f.source))
 	f.parser.registerReadInterest(f.buffTo, f.maxSize)
 	f.continueReadProcessing()
 }
@@ -87,7 +85,7 @@ func (f *MPEGVideoStreamFramer) continueReadProcessing() {
 		// We were able to acquire a frame from the input.
 		// It has already been copied to the reader's space.
 		f.frameSize = acquiredFrameSize
-		f.numTruncatedBytes = f.parser.NumTruncatedBytes()
+		f.numTruncatedBytes = f.parser.numTruncatedBytes
 
 		// "presentationTime" should have already been computed.
 

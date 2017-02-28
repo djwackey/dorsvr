@@ -20,7 +20,7 @@ type RTSPClientConnection struct {
 	rtspServer         *RTSPServer
 }
 
-func NewRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnection {
+func newRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnection {
 	connection := new(RTSPClientConnection)
 	connection.rtspServer = s
 	connection.clientOutputSocket = socket
@@ -33,7 +33,7 @@ func NewRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnecti
 	return connection
 }
 
-func (c *RTSPClientConnection) IncomingRequestHandler() {
+func (c *RTSPClientConnection) incomingRequestHandler() {
 	defer c.clientOutputSocket.Close()
 
 	isclose := false
@@ -89,7 +89,7 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 							break
 						}
 					}
-					clientSession = c.NewClientSession(sessionID)
+					clientSession = c.newClientSession(sessionID)
 					c.rtspServer.clientSessions[sessionIDStr] = clientSession
 				} else {
 					if clientSession, existed = c.rtspServer.clientSessions[sessionIDStr]; !existed {
@@ -260,6 +260,6 @@ func (c *RTSPClientConnection) AuthenticationOK(cmdName, urlSuffix, fullRequestS
 	return true
 }
 
-func (c *RTSPClientConnection) NewClientSession(sessionID uint) *RTSPClientSession {
-	return NewRTSPClientSession(c, sessionID)
+func (c *RTSPClientConnection) newClientSession(sessionID uint) *RTSPClientSession {
+	return newRTSPClientSession(c, sessionID)
 }

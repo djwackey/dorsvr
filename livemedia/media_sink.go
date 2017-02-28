@@ -98,7 +98,7 @@ func (b *OutPacketBuffer) totalBytesAvailable() uint {
 
 func (b *OutPacketBuffer) enqueue(from []byte, numBytes uint) {
 	if numBytes > b.totalBytesAvailable() {
-		fmt.Println("OutPacketBuffer::enqueue() warning: %d > %d", numBytes, b.totalBytesAvailable())
+		fmt.Printf("OutPacketBuffer::enqueue() warning: %d > %d\n", numBytes, b.totalBytesAvailable())
 		numBytes = b.totalBytesAvailable()
 	}
 
@@ -165,23 +165,23 @@ type MediaSink struct {
 	rtpSink IRTPSink
 }
 
-func (sink *MediaSink) InitMediaSink(rtpSink IRTPSink) {
-	sink.rtpSink = rtpSink
+func (s *MediaSink) InitMediaSink(rtpSink IRTPSink) {
+	s.rtpSink = rtpSink
 }
 
-func (sink *MediaSink) StartPlaying(source IFramedSource) bool {
-	if sink.Source != nil {
+func (s *MediaSink) StartPlaying(source IFramedSource) bool {
+	if s.Source != nil {
 		fmt.Println("This sink is already being played")
 		return false
 	}
 
-	if sink.rtpSink == nil {
+	if s.rtpSink == nil {
 		fmt.Println("This RTP Sink is nil")
 		return false
 	}
 
-	sink.Source = source
-	sink.rtpSink.ContinuePlaying()
+	s.Source = source
+	s.rtpSink.ContinuePlaying()
 	return true
 }
 

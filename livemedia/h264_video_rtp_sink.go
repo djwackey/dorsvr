@@ -3,6 +3,7 @@ package livemedia
 import (
 	"encoding/base64"
 	"fmt"
+	sys "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
@@ -25,7 +26,7 @@ func NewH264VideoRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) *H264V
 
 func (s *H264VideoRTPSink) ContinuePlaying() {
 	if s.ourFragmenter == nil {
-		s.ourFragmenter = NewH264FUAFragmenter(s.Source, OutPacketBufferMaxSize)
+		s.ourFragmenter = newH264FUAFragmenter(s.Source, OutPacketBufferMaxSize)
 	} else {
 		s.ourFragmenter.reAssignInputSource(s.Source)
 	}
@@ -37,7 +38,7 @@ func (s *H264VideoRTPSink) ContinuePlaying() {
 func (s *H264VideoRTPSink) AuxSDPLine() string {
 	sps := s.sps
 	pps := s.pps
-	spsSize := s.spsSize
+	//spsSize := s.spsSize
 	//ppsSize := s.ppsSize
 	if sps == "" || pps == "" {
 		if s.ourFragmenter == nil {
@@ -52,16 +53,15 @@ func (s *H264VideoRTPSink) AuxSDPLine() string {
 		//framerSource.getSPSandPPS()
 	}
 
-	spsBase64 := base64.NewEncoding(sps)
-	ppsBase64 := base64.NewEncoding(pps)
+	spsBase64 := base64.StdEncoding.EncodeToString([]byte(sps))
+	ppsBase64 := base64.StdEncoding.EncodeToString([]byte(pps))
 
-	var profileLevelId uint8
-	if spsSize >= 4 {
-		profileLevelId = (sps[1] << 16) | (sps[2] << 8) | sps[3] // profile_idc|constraint_setN_flag|level_idc
+	var profileLevelID uint8
+	if s.spsSize >= 4 {
+		profileLevelID = (sps[1] << 16) | (sps[2] << 8) | sps[3] // profile_idc|constraint_setN_flag|level_idc
 	}
 
-	fmtpFmt := "a=fmtp:%d packetization-mode=1;profile-level-id=%06X;sprop-parameter-sets=%s,%s\r\n"
-	fmt.Sprintf(fmtpFmt, s.RtpPayloadType(), profileLevelId, spsBase64, ppsBase64)
+	fmt.Sprintf("a=fmtp:%d packetization-mode=1;profile-level-id=%06X;sprop-parameter-sets=%s,%s\r\n", s.RtpPayloadType(), profileLevelID, spsBase64, ppsBase64)
 	return ""
 }
 
@@ -77,7 +77,7 @@ type H264FUAFragmenter struct {
 	lastFragmentCompletedNALUnit bool
 }
 
-func NewH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264FUAFragmenter {
+func newH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264FUAFragmenter {
 	fragment := new(H264FUAFragmenter)
 	fragment.numValidDataBytes = 1
 	fragment.inputBufferSize = inputBufferMax + 1
@@ -89,7 +89,8 @@ func NewH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264F
 
 func (f *H264FUAFragmenter) doGetNextFrame() {
 	if f.numValidDataBytes == 1 {
-		f.inputSource.GetNextFrame(f.buffTo, f.maxSize, f.afterGettingFunc, f.onCloseFunc)
+		f.inputSource.GetNextFrame(f.inputBuffer[1:], f.inputBufferSize-1,
+			f.afterGettingFrame, f.handleClosure)
 	} else {
 		if f.maxSize < f.maxOutputPacketSize {
 		} else {
@@ -141,6 +142,8 @@ func (f *H264FUAFragmenter) doGetNextFrame() {
 	f.inputSource.afterGetting()
 }
 
-func (f *H264FUAFragmenter) afterGettingFrame(frameSize uint) {
+func (f *H264FUAFragmenter) afterGettingFrame(frameSize, numTruncatedBytes uint, presentationTime sys.Timeval) {
 	f.numValidDataBytes += frameSize
+
+	f.doGetNextFrame()
 }

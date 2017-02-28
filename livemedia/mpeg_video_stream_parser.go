@@ -8,7 +8,12 @@ type MPEGVideoStreamParser struct {
 	startOfFrame           []byte
 	numTruncatedBytes      uint
 	savedNumTruncatedBytes uint
-	usingSource            *H264VideoStreamFramer
+	usingSource            *MPEGVideoStreamFramer
+}
+
+func (p *MPEGVideoStreamParser) initMPEGVideoStreamParser(inputSource IFramedSource) {
+	p.usingSource = inputSource.(*MPEGVideoStreamFramer)
+	p.initStreamParser(inputSource, p.usingSource.handleClosure, p.usingSource.continueReadProcessing)
 }
 
 func (p *MPEGVideoStreamParser) registerReadInterest(buffTo []byte, maxSize uint) {
@@ -18,10 +23,6 @@ func (p *MPEGVideoStreamParser) registerReadInterest(buffTo []byte, maxSize uint
 	p.numTruncatedBytes = 0
 	p.savedNumTruncatedBytes = 0
 	p.startOfFrame = p.buffTo
-}
-
-func (p *MPEGVideoStreamParser) NumTruncatedBytes() uint {
-	return p.numTruncatedBytes
 }
 
 func (p *MPEGVideoStreamParser) saveByte(ubyte uint) {

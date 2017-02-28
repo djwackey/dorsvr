@@ -19,15 +19,15 @@ func NewH264VideoRTPSource(RTPgs *gs.GroupSock,
 	return source
 }
 
-func (source *H264VideoRTPSource) processSpecialHeader(packet IBufferedPacket) (resultSpecialHeaderSize uint, processOK bool) {
+func (s *H264VideoRTPSource) processSpecialHeader(packet IBufferedPacket) (resultSpecialHeaderSize uint, processOK bool) {
 	headerStart, packetSize := packet.data(), packet.dataSize()
 
 	var expectedHeaderSize uint
 
 	// Check if the type field is 28 (FU-A) or 29 (FU-B)
-	source.curPacketNALUnitType = uint(headerStart[0]) & 0x1F
+	s.curPacketNALUnitType = uint(headerStart[0]) & 0x1F
 
-	switch source.curPacketNALUnitType {
+	switch s.curPacketNALUnitType {
 	case 24: // STAP-A
 		expectedHeaderSize = 1
 	case 25, 26, 27: // STAP-B, MTAP16, or MTAP24
@@ -44,7 +44,7 @@ func (source *H264VideoRTPSource) processSpecialHeader(packet IBufferedPacket) (
 			}
 
 			headerStart[1] = (headerStart[0] & 0xE0) + (headerStart[1] & 0x1F)
-			source.currentPacketBeginsFrame = true
+			s.currentPacketBeginsFrame = true
 		} else {
 			expectedHeaderSize = 2
 
@@ -52,13 +52,13 @@ func (source *H264VideoRTPSource) processSpecialHeader(packet IBufferedPacket) (
 				return
 			}
 
-			source.currentPacketBeginsFrame = false
+			s.currentPacketBeginsFrame = false
 		}
 
-		source.currentPacketCompletesFrame = (endBit != 0)
+		s.currentPacketCompletesFrame = (endBit != 0)
 	default:
-		source.currentPacketBeginsFrame = true
-		source.currentPacketCompletesFrame = true
+		s.currentPacketBeginsFrame = true
+		s.currentPacketCompletesFrame = true
 	}
 
 	resultSpecialHeaderSize, processOK = expectedHeaderSize, true
@@ -91,12 +91,12 @@ func NewH264BufferedPacket(source *H264VideoRTPSource) *H264BufferedPacket {
 	return packet
 }
 
-func (packet *H264BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint) uint {
-	framePtr, dataSize := buff[packet.head:], packet.tail-packet.head
+func (p *H264BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint) uint {
+	framePtr, dataSize := buff[p.head:], p.tail-p.head
 
 	var resultNALUSize, frameSize uint
 
-	switch packet.source.curPacketNALUnitType {
+	switch p.source.curPacketNALUnitType {
 	case 24, 25: // STAP-A or STAP-B
 		// The first two bytes are NALU size:
 		if dataSize >= 2 {
@@ -135,7 +135,7 @@ func NewH264BufferedPacketFactory() IBufferedPacketFactory {
 	return new(H264BufferedPacketFactory)
 }
 
-func (factory *H264BufferedPacketFactory) createNewPacket(source interface{}) IBufferedPacket {
+func (f *H264BufferedPacketFactory) createNewPacket(source interface{}) IBufferedPacket {
 	var h264VideoRTPSource *H264VideoRTPSource
 	if source != nil {
 		h264VideoRTPSource = source.(*H264VideoRTPSource)

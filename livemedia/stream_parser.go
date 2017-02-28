@@ -25,8 +25,11 @@ type StreamParser struct {
 	lastSeenPresentationTime   sys.Timeval
 }
 
-func (p *StreamParser) InitStreamParser(inputSource IFramedSource) {
+func (p *StreamParser) initStreamParser(inputSource IFramedSource,
+	clientOnInputCloseFunc, clientContinueFunc interface{}) {
 	p.inputSource = inputSource
+	p.clientContinueFunc = clientContinueFunc
+	p.clientOnInputCloseFunc = clientOnInputCloseFunc
 }
 
 func (p *StreamParser) restoreSavedParserState() {
@@ -140,7 +143,7 @@ func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 	return NO_MORE_BUFFERED_INPUT
 }
 
-func (p *StreamParser) afterGettingBytes(numBytesRead uint, presentationTime sys.Timeval) {
+func (p *StreamParser) afterGettingBytes(numBytesRead, numTruncatedBytes uint, presentationTime sys.Timeval) {
 	if p.totNumValidBytes+numBytesRead > BANK_SIZE {
 		fmt.Println(fmt.Sprintf("StreamParser::afterGettingBytes() "+
 			"warning: read %d bytes; expected no more than %d", numBytesRead, BANK_SIZE-p.totNumValidBytes))
@@ -157,7 +160,7 @@ func (p *StreamParser) afterGettingBytes(numBytesRead uint, presentationTime sys
 func (p *StreamParser) onInputClosure() {
 	if !p.haveSeenEOF {
 		p.haveSeenEOF = true
-		p.afterGettingBytes(0, p.lastSeenPresentationTime)
+		p.afterGettingBytes(0, 0, p.lastSeenPresentationTime)
 	} else {
 		// We're hitting EOF for the second time.  Now, we handle the source input closure:
 		p.haveSeenEOF = false

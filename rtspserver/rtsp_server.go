@@ -53,7 +53,7 @@ func (s *RTSPServer) Listen(portNum int) bool {
 }
 
 func (s *RTSPServer) Start() {
-	go s.IncomingConnectionHandler(s.rtspListen)
+	go s.incomingConnectionHandler(s.rtspListen)
 }
 
 func (s *RTSPServer) startMonitor() {
@@ -80,7 +80,7 @@ func (s *RTSPServer) SetUpTunnelingOverHTTP(httpPort int) bool {
 		return false
 	}
 
-	go s.IncomingConnectionHandler(s.httpListen)
+	go s.incomingConnectionHandler(s.httpListen)
 	return true
 }
 
@@ -98,9 +98,9 @@ func (s *RTSPServer) RtspURLPrefix() string {
 	return fmt.Sprintf("rtsp://%s:%d/", s.urlPrefix, s.rtspPort)
 }
 
-func (s *RTSPServer) IncomingConnectionHandler(serverListen *net.TCPListener) {
+func (s *RTSPServer) incomingConnectionHandler(serverListen *net.TCPListener) {
 	for {
-		tcpConn, err := serverListen.AcceptTCP()
+		tcpConn, err := s.rtspListen.AcceptTCP()
 		if err != nil {
 			fmt.Println("failed to accept client.")
 			continue
@@ -109,14 +109,14 @@ func (s *RTSPServer) IncomingConnectionHandler(serverListen *net.TCPListener) {
 		tcpConn.SetReadBuffer(50 * 1024)
 
 		// Create a new object for handling server RTSP connection:
-		go s.NewClientConnection(tcpConn)
+		go s.newClientConnection(tcpConn)
 	}
 }
 
-func (s *RTSPServer) NewClientConnection(conn net.Conn) {
-	connection := NewRTSPClientConnection(s, conn)
+func (s *RTSPServer) newClientConnection(conn net.Conn) {
+	connection := newRTSPClientConnection(s, conn)
 	if connection != nil {
-		connection.IncomingRequestHandler()
+		connection.incomingRequestHandler()
 	}
 }
 

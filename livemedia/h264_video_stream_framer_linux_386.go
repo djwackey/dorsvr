@@ -439,7 +439,7 @@ type H264VideoStreamFramer struct {
 	frameRate            float64
 }
 
-func NewH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer {
+func newH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer {
 	framer := new(H264VideoStreamFramer)
 	framer.parser = NewH264VideoStreamParser()
 	framer.inputSource = inputSource

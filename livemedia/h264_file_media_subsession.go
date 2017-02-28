@@ -16,15 +16,14 @@ func (s *H264FileMediaSubSession) createNewStreamSource() IFramedSource {
 	//estBitrate = 500 // kbps, estimate
 
 	// Create the video source:
-	fileSource := NewByteStreamFileSource(s.fileName)
+	fileSource := newByteStreamFileSource(s.fileName)
 	if fileSource == nil {
 		return nil
 	}
 	s.fileSize = fileSource.FileSize()
 
 	// Create a framer for the Video Elementary Stream:
-	//fileSource.InitFramedFileSource(streamFramer)
-	return NewH264VideoStreamFramer(fileSource)
+	return newH264VideoStreamFramer(fileSource)
 }
 
 func (s *H264FileMediaSubSession) createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IRTPSink {

@@ -20,7 +20,7 @@ func (s *M2TSFileMediaSubSession) createNewStreamSource() IFramedSource {
 	//inputDataChunkSize := TRANSPORT_PACKETS_PER_NETWORK_PACKET * TRANSPORT_PACKET_SIZE
 
 	// Create the video source:
-	fileSource := NewByteStreamFileSource(s.fileName)
+	fileSource := newByteStreamFileSource(s.fileName)
 	if fileSource == nil {
 		return nil
 	}
