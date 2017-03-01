@@ -20,12 +20,18 @@ type H264VideoStreamParser struct {
 	haveSeenFirstByteOfNALUnit bool
 }
 
-func newH264VideoStreamParser(inputSource IFramedSource) *H264VideoStreamParser {
+func newH264VideoStreamParser(usingSource, inputSource IFramedSource,
+	clientOnInputCloseFunc, clientContinueFunc interface{}) *H264VideoStreamParser {
 	parser := new(H264VideoStreamParser)
 	parser.log2MaxFrameNum = 5
 	parser.frameMbsOnlyFlag = true
-	parser.initMPEGVideoStreamParser(inputSource)
+	parser.initMPEGVideoStreamParser(usingSource, inputSource,
+		clientOnInputCloseFunc, clientContinueFunc)
 	return parser
+}
+
+func (p *H264VideoStreamParser) UsingSource() *H264VideoStreamFramer {
+	return p.usingSource.(*H264VideoStreamFramer)
 }
 
 func (p *H264VideoStreamParser) parse() uint {
@@ -104,21 +110,21 @@ func (p *H264VideoStreamParser) parse() uint {
 	case 7: // Sequence parameter set
 		// First, save a copy of this NAL unit, in case the downstream object wants to see it:
 		size := uint(len(p.buffTo) - len(p.startOfFrame) - p.outputStartCodeSize)
-		p.usingSource.saveCopyOfSPS(p.startOfFrame[p.outputStartCodeSize:], size)
+		p.UsingSource().saveCopyOfSPS(p.startOfFrame[p.outputStartCodeSize:], size)
 
 		// Parse this NAL unit to check whether frame rate information is present:
 		spsData := p.analyzeSPSData()
 		if spsData.timeScale > 0 && spsData.numUnitsInTick > 0 {
-			p.usingSource.frameRate = float64(spsData.timeScale / (2.0 * spsData.numUnitsInTick))
+			p.UsingSource().frameRate = float64(spsData.timeScale / (2.0 * spsData.numUnitsInTick))
 		} else {
 		}
 	case 8: // Picture parameter set
 		// Save a copy of this NAL unit, in case the downstream object wants to see it:
 		size := uint(len(p.buffTo) - len(p.startOfFrame) - p.outputStartCodeSize)
-		p.usingSource.saveCopyOfPPS(p.startOfFrame[p.outputStartCodeSize:], size)
+		p.UsingSource().saveCopyOfPPS(p.startOfFrame[p.outputStartCodeSize:], size)
 	}
 
-	p.usingSource.setPresentationTime()
+	p.UsingSource().setPresentationTime()
 
 	thisNALUnitEndsAccessUnit := false // until we learn otherwise
 	if p.HaveSeenEOF() {
@@ -192,13 +198,13 @@ func (p *H264VideoStreamParser) parse() uint {
 	}
 
 	if thisNALUnitEndsAccessUnit {
-		p.usingSource.pictureEndMarker = true
-		p.usingSource.pictureCount++
+		p.UsingSource().pictureEndMarker = true
+		p.UsingSource().pictureCount++
 
 		// Note that the presentation time for the next NAL unit will be different:
-		nextPT := p.usingSource.nextPresentationTime // alias
-		nextPT = p.usingSource.presentationTime
-		nextFraction := nextPT.Usec/1000000.0 + 1/int64(p.usingSource.frameRate)
+		nextPT := p.UsingSource().nextPresentationTime // alias
+		nextPT = p.UsingSource().presentationTime
+		nextFraction := nextPT.Usec/1000000.0 + 1/int64(p.UsingSource().frameRate)
 		nextSecsIncrement := nextFraction
 		nextPT.Sec += nextSecsIncrement
 		nextPT.Usec = (nextFraction - nextSecsIncrement) * 1000000
@@ -483,7 +489,8 @@ func newH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	framer := new(H264VideoStreamFramer)
 	framer.inputSource = inputSource
 	framer.frameRate = 25.0
-	framer.initMPEGVideoStreamFramer(newH264VideoStreamParser(inputSource))
+	framer.initMPEGVideoStreamFramer(newH264VideoStreamParser(framer, inputSource,
+		framer.handleClosure, framer.continueReadProcessing))
 	framer.InitFramedSource(framer)
 	return framer
 }

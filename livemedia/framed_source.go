@@ -7,6 +7,7 @@ type IFramedSource interface {
 	doGetNextFrame()
 	afterGetting()
 	maxFrameSize() uint
+	handleClosure()
 	stopGettingFrames()
 }
 

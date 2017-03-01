@@ -11,12 +11,11 @@ type MPEGVideoStreamParser struct {
 	usingSource            IFramedSource
 }
 
-func (p *MPEGVideoStreamParser) initMPEGVideoStreamParser(inputSource IFramedSource) {
-	p.usingSource = inputSource
+func (p *MPEGVideoStreamParser) initMPEGVideoStreamParser(usingSource, inputSource IFramedSource,
+	clientOnInputCloseFunc, clientContinueFunc interface{}) {
+	p.usingSource = usingSource
 
-	p.initStreamParser(inputSource,
-		inputSource.(*MPEGVideoStreamFramer).handleClosure,
-		inputSource.(*MPEGVideoStreamFramer).continueReadProcessing)
+	p.initStreamParser(inputSource, clientOnInputCloseFunc, clientContinueFunc)
 }
 
 func (p *MPEGVideoStreamParser) registerReadInterest(buffTo []byte, maxSize uint) {
