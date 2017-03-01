@@ -18,9 +18,9 @@ type H264VideoRTPSink struct {
 	ppsSize       int
 }
 
-func NewH264VideoRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) *H264VideoRTPSink {
+func newH264VideoRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) *H264VideoRTPSink {
 	sink := new(H264VideoRTPSink)
-	sink.InitVideoRTPSink(sink, rtpGroupSock, rtpPayloadType, 90000, "H264")
+	sink.initVideoRTPSink(sink, rtpGroupSock, rtpPayloadType, 90000, "H264")
 	return sink
 }
 
@@ -61,7 +61,8 @@ func (s *H264VideoRTPSink) AuxSDPLine() string {
 		profileLevelID = (sps[1] << 16) | (sps[2] << 8) | sps[3] // profile_idc|constraint_setN_flag|level_idc
 	}
 
-	fmt.Sprintf("a=fmtp:%d packetization-mode=1;profile-level-id=%06X;sprop-parameter-sets=%s,%s\r\n", s.RtpPayloadType(), profileLevelID, spsBase64, ppsBase64)
+	fmt.Sprintf("a=fmtp:%d packetization-mode=1;profile-level-id=%06X;sprop-parameter-sets=%s,%s\r\n",
+		s.RtpPayloadType(), profileLevelID, spsBase64, ppsBase64)
 	return ""
 }
 

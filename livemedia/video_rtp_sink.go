@@ -6,7 +6,7 @@ type VideoRTPSink struct {
 	MultiFramedRTPSink
 }
 
-func (s *VideoRTPSink) InitVideoRTPSink(rtpSink IRTPSink, rtpGroupSock *gs.GroupSock,
+func (s *VideoRTPSink) initVideoRTPSink(rtpSink IRTPSink, rtpGroupSock *gs.GroupSock,
 	rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
 	s.InitMultiFramedRTPSink(rtpSink, rtpGroupSock, rtpPayloadType,
 		rtpTimestampFrequency, rtpPayloadFormatName)

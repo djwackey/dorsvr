@@ -5,23 +5,30 @@ import sys "syscall"
 var SPS_MAX_SIZE uint = 1000
 var SEI_MAX_SIZE uint = 5000 // larger than the largest possible SEI NAL unit
 
-var NUM_NEXT_SLICE_HEADER_BYTES_TO_ANALYZE uint = 12
+var numNextSliceHeaderBytesToAnalyze uint = 12
 
 //////// H264VideoStreamParser ////////
 type H264VideoStreamParser struct {
 	MPEGVideoStreamParser
 	outputStartCodeSize        int
+	firstByteOfNALUnit         uint
+	log2MaxFrameNum            uint
+	frameMbsOnlyFlag           bool
+	separateColourPlaneFlag    bool
 	haveSeenFirstStartCode     bool
 	haveSeenFirstByteOfNALUnit bool
-	firstByteOfNALUnit         uint
 }
 
-func NewH264VideoStreamParser() *H264VideoStreamParser {
-	return new(H264VideoStreamParser)
+func newH264VideoStreamParser(inputSource IFramedSource) *H264VideoStreamParser {
+	parser := new(H264VideoStreamParser)
+	parser.log2MaxFrameNum = 5
+	parser.frameMbsOnlyFlag = true
+	parser.initMPEGVideoStreamParser(inputSource)
+	return parser
 }
 
 func (p *H264VideoStreamParser) UsingSource() *H264VideoStreamFramer {
-	return p.usingSource
+	return p.usingSource.(*H264VideoStreamFramer)
 }
 
 func (p *H264VideoStreamParser) parse() uint {
@@ -156,8 +163,8 @@ func (p *H264VideoStreamParser) parse() uint {
 					//this.analyzeSliceHeader(this.startOfFrame+this.outputStartCodeSize, this.buffTo, nal_unit_type, frame_num, pic_parameter_set_id, idr_pic_id, field_pic_flag, bottom_field_flag)
 
 					// Next NAL unit's "slice_header":
-					next_slice_header := make([]byte, NUM_NEXT_SLICE_HEADER_BYTES_TO_ANALYZE)
-					p.testBytes(next_slice_header, NUM_NEXT_SLICE_HEADER_BYTES_TO_ANALYZE)
+					next_slice_header := make([]byte, numNextSliceHeaderBytesToAnalyze)
+					p.testBytes(next_slice_header, numNextSliceHeaderBytesToAnalyze)
 
 					var next_frame_num, next_pic_parameter_set_id, next_idr_pic_id, frame_num, pic_parameter_set_id uint
 					var next_field_pic_flag bool
@@ -273,7 +280,7 @@ func (p *H264VideoStreamParser) analyzeSPSData() {
 	sps := make([]byte, SPS_MAX_SIZE)
 	spsSize := p.removeEmulationBytes(sps, SPS_MAX_SIZE)
 
-	bv := NewBitVector(sps, 0, 8*spsSize)
+	bv := newBitVector(sps, 0, 8*spsSize)
 
 	bv.skipBits(8) // forbidden_zero_bit; nal_ref_idc; nal_unit_type
 	profile_idc := bv.getBits(8)
@@ -430,7 +437,6 @@ func (p *H264VideoStreamParser) GetNextFrame(buffTo []byte, maxSize uint,
 //////// H264VideoStreamFramer ////////
 type H264VideoStreamFramer struct {
 	MPEGVideoStreamFramer
-	parser               *H264VideoStreamParser
 	nextPresentationTime sys.Timeval
 	lastSeenSPS          []byte
 	lastSeenPPS          []byte
@@ -441,11 +447,10 @@ type H264VideoStreamFramer struct {
 
 func newH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer {
 	framer := new(H264VideoStreamFramer)
-	framer.parser = NewH264VideoStreamParser()
 	framer.inputSource = inputSource
 	framer.frameRate = 25.0
-	framer.InitMPEGVideoStreamFramer(framer.parser)
-	framer.InitFramedSource(framer.parser)
+	framer.InitMPEGVideoStreamFramer(newH264VideoStreamParser(inputSource))
+	framer.InitFramedSource(framer)
 	return framer
 }
 

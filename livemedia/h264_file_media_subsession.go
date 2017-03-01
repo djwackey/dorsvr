@@ -27,5 +27,5 @@ func (s *H264FileMediaSubSession) createNewStreamSource() IFramedSource {
 }
 
 func (s *H264FileMediaSubSession) createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IRTPSink {
-	return NewH264VideoRTPSink(rtpGroupSock, rtpPayloadType)
+	return newH264VideoRTPSink(rtpGroupSock, rtpPayloadType)
 }

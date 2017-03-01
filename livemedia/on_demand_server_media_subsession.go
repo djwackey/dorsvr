@@ -94,7 +94,7 @@ func (s *OnDemandServerMediaSubSession) GetStreamParameters(tcpSocketNum net.Con
 		sp.StreamToken = s.lastStreamToken
 	}
 
-	dests := NewDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID)
+	dests := newDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID)
 	s.destinations = append(s.destinations, dests)
 	s.destinationsDict[clientSessionID] = dests
 
@@ -154,8 +154,6 @@ func (s *OnDemandServerMediaSubSession) StartStream(clientSessionID uint, stream
 	destinations, _ := s.destinationsDict[string(clientSessionID)]
 	streamState.startPlaying(destinations)
 
-	fmt.Println("OnDemandServerMediaSubSession::startStream")
-
 	var rtpSeqNum, rtpTimestamp uint
 	if streamState.RtpSink() != nil {
 		rtpSeqNum = streamState.RtpSink().currentSeqNo()
@@ -189,7 +187,7 @@ type Destinations struct {
 	tcpSockNum    net.Conn
 }
 
-func NewDestinations(tcpSockNum net.Conn, destAddr string,
+func newDestinations(tcpSockNum net.Conn, destAddr string,
 	clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID uint) *Destinations {
 	destinations := new(Destinations)
 	destinations.tcpSockNum = tcpSockNum

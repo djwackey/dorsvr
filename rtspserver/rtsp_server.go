@@ -120,45 +120,45 @@ func (s *RTSPServer) newClientConnection(conn net.Conn) {
 	}
 }
 
-func (s *RTSPServer) LookupServerMediaSession(streamName string) *livemedia.ServerMediaSession {
+func (s *RTSPServer) lookupServerMediaSession(streamName string) *livemedia.ServerMediaSession {
 	// Next, check whether we already have a "ServerMediaSession" for server file:
 	sms, smsExists := s.serverMediaSessions[streamName]
 
 	fid, err := os.Open(streamName)
 	if err != nil {
 		if smsExists {
-			s.RemoveServerMediaSession(sms)
+			s.removeServerMediaSession(sms)
 		}
 		return nil
 	}
 	defer fid.Close()
 
 	if !smsExists {
-		sms = s.CreateNewSMS(streamName)
-		s.AddServerMediaSession(sms)
+		sms = s.createNewSMS(streamName)
+		s.addServerMediaSession(sms)
 	}
 
 	return sms
 }
 
-func (s *RTSPServer) AddServerMediaSession(serverMediaSession *livemedia.ServerMediaSession) {
+func (s *RTSPServer) addServerMediaSession(serverMediaSession *livemedia.ServerMediaSession) {
 	sessionName := serverMediaSession.StreamName()
 
 	// in case an existing "ServerMediaSession" with server name already exists
 	session, _ := s.serverMediaSessions[sessionName]
-	s.RemoveServerMediaSession(session)
+	s.removeServerMediaSession(session)
 
 	s.serverMediaSessions[sessionName] = serverMediaSession
 }
 
-func (s *RTSPServer) RemoveServerMediaSession(serverMediaSession *livemedia.ServerMediaSession) {
+func (s *RTSPServer) removeServerMediaSession(serverMediaSession *livemedia.ServerMediaSession) {
 	if serverMediaSession != nil {
 		sessionName := serverMediaSession.StreamName()
 		delete(s.serverMediaSessions, sessionName)
 	}
 }
 
-func (s *RTSPServer) CreateNewSMS(fileName string) *livemedia.ServerMediaSession {
+func (s *RTSPServer) createNewSMS(fileName string) *livemedia.ServerMediaSession {
 	var serverMediaSession *livemedia.ServerMediaSession
 
 	array := strings.Split(fileName, ".")

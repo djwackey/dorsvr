@@ -32,10 +32,10 @@ func newRTSPClientSession(rtspClientConn *RTSPClientConnection, sessionID uint) 
 	return session
 }
 
-func (s *RTSPClientSession) HandleCommandSetup(urlPreSuffix, urlSuffix, reqStr string) {
+func (s *RTSPClientSession) handleCommandSetup(urlPreSuffix, urlSuffix, reqStr string) {
 	streamName, trackID := urlPreSuffix, urlSuffix
 
-	sms := s.rtspServer.LookupServerMediaSession(streamName)
+	sms := s.rtspServer.lookupServerMediaSession(streamName)
 	if sms == nil {
 		if s.serverMediaSession == nil {
 			s.rtspClientConn.handleCommandNotFound()

@@ -98,7 +98,7 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 				}
 
 				if clientSession != nil {
-					clientSession.HandleCommandSetup(requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
+					clientSession.handleCommandSetup(requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 				}
 			}
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
@@ -174,7 +174,7 @@ func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fu
 	c.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
 
 	var session *livemedia.ServerMediaSession
-	session = c.rtspServer.LookupServerMediaSession(urlTotalSuffix)
+	session = c.rtspServer.lookupServerMediaSession(urlTotalSuffix)
 	if session == nil {
 		c.handleCommandNotFound()
 		return

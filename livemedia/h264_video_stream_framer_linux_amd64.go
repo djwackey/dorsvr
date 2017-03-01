@@ -471,7 +471,6 @@ func (p *H264VideoStreamParser) GetNextFrame(buffTo []byte, maxSize uint,
 //////// H264VideoStreamFramer ////////
 type H264VideoStreamFramer struct {
 	MPEGVideoStreamFramer
-	parser               *H264VideoStreamParser
 	frameRate            float64
 	lastSeenSPS          []byte
 	lastSeenPPS          []byte
@@ -482,10 +481,9 @@ type H264VideoStreamFramer struct {
 
 func newH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer {
 	framer := new(H264VideoStreamFramer)
-	framer.parser = newH264VideoStreamParser(inputSource)
 	framer.inputSource = inputSource
 	framer.frameRate = 25.0
-	framer.initMPEGVideoStreamFramer(framer.parser)
+	framer.initMPEGVideoStreamFramer(newH264VideoStreamParser(inputSource))
 	framer.InitFramedSource(framer)
 	return framer
 }

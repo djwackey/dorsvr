@@ -85,7 +85,7 @@ func (f *MPEGVideoStreamFramer) continueReadProcessing() {
 		// We were able to acquire a frame from the input.
 		// It has already been copied to the reader's space.
 		f.frameSize = acquiredFrameSize
-		f.numTruncatedBytes = f.parser.NumTruncatedBytes()
+		f.numTruncatedBytes = f.parser.numTruncatedBytes
 
 		// "presentationTime" should have already been computed.
 
