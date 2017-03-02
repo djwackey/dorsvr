@@ -50,10 +50,6 @@ func (s *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType
 	s.rtpPayloadFormatName = rtpPayloadFormatName
 }
 
-func (s *RTPSink) SSRC() uint {
-	return s.ssrc
-}
-
 func (s *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
 	s.rtpInterface.addStreamSocket(sockNum, streamChannelID)
 }

@@ -30,7 +30,7 @@ type MPEGVideoStreamFramer struct {
 	parser               *H264VideoStreamParser
 }
 
-func (f *MPEGVideoStreamFramer) InitMPEGVideoStreamFramer(parser *H264VideoStreamParser) {
+func (f *MPEGVideoStreamFramer) initMPEGVideoStreamFramer(parser *H264VideoStreamParser) {
 	f.parser = parser
 	f.reset()
 }
@@ -104,5 +104,6 @@ func (f *MPEGVideoStreamFramer) continueReadProcessing() {
 		// We were unable to parse a complete frame from the input, because:
 		// - we had to read more data from the source stream, or
 		// - the source stream has ended.
+		f.afterGetting()
 	}
 }

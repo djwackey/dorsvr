@@ -90,17 +90,21 @@ func newH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264F
 
 func (f *H264FUAFragmenter) doGetNextFrame() {
 	if f.numValidDataBytes == 1 {
+		// H264VideoStreamFramer
+		// We have no NAL unit data currently in the buffer.  Read a new one:
 		f.inputSource.GetNextFrame(f.inputBuffer[1:], f.inputBufferSize-1,
 			f.afterGettingFrame, f.handleClosure)
 	} else {
 		if f.maxSize < f.maxOutputPacketSize {
+			fmt.Printf("H264FUAFragmenter::doGetNextFrame(): maxSize (%d) is smaller than expected\n", f.maxSize)
 		} else {
 			f.maxSize = f.maxOutputPacketSize
 		}
 
+		f.lastFragmentCompletedNALUnit = true
 		if f.curDataOffset == 1 {
 			if f.numValidDataBytes-1 <= f.maxSize { // case 1
-				f.buffTo = f.inputBuffer[1 : f.numValidDataBytes-1]
+				copy(f.buffTo, f.inputBuffer[1:f.numValidDataBytes-1])
 				f.frameSize = f.numValidDataBytes - 1
 				f.curDataOffset = f.numValidDataBytes
 			} else { // case 2
@@ -109,7 +113,7 @@ func (f *H264FUAFragmenter) doGetNextFrame() {
 				// of the packet (reusing the existing NAL header byte for the FU header).
 				f.inputBuffer[0] = (f.inputBuffer[1] & 0xE0) | 28   // FU indicator
 				f.inputBuffer[1] = 0x80 | (f.inputBuffer[1] & 0x1F) // FU header (with S bit)
-				f.buffTo = f.inputBuffer[:f.maxSize]
+				copy(f.buffTo, f.inputBuffer[:f.maxSize])
 				f.frameSize = f.maxSize
 				f.curDataOffset += f.maxSize - 1
 				f.lastFragmentCompletedNALUnit = false
@@ -127,20 +131,20 @@ func (f *H264FUAFragmenter) doGetNextFrame() {
 				f.inputBuffer[f.curDataOffset-1] |= 0x40 // set the E bit in the FU header
 				f.numTruncatedBytes = f.saveNumTruncatedBytes
 			}
-			f.buffTo = f.inputBuffer[f.curDataOffset-2 : numBytesToSend]
+			copy(f.buffTo, f.inputBuffer[f.curDataOffset-2:numBytesToSend])
 			f.frameSize = numBytesToSend
 			f.curDataOffset += numBytesToSend - 2
 		}
-	}
 
-	if f.curDataOffset >= f.numValidDataBytes {
-		// We're done with this data.  Reset the pointers for receiving new data:
-		f.numValidDataBytes = 1
-		f.curDataOffset = 1
-	}
+		if f.curDataOffset >= f.numValidDataBytes {
+			// We're done with this data.  Reset the pointers for receiving new data:
+			f.numValidDataBytes = 1
+			f.curDataOffset = 1
+		}
 
-	// Complete delivery to the client:
-	f.inputSource.afterGetting()
+		// Complete delivery to the client:
+		f.inputSource.afterGetting()
+	}
 }
 
 func (f *H264FUAFragmenter) afterGettingFrame(frameSize, numTruncatedBytes uint, presentationTime sys.Timeval) {

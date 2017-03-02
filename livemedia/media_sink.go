@@ -24,7 +24,7 @@ type OutPacketBuffer struct {
 	overflowPresentationTime       sys.Timeval
 }
 
-func NewOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffer {
+func newOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffer {
 	outPacketBuffer := new(OutPacketBuffer)
 	outPacketBuffer.preferred = preferredPacketSize
 	outPacketBuffer.maxPacketSize = maxPacketSize
@@ -70,18 +70,6 @@ func (b *OutPacketBuffer) useOverflowData() {
 	b.enqueue(b.buff[(b.packetStart+b.overflowDataOffset):], b.overflowDataSize)
 }
 
-func (b *OutPacketBuffer) OverflowDataSize() uint {
-	return b.overflowDataSize
-}
-
-func (b *OutPacketBuffer) OverflowPresentationTime() sys.Timeval {
-	return b.overflowPresentationTime
-}
-
-func (b *OutPacketBuffer) OverflowDurationInMicroseconds() uint {
-	return b.overflowDurationInMicroseconds
-}
-
 func (b *OutPacketBuffer) adjustPacketStart(numBytes uint) {
 	b.packetStart += numBytes
 	if b.overflowDataOffset >= numBytes {
@@ -102,8 +90,8 @@ func (b *OutPacketBuffer) enqueue(from []byte, numBytes uint) {
 		numBytes = b.totalBytesAvailable()
 	}
 
-	if string(b.curPtr()) != string(from) {
-		//b.curPtr() = from
+	if !bytes.Equal(b.curPtr(), from) {
+		copy(b.curPtr(), from)
 	}
 	b.increment(numBytes)
 }

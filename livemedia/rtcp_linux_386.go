@@ -95,7 +95,7 @@ func NewRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string) *RTC
 	rtcp.nextReportTime = rtcp.prevReportTime
 
 	rtcp.inBuf = make([]byte, maxRTCPPacketSize)
-	rtcp.outBuf = NewOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
+	rtcp.outBuf = newOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
 
 	rtcp.rtcpInterface = NewRTPInterface(rtcp, rtcpGS)
 	rtcp.rtcpInterface.startNetworkReading(rtcp.incomingReportHandler)

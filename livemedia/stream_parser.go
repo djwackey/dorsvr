@@ -6,7 +6,6 @@ import (
 )
 
 var BANK_SIZE uint = 150000
-var NO_MORE_BUFFERED_INPUT uint = 1
 
 type StreamParser struct {
 	curBankNum                 uint
@@ -18,7 +17,7 @@ type StreamParser struct {
 	savedRemainingUnparsedBits uint
 	haveSeenEOF                bool
 	inputSource                IFramedSource
-	bank                       []byte
+	bank                       [2][]byte
 	curBank                    []byte
 	clientContinueFunc         interface{}
 	clientOnInputCloseFunc     interface{}
@@ -30,6 +29,11 @@ func (p *StreamParser) initStreamParser(inputSource IFramedSource,
 	p.inputSource = inputSource
 	p.clientContinueFunc = clientContinueFunc
 	p.clientOnInputCloseFunc = clientOnInputCloseFunc
+
+	p.bank[0] = make([]byte, BANK_SIZE)
+	p.bank[1] = make([]byte, BANK_SIZE)
+
+	p.curBank = p.bank[p.curBankNum]
 }
 
 func (p *StreamParser) restoreSavedParserState() {
@@ -37,15 +41,15 @@ func (p *StreamParser) restoreSavedParserState() {
 	p.remainingUnparsedBits = p.savedRemainingUnparsedBits
 }
 
-func (p *StreamParser) bankSize() uint {
-	return BANK_SIZE
-}
+func (p *StreamParser) get4Bytes() (uint, bool) {
+	result, ok := p.test4Bytes()
+	if !ok {
+		return 0, false
+	}
 
-func (p *StreamParser) get4Bytes() uint {
-	result := p.test4Bytes()
 	p.curParserIndex += 4
 	p.remainingUnparsedBits = 0
-	return result
+	return result, true
 }
 
 func (p *StreamParser) get2Bytes() uint {
@@ -59,17 +63,22 @@ func (p *StreamParser) get2Bytes() uint {
 	return uint(result)
 }
 
-func (p *StreamParser) get1Byte() uint {
-	p.ensureValidBytes(1)
+func (p *StreamParser) get1Byte() (uint, bool) {
+	if p.ensureValidBytes(1) {
+		return 0, false
+	}
+
 	p.curParserIndex++
-	return uint(p.CurBank()[p.curParserIndex])
+	return uint(p.CurBank()[p.curParserIndex]), true
 }
 
-func (p *StreamParser) test4Bytes() uint {
-	p.ensureValidBytes(4)
+func (p *StreamParser) test4Bytes() (uint, bool) {
+	if p.ensureValidBytes(4) {
+		return 0, false
+	}
 
 	ptr := p.nextToParse()
-	return uint((ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3])
+	return uint((ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3]), true
 }
 
 func (p *StreamParser) testBytes(to []byte, numBytes uint) {
@@ -77,9 +86,13 @@ func (p *StreamParser) testBytes(to []byte, numBytes uint) {
 	to = p.nextToParse()[:numBytes]
 }
 
-func (p *StreamParser) skipBytes(numBytes uint) {
-	p.ensureValidBytes(numBytes)
+func (p *StreamParser) skipBytes(numBytes uint) bool {
+	if p.ensureValidBytes(numBytes) {
+		return false
+	}
+
 	p.curParserIndex += numBytes
+	return true
 }
 
 func (p *StreamParser) CurBank() []byte {
@@ -94,28 +107,20 @@ func (p *StreamParser) curOffset() uint {
 	return p.curParserIndex
 }
 
-func (p *StreamParser) HaveSeenEOF() bool {
-	return p.haveSeenEOF
-}
-
 func (p *StreamParser) saveParserState() {
 	p.savedParserIndex = p.curParserIndex
 	p.savedRemainingUnparsedBits = p.remainingUnparsedBits
 }
 
-func (p *StreamParser) TotNumValidBytes() uint {
-	return p.totNumValidBytes
-}
-
-func (p *StreamParser) ensureValidBytes(numBytesNeeded uint) {
+func (p *StreamParser) ensureValidBytes(numBytesNeeded uint) bool {
 	if p.curParserIndex+numBytesNeeded <= p.totNumValidBytes {
-		return
+		return false
 	}
 
-	p.ensureValidBytes1(numBytesNeeded)
+	return p.ensureValidBytes1(numBytesNeeded)
 }
 
-func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
+func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) bool {
 	maxInputFrameSize := p.inputSource.maxFrameSize()
 	if maxInputFrameSize > numBytesNeeded {
 		numBytesNeeded = maxInputFrameSize
@@ -125,7 +130,7 @@ func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 		numBytesToSave := p.totNumValidBytes + p.savedParserIndex
 
 		p.curBankNum = (p.curBankNum + 1) % 2
-		p.curBank = p.bank[p.curBankNum:]
+		p.curBank = p.bank[p.curBankNum]
 		p.curBank = p.curBank[p.saveParserIndex : p.saveParserIndex+numBytesToSave]
 
 		p.curParserIndex -= p.savedParserIndex
@@ -138,9 +143,11 @@ func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) uint {
 	}
 
 	// Try to read as many new bytes as will fit in the current bank:
-	maxNumBytesToRead := BANK_SIZE - p.totNumValidBytes
-	p.inputSource.GetNextFrame(p.CurBank(), maxNumBytesToRead, p.afterGettingBytes, p.onInputClosure)
-	return NO_MORE_BUFFERED_INPUT
+	//maxNumBytesToRead := BANK_SIZE - p.totNumValidBytes
+	fmt.Println("StreamParser::ensureValidBytes1")
+	//p.inputSource.GetNextFrame(p.CurBank(), maxNumBytesToRead, nil, nil)
+	// no more buffered input
+	return true
 }
 
 func (p *StreamParser) afterGettingBytes(numBytesRead, numTruncatedBytes uint, presentationTime sys.Timeval) {
