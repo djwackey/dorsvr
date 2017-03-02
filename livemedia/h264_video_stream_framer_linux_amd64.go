@@ -37,27 +37,45 @@ func (p *H264VideoStreamParser) UsingSource() *H264VideoStreamFramer {
 func (p *H264VideoStreamParser) parse() uint {
 	// The stream must start with a 0x00000001
 	if !p.haveSeenFirstStartCode {
-		for first4Bytes := p.test4Bytes(); first4Bytes != 0x00000001; {
-			p.get1Byte()
-			p.setParseState()
+		for {
+			first4Bytes, ok := p.test4Bytes()
+			if !ok {
+				return 0
+			}
+
+			if first4Bytes != 0x00000001 {
+				_, ok = p.get1Byte()
+				if !ok {
+					return 0
+				}
+
+				p.setParseState()
+			}
 		}
 
 		// skip this initial code
-		p.skipBytes(4)
+		if !p.skipBytes(4) {
+			return 0
+		}
+
 		p.haveSeenFirstStartCode = true
 	}
 
-	if p.outputStartCodeSize > 0 && p.curFrameSize() == 0 && !p.HaveSeenEOF() {
+	if p.outputStartCodeSize > 0 && p.curFrameSize() == 0 && !p.haveSeenEOF {
 		// Include a start code in the output:
 		p.save4Bytes(0x00000001)
 	}
 
-	if p.HaveSeenEOF() {
+	if p.haveSeenEOF {
 		// We hit EOF the last time that we tried to parse this data, so we know that any remaining unparsed data
 		// forms a complete NAL unit, and that there's no 'start code' at the end:
-		remainingDataSize := p.TotNumValidBytes() - p.curOffset()
+		remainingDataSize := p.totNumValidBytes - p.curOffset()
 		for remainingDataSize > 0 {
-			nextByte := p.get1Byte()
+			nextByte, ok := p.get1Byte()
+			if !ok {
+				return 0
+			}
+
 			if !p.haveSeenFirstByteOfNALUnit {
 				p.firstByteOfNALUnit = nextByte
 				p.haveSeenFirstByteOfNALUnit = true
@@ -69,7 +87,11 @@ func (p *H264VideoStreamParser) parse() uint {
 		p.get1Byte() // forces another read, which will cause EOF to get handled for real this time
 		return 0
 	} else {
-		next4Bytes := p.test4Bytes()
+		next4Bytes, ok := p.test4Bytes()
+		if !ok {
+			return 0
+		}
+
 		if !p.haveSeenFirstByteOfNALUnit {
 			p.firstByteOfNALUnit = next4Bytes >> 24
 			p.haveSeenFirstByteOfNALUnit = true
@@ -87,7 +109,10 @@ func (p *H264VideoStreamParser) parse() uint {
 				p.skipBytes(1)
 			}
 			p.setParseState() // ensures forward progress
-			next4Bytes = p.test4Bytes()
+			next4Bytes, ok = p.test4Bytes()
+			if !ok {
+				return 0
+			}
 		}
 		// Assert: next4Bytes starts with 0x00000001 or 0x000001,
 		// and we've saved all previous bytes (forming a complete NAL unit).
@@ -127,7 +152,7 @@ func (p *H264VideoStreamParser) parse() uint {
 	p.UsingSource().setPresentationTime()
 
 	thisNALUnitEndsAccessUnit := false // until we learn otherwise
-	if p.HaveSeenEOF() {
+	if p.haveSeenEOF {
 		// There is no next NAL unit, so we assume that this one ends the current 'access unit':
 		thisNALUnitEndsAccessUnit = true
 	} else {
@@ -160,9 +185,10 @@ func (p *H264VideoStreamParser) parse() uint {
 					thisNALUnitEndsAccessUnit = true
 				} else if (nalUnitType == 1 ||
 					nalUnitType == 2 ||
-					nalUnitType == 5) && (nextNalUnitType == 1 ||
-					nextNalUnitType == 2 ||
-					nextNalUnitType == 5) {
+					nalUnitType == 5) &&
+					(nextNalUnitType == 1 ||
+						nextNalUnitType == 2 ||
+						nextNalUnitType == 5) {
 					// Both this and the next NAL units begin with a "slice_header".
 					// Parse this (for each), to get parameters that we can compare:
 
@@ -448,8 +474,8 @@ func (p *H264VideoStreamParser) analyzeVUIParameters(bv *BitVector) *seqParamete
 			bv.skipBits(24) // colour_primaries; transfer_characteristics; matrix_coefficients
 		}
 	}
-	chroma_loc_info_present_flag := bv.get1Bit()
-	if chroma_loc_info_present_flag != 0 {
+	chromaLocInfoPresentFlag := bv.get1Bit()
+	if chromaLocInfoPresentFlag != 0 {
 		bv.getExpGolomb() // chroma_sample_loc_type_top_field
 		bv.getExpGolomb() // chroma_sample_loc_type_bottom_field
 	}
@@ -464,14 +490,6 @@ func (p *H264VideoStreamParser) analyzeVUIParameters(bv *BitVector) *seqParamete
 	}
 
 	return spsData
-}
-
-func (p *H264VideoStreamParser) afterGetting()      {}
-func (p *H264VideoStreamParser) doGetNextFrame()    {}
-func (p *H264VideoStreamParser) stopGettingFrames() {}
-func (p *H264VideoStreamParser) maxFrameSize() uint { return 0 }
-func (p *H264VideoStreamParser) GetNextFrame(buffTo []byte, maxSize uint,
-	afterGettingFunc, onCloseFunc interface{}) {
 }
 
 //////// H264VideoStreamFramer ////////

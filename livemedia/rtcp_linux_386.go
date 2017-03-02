@@ -246,7 +246,7 @@ func (r *RTCPInstance) incomingReportHandler() {
 				packetOk = true
 				break
 			} else if packetSize < 4 {
-				fmt.Println("extraneous %d bytes at end of RTCP packet!\n", packetSize)
+				fmt.Printf("extraneous %d bytes at end of RTCP packet!\n", packetSize)
 				break
 			}
 

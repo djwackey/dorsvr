@@ -35,7 +35,7 @@ func (s *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IRTPSink,
 }
 
 func (s *MultiFramedRTPSink) setPacketSizes(preferredPacketSize, maxPacketSize uint) {
-	s.outBuf = NewOutPacketBuffer(preferredPacketSize, maxPacketSize)
+	s.outBuf = newOutPacketBuffer(preferredPacketSize, maxPacketSize)
 	s.ourMaxPacketSize = maxPacketSize
 }
 
@@ -46,6 +46,7 @@ func (s *MultiFramedRTPSink) multiFramedPlaying() {
 func (s *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 	s.isFirstPacket = isFirstPacket
 
+	// Set up the RTP header:
 	var rtpHdr uint = 0x80000000
 	rtpHdr |= s.rtpPayloadType << 16
 	rtpHdr |= s.seqNo
@@ -54,7 +55,7 @@ func (s *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 	s.timestampPosition = s.outBuf.curPacketSize()
 	s.outBuf.skipBytes(4)
 
-	s.outBuf.enqueueWord(s.SSRC())
+	s.outBuf.enqueueWord(s.ssrc)
 
 	// Allow for a special, payload-format-specific header following the
 	// RTP header:
@@ -73,9 +74,10 @@ func (s *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 func (s *MultiFramedRTPSink) packFrame() {
 	if s.outBuf.haveOverflowData() {
 		// Use this frame before reading a new one from the source
-		frameSize := s.outBuf.OverflowDataSize()
-		presentationTime := s.outBuf.OverflowPresentationTime()
-		durationInMicroseconds := s.outBuf.OverflowDurationInMicroseconds()
+		frameSize := s.outBuf.overflowDataSize
+		presentationTime := s.outBuf.overflowPresentationTime
+		durationInMicroseconds := s.outBuf.overflowDurationInMicroseconds
+
 		s.outBuf.useOverflowData()
 		s.afterGettingFrame(frameSize, durationInMicroseconds, presentationTime)
 	} else {
@@ -83,6 +85,7 @@ func (s *MultiFramedRTPSink) packFrame() {
 		if s.Source == nil {
 			return
 		}
+		// H264FUAFragmenter
 		s.Source.GetNextFrame(s.outBuf.curPtr(), s.outBuf.totalBytesAvailable(),
 			s.afterGettingFrame, s.ourHandlerClosure)
 	}
