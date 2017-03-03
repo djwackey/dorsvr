@@ -144,7 +144,7 @@ func (s *RTSPClientSession) handleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 				s.ourSessionID)
 		case livemedia.RTP_TCP:
 			// multicast streams can't be sent via TCP
-			s.rtspClientConn.HandleCommandUnsupportedTransport()
+			s.rtspClientConn.handleCommandUnsupportedTransport()
 		case livemedia.RAW_UDP:
 			s.rtspClientConn.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 				"CSeq: %s\r\n"+

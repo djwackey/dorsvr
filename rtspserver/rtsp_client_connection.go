@@ -161,8 +161,15 @@ func (c *RTSPClientConnection) handleCommandSessionNotFound() {
 	c.setRTSPResponse("454 Session Not Found")
 }
 
-func (c *RTSPClientConnection) HandleCommandUnsupportedTransport() {
+func (c *RTSPClientConnection) handleCommandUnsupportedTransport() {
 	c.setRTSPResponse("461 Unsupported Transport")
+}
+
+func (c *RTSPClientConnection) handleAlternativeRequestByte(requestByte uint) {
+	if requestByte == 0xFF {
+	} else if requestByte == 0xFE {
+	} else {
+	}
 }
 
 func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fullRequestStr string) {

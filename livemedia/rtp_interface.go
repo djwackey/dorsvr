@@ -13,10 +13,10 @@ type RTPInterface struct {
 	tcpStreams                 *TCPStreamRecord
 }
 
-func NewRTPInterface(owner interface{}, gs *gs.GroupSock) *RTPInterface {
+func newRTPInterface(owner interface{}, gs *gs.GroupSock) *RTPInterface {
 	rtpInterface := new(RTPInterface)
-	rtpInterface.gs = gs
 	rtpInterface.owner = owner
+	rtpInterface.gs = gs
 	return rtpInterface
 }
 
@@ -31,12 +31,19 @@ func (i *RTPInterface) GS() *gs.GroupSock {
 	return i.gs
 }
 
-func (i *RTPInterface) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
-	if sockNum == nil {
+func (i *RTPInterface) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {
+	descriptor := lookupSocketDescriptor(socketNum)
+	if descriptor != nil {
+		descriptor.setServerRequestAlternativeByteHandler(handler)
+	}
+}
+
+func (i *RTPInterface) addStreamSocket(socketNum net.Conn, streamChannelID uint) {
+	if socketNum == nil {
 		return
 	}
 
-	i.tcpStreams = NewTCPStreamRecord(sockNum, streamChannelID)
+	i.tcpStreams = newTCPStreamRecord(socketNum, streamChannelID)
 }
 
 func (i *RTPInterface) delStreamSocket() {
@@ -56,7 +63,7 @@ type TCPStreamRecord struct {
 	streamSocketNum net.Conn
 }
 
-func NewTCPStreamRecord(streamSocketNum net.Conn, streamChannelID uint) *TCPStreamRecord {
+func newTCPStreamRecord(streamSocketNum net.Conn, streamChannelID uint) *TCPStreamRecord {
 	tcpStreamRecord := new(TCPStreamRecord)
 	tcpStreamRecord.streamChannelID = streamChannelID
 	tcpStreamRecord.streamSocketNum = streamSocketNum
@@ -69,4 +76,23 @@ func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannel
 	channelID := []byte{byte(streamChannelID)}
 	socketNum.Write(dollar)
 	socketNum.Write(channelID)
+}
+
+type SocketDescriptor struct {
+	socketNum                           net.Conn
+	serverRequestAlternativeByteHandler interface{}
+}
+
+func newSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
+	descriptor := new(SocketDescriptor)
+	descriptor.socketNum = socketNum
+	return descriptor
+}
+
+func (s *SocketDescriptor) setServerRequestAlternativeByteHandler(handler interface{}) {
+	s.serverRequestAlternativeByteHandler = handler
+}
+
+func lookupSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
+	return newSocketDescriptor(socketNum)
 }

@@ -39,13 +39,13 @@ func (s *StreamState) startPlaying(dests *Destinations) {
 	}
 
 	if s.rtcpInstance == nil && s.rtpSink != nil {
-		s.rtcpInstance = NewRTCPInstance(s.rtcpGS, s.totalBW, s.master.CNAME())
+		s.rtcpInstance = newRTCPInstance(s.rtcpGS, s.totalBW, s.master.CNAME())
 	}
 
 	if dests.isTCP {
 		if s.rtpSink != nil {
 			s.rtpSink.addStreamSocket(dests.tcpSockNum, dests.rtpChannelID)
-			//s.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum)
+			s.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSockNum)
 		}
 		if s.rtcpInstance != nil {
 			s.rtcpInstance.setSpecificRRHandler()

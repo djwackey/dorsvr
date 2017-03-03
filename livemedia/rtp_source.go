@@ -23,7 +23,7 @@ func NewRTPSource() *RTPSource {
 
 func (s *RTPSource) InitRTPSouce(isource IFramedSource, RTPgs *gs.GroupSock,
 	rtpPayloadFormat, rtpTimestampFrequency uint) {
-	s.rtpInterface = NewRTPInterface(s, RTPgs)
+	s.rtpInterface = newRTPInterface(s, RTPgs)
 	s.lastReceivedSSRC = 0
 	s.rtpPayloadFormat = rtpPayloadFormat
 	s.timestampFrequency = rtpTimestampFrequency

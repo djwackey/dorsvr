@@ -8,7 +8,6 @@ import (
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
-//////// RTPSink ////////
 type IRTPSink interface {
 	RtpPayloadType() uint
 	AuxSDPLine() string
@@ -21,8 +20,10 @@ type IRTPSink interface {
 	addStreamSocket(sockNum net.Conn, streamChannelID uint)
 	delStreamSocket()
 	presetNextTimestamp() uint
+	setServerRequestAlternativeByteHandler(sockNum net.Conn)
 }
 
+//////// RTPSink ////////
 type RTPSink struct {
 	MediaSink
 	ssrc                       uint
@@ -44,7 +45,7 @@ type RTPSink struct {
 func (s *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType,
 	rtpTimestampFrequency uint, rtpPayloadFormatName string) {
 	s.InitMediaSink(rtpSink)
-	s.rtpInterface = NewRTPInterface(s, gs)
+	s.rtpInterface = newRTPInterface(s, gs)
 	s.rtpPayloadType = rtpPayloadType
 	s.rtpTimestampFrequency = rtpTimestampFrequency
 	s.rtpPayloadFormatName = rtpPayloadFormatName
@@ -71,11 +72,9 @@ func (sink *RTPSink) RtpPayloadType() uint {
 }
 
 func (sink *RTPSink) RtpmapLine() string {
-	var rtpmapLine string
+	var rtpmapLine, encodingParamsPart string
 	if sink.rtpPayloadType >= 96 {
-		encodingParamsPart := ""
-		rtpmapFmt := "a=rtpmap:%d %s/%d%s\r\n"
-		rtpmapLine = fmt.Sprintf(rtpmapFmt,
+		rtpmapLine = fmt.Sprintf("a=rtpmap:%d %s/%d%s\r\n",
 			sink.rtpPayloadType,
 			sink.rtpPayloadFormatName,
 			sink.rtpTimestampFrequency, encodingParamsPart)
@@ -110,6 +109,10 @@ func (s *RTPSink) convertToRTPTimestamp(tv sys.Timeval) uint {
 
 	// return RTP Timestamp
 	return s.timestampBase + timestampIncrement
+}
+
+func (s *RTPSink) setServerRequestAlternativeByteHandler(sockNum net.Conn) {
+	s.rtpInterface.setServerRequestAlternativeByteHandler(sockNum, nil)
 }
 
 //////// RTPTransmissionStatsDB ////////
