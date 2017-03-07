@@ -16,8 +16,8 @@ type RTSPClientSession struct {
 	numStreamStates      int
 	TCPStreamIDCount     uint
 	ourSessionID         uint
-	streamStates         *StreamServerState
 	rtspServer           *RTSPServer
+	streamStates         *StreamServerState
 	rtspClientConn       *RTSPClientConnection
 	serverMediaSession   *livemedia.ServerMediaSession
 	livenessTimeoutTimer *time.Timer
@@ -122,8 +122,6 @@ func (s *RTSPClientSession) handleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 		rtcpChannelID)
 	serverRTPPort := streamParameter.ServerRTPPort
 	serverRTCPPort := streamParameter.ServerRTCPPort
-
-	//fmt.Println("RTSPClientSession::getStreamParameters", streamParameter, transportHeader)
 
 	s.streamStates.streamToken = streamParameter.StreamToken
 
@@ -363,7 +361,8 @@ func (s *RTSPClientSession) handleCommandPlay(subsession livemedia.IServerMediaS
 
 	rangeHeaderStr := buf
 
-	rtpSeqNum, rtpTimestamp := s.streamStates.subsession.StartStream(s.ourSessionID, s.streamStates.streamToken)
+	rtpSeqNum, rtpTimestamp := s.streamStates.subsession.StartStream(s.ourSessionID, s.streamStates.streamToken,
+		s.noteLiveness, s.rtspClientConn.handleAlternativeRequestByte)
 	urlSuffix := s.streamStates.subsession.TrackID()
 
 	// Create a "RTP-INFO" line. It will get filled in from each subsession's state:
@@ -392,10 +391,10 @@ func (s *RTSPClientSession) handleCommandPlay(subsession livemedia.IServerMediaS
 
 func (s *RTSPClientSession) handleCommandPause() {
 	s.streamStates.subsession.PauseStream(s.streamStates.streamToken)
-	/*
-		for i := 0; i < s.numStreamStates; i++ {
-			s.streamStates[i].subsession.pauseStream()
-		}*/
+
+	//for i := 0; i < s.numStreamStates; i++ {
+	//	s.streamStates[i].subsession.PauseStream()
+	//}
 
 	s.rtspClientConn.setRTSPResponseWithSessionID("200 OK", s.ourSessionID)
 }
@@ -410,10 +409,10 @@ func (s *RTSPClientSession) handleCommandSetParameter() {
 
 func (s *RTSPClientSession) handleCommandTearDown() {
 	s.streamStates.subsession.DeleteStream(s.streamStates.streamToken)
-	/*
-		for i := 0; i < s.numStreamStates; i++ {
-			s.streamStates[i].subsession.deleteStream()
-		}*/
+
+	//for i := 0; i < s.numStreamStates; i++ {
+	//	s.streamStates[i].subsession.DeleteStream()
+	//}
 }
 
 func (s *RTSPClientSession) noteLiveness() {

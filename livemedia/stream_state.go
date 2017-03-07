@@ -17,7 +17,7 @@ type StreamState struct {
 	areCurrentlyPlaying bool
 }
 
-func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint,
+func newStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint,
 	rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW uint,
 	mediaSource IFramedSource, rtpGS, rtcpGS *gs.GroupSock) *StreamState {
 	state := new(StreamState)
@@ -33,22 +33,25 @@ func NewStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort
 	return state
 }
 
-func (s *StreamState) startPlaying(dests *Destinations) {
+func (s *StreamState) startPlaying(dests *Destinations,
+	rtcpRRHandler, serverRequestAlternativeByteHandler interface{}) {
 	if dests == nil {
 		return
 	}
 
 	if s.rtcpInstance == nil && s.rtpSink != nil {
+		// Note: This starts RTCP running automatically
+		// Create (and start) a 'RTCP instance' for this RTP sink:
 		s.rtcpInstance = newRTCPInstance(s.rtcpGS, s.totalBW, s.master.CNAME())
 	}
 
 	if dests.isTCP {
 		if s.rtpSink != nil {
-			s.rtpSink.addStreamSocket(dests.tcpSockNum, dests.rtpChannelID)
-			s.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSockNum)
+			s.rtpSink.addStreamSocket(dests.tcpSocketNum, dests.rtpChannelID)
+			s.rtpSink.setServerRequestAlternativeByteHandler(dests.tcpSocketNum)
 		}
 		if s.rtcpInstance != nil {
-			s.rtcpInstance.setSpecificRRHandler()
+			s.rtcpInstance.setSpecificRRHandler(rtcpRRHandler)
 		}
 	} else {
 		// Tell the RTP and RTCP 'groupsocks' about this destination
@@ -60,9 +63,7 @@ func (s *StreamState) startPlaying(dests *Destinations) {
 			s.rtcpGS.AddDestination(dests.addrStr, dests.rtcpPort)
 		}
 		if s.rtcpInstance != nil {
-			//rtcpRRHandler := ""
-			//rtcpRRHandlerClientData := ""
-			//this.rtcpInstance.setSpecificRRHandler(dests.addr, dests.rtcpPort, rtcpRRHandler, rtcpRRHandlerClientData)
+			s.rtcpInstance.setSpecificRRHandler(rtcpRRHandler)
 		}
 	}
 

@@ -82,7 +82,7 @@ func (s *OnDemandServerMediaSubSession) GetStreamParameters(tcpSocketNum net.Con
 
 		udpSink := NewBasicUDPSink(rtpGroupSock)
 
-		s.lastStreamToken = NewStreamState(s.isubsession,
+		s.lastStreamToken = newStreamState(s.isubsession,
 			sp.ServerRTPPort,
 			sp.ServerRTCPPort,
 			rtpSink,
@@ -94,6 +94,7 @@ func (s *OnDemandServerMediaSubSession) GetStreamParameters(tcpSocketNum net.Con
 		sp.StreamToken = s.lastStreamToken
 	}
 
+	// Record these destinations as being for this client session id:
 	dests := newDestinations(tcpSocketNum, destAddr, clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID)
 	s.destinations = append(s.destinations, dests)
 	s.destinationsDict[clientSessionID] = dests
@@ -150,9 +151,10 @@ func (s *OnDemandServerMediaSubSession) CNAME() string {
 	return s.cname
 }
 
-func (s *OnDemandServerMediaSubSession) StartStream(clientSessionID uint, streamState *StreamState) (uint, uint) {
+func (s *OnDemandServerMediaSubSession) StartStream(clientSessionID uint, streamState *StreamState,
+	rtcpRRHandler, serverRequestAlternativeByteHandler interface{}) (uint, uint) {
 	destinations, _ := s.destinationsDict[string(clientSessionID)]
-	streamState.startPlaying(destinations)
+	streamState.startPlaying(destinations, rtcpRRHandler, serverRequestAlternativeByteHandler)
 
 	var rtpSeqNum, rtpTimestamp uint
 	if streamState.RtpSink() != nil {
@@ -184,17 +186,20 @@ type Destinations struct {
 	rtcpPort      uint
 	rtpChannelID  uint
 	rtcpChannelID uint
-	tcpSockNum    net.Conn
+	tcpSocketNum  net.Conn
 }
 
-func newDestinations(tcpSockNum net.Conn, destAddr string,
+func newDestinations(tcpSocketNum net.Conn, destAddr string,
 	clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID uint) *Destinations {
 	destinations := new(Destinations)
-	destinations.tcpSockNum = tcpSockNum
 	destinations.addrStr = destAddr
 	destinations.rtpPort = clientRTPPort
 	destinations.rtcpPort = clientRTCPPort
 	destinations.rtpChannelID = rtpChannelID
 	destinations.rtcpChannelID = rtcpChannelID
+	if tcpSocketNum != nil {
+		destinations.isTCP = true
+		destinations.tcpSocketNum = tcpSocketNum
+	}
 	return destinations
 }

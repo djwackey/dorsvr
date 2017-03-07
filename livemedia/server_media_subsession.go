@@ -18,7 +18,8 @@ type IServerMediaSubSession interface {
 	TrackID() string
 	SDPLines() string
 	CNAME() string
-	StartStream(clientSessionID uint, streamState *StreamState) (uint, uint)
+	StartStream(clientSessionID uint, streamState *StreamState,
+		rtcpRRHandler, serverRequestAlternativeByteHandler interface{}) (uint, uint)
 	PauseStream(streamState *StreamState)
 	SeekStream()
 	DeleteStream(streamState *StreamState)

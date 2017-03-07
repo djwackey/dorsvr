@@ -52,15 +52,17 @@ func (p *StreamParser) get4Bytes() (uint, bool) {
 	return result, true
 }
 
-func (p *StreamParser) get2Bytes() uint {
-	p.ensureValidBytes(2)
+func (p *StreamParser) get2Bytes() (uint, bool) {
+	if p.ensureValidBytes(2) {
+		return 0, false
+	}
 
 	ptr := p.nextToParse()
 	result := (ptr[0] << 8) | ptr[1]
 
 	p.curParserIndex += 2
 	p.remainingUnparsedBits = 0
-	return uint(result)
+	return uint(result), true
 }
 
 func (p *StreamParser) get1Byte() (uint, bool) {
@@ -81,9 +83,13 @@ func (p *StreamParser) test4Bytes() (uint, bool) {
 	return uint((ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3]), true
 }
 
-func (p *StreamParser) testBytes(to []byte, numBytes uint) {
-	p.ensureValidBytes(numBytes)
+func (p *StreamParser) testBytes(to []byte, numBytes uint) bool {
+	if p.ensureValidBytes(numBytes) {
+		return false
+	}
+
 	to = p.nextToParse()[:numBytes]
+	return true
 }
 
 func (p *StreamParser) skipBytes(numBytes uint) bool {
@@ -143,9 +149,8 @@ func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) bool {
 	}
 
 	// Try to read as many new bytes as will fit in the current bank:
-	//maxNumBytesToRead := BANK_SIZE - p.totNumValidBytes
-	fmt.Println("StreamParser::ensureValidBytes1")
-	//p.inputSource.GetNextFrame(p.CurBank(), maxNumBytesToRead, nil, nil)
+	maxNumBytesToRead := BANK_SIZE - p.totNumValidBytes
+	p.inputSource.GetNextFrame(p.CurBank(), maxNumBytesToRead, p.afterGettingBytes, p.onInputClosure)
 	// no more buffered input
 	return true
 }
@@ -161,7 +166,7 @@ func (p *StreamParser) afterGettingBytes(numBytesRead, numTruncatedBytes uint, p
 	// Continue our original calling source where it left off:
 	p.restoreSavedParserState()
 
-	p.clientContinueFunc.(func())()
+	//p.clientContinueFunc.(func())()
 }
 
 func (p *StreamParser) onInputClosure() {
@@ -169,6 +174,7 @@ func (p *StreamParser) onInputClosure() {
 		p.haveSeenEOF = true
 		p.afterGettingBytes(0, 0, p.lastSeenPresentationTime)
 	} else {
+		fmt.Println("StreamParser::onInputClosure")
 		// We're hitting EOF for the second time.  Now, we handle the source input closure:
 		p.haveSeenEOF = false
 		if p.clientOnInputCloseFunc != nil {

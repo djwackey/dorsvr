@@ -2,6 +2,7 @@ package livemedia
 
 import (
 	sys "syscall"
+	"time"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
@@ -191,6 +192,7 @@ func (s *MultiFramedRTPSink) sendPacketIfNecessary() {
 		}
 
 		// Delay this amount of time:
+		time.Sleep(time.Duration(uSecondsToGo) * time.Microsecond)
 		s.sendNext()
 	}
 }

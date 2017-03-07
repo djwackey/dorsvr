@@ -88,13 +88,14 @@ func newH264FUAFragmenter(inputSource IFramedSource, inputBufferMax uint) *H264F
 	return fragment
 }
 
-func (f *H264FUAFragmenter) doGetNextFrame() {
+func (f *H264FUAFragmenter) doGetNextFrame() bool {
 	if f.numValidDataBytes == 1 {
-		// H264VideoStreamFramer
+		fmt.Println("H264FUAFragmenter::doGetNextFrame -> f.numValidDataBytes == 1")
 		// We have no NAL unit data currently in the buffer.  Read a new one:
 		f.inputSource.GetNextFrame(f.inputBuffer[1:], f.inputBufferSize-1,
-			f.afterGettingFrame, f.handleClosure)
+			f.afterGettingFrame, f.handleClosure) // H264VideoStreamFramer
 	} else {
+		fmt.Println("H264FUAFragmenter::doGetNextFrame -> f.numValidDataBytes != 1")
 		if f.maxSize < f.maxOutputPacketSize {
 			fmt.Printf("H264FUAFragmenter::doGetNextFrame(): maxSize (%d) is smaller than expected\n", f.maxSize)
 		} else {
@@ -145,9 +146,11 @@ func (f *H264FUAFragmenter) doGetNextFrame() {
 		// Complete delivery to the client:
 		f.inputSource.afterGetting()
 	}
+	return true
 }
 
 func (f *H264FUAFragmenter) afterGettingFrame(frameSize, numTruncatedBytes uint, presentationTime sys.Timeval) {
+	fmt.Println("H264FUAFragmenter::afterGettingFrame")
 	f.numValidDataBytes += frameSize
 
 	f.doGetNextFrame()

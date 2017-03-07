@@ -33,16 +33,17 @@ func NewM2TSVideoStreamFramer(inputSource IFramedSource) *M2TSVideoStreamFramer 
 func (f *M2TSVideoStreamFramer) GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
 }
 
-func (f *M2TSVideoStreamFramer) doGetNextFrame() {
+func (f *M2TSVideoStreamFramer) doGetNextFrame() bool {
 	if f.limitNumTSPacketsToStream {
 		if f.numTSPacketsToStream == 0 {
 			//f.handleClosure(this)
-			return
+			return false
 		}
 		if f.numTSPacketsToStream*TRANSPORT_PACKET_SIZE < f.maxSize {
 			f.maxSize = f.numTSPacketsToStream * TRANSPORT_PACKET_SIZE
 		}
 	}
+	return true
 }
 
 func (f *M2TSVideoStreamFramer) doStopGettingFrames() {

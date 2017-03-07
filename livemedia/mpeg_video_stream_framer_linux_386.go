@@ -74,9 +74,10 @@ func (f *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures ui
 	}
 }
 
-func (f *MPEGVideoStreamFramer) doGetNextFrame() {
+func (f *MPEGVideoStreamFramer) doGetNextFrame() bool {
 	f.parser.registerReadInterest(f.buffTo, f.maxSize)
 	f.continueReadProcessing()
+	return true
 }
 
 func (f *MPEGVideoStreamFramer) continueReadProcessing() {
@@ -104,6 +105,6 @@ func (f *MPEGVideoStreamFramer) continueReadProcessing() {
 		// We were unable to parse a complete frame from the input, because:
 		// - we had to read more data from the source stream, or
 		// - the source stream has ended.
-		f.afterGetting()
+		f.continueReadProcessing()
 	}
 }

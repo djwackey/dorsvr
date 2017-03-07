@@ -4,7 +4,7 @@ import s "syscall"
 
 type IFramedSource interface {
 	GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{})
-	doGetNextFrame()
+	doGetNextFrame() bool
 	afterGetting()
 	maxFrameSize() uint
 	handleClosure()

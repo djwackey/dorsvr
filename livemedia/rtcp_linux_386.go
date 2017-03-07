@@ -108,7 +108,7 @@ func (r *RTCPInstance) numMembers() uint {
 	return 0
 }
 
-func (r *RTCPInstance) setSpecificRRHandler() {
+func (r *RTCPInstance) setSpecificRRHandler(handlerTask interface{}) {
 }
 
 func (r *RTCPInstance) SetByeHandler(handlerTask interface{}, clientData interface{}) {
