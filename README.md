@@ -1,28 +1,29 @@
-## Golang Streaming Server ##
+Dorsvr Streaming Server
+=======================
 
 [![Build Status](https://travis-ci.org/djwackey/dorsvr.svg?branch=master)](https://travis-ci.org/djwackey/dorsvr) [![GitHub issues](https://img.shields.io/github/issues/djwackey/dorsvr.svg)](https://github.com/djwackey/dorsvr/issues)
-### Modules ###
+## Modules
  * rtspserver - rtsp server
  * rtspclient - rtsp client
  * groupsock  - group socket
  * scheduler  - task scheduler
  * livemedia  - media library
 
-### Feature ###
+## Feature
  * Streaming Video (H264)
  * Streaming Audio (MP3)
  * Protocols: RTP, RTCP, RTSP
 
-### Install ###
+## Install
     go get github.com/djwackey/dorsvr
 
-### Format ###
+## Format
     $ make fmt
 
-### Testing ###
+## Testing
     $ make test
 
-### Example ###
+## Example
 ```golang
 server := rtspserver.New()
 
@@ -33,8 +34,7 @@ if !server.SetUpTunnelingOverHTTP(80) ||
     !server.SetUpTunnelingOverHTTP(8000) ||
     !server.SetUpTunnelingOverHTTP(8080) {
     fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling, "+
-                            "or for HTTP live streaming (for indexed Transport Stream files only).)",
-    server.HttpServerPortNum()))
+                            "or for HTTP live streaming (for indexed Transport Stream files only).)", server.HttpServerPortNum()))
 } else {
     fmt.Println("(RTSP-over-HTTP tunneling is not available.)")
 }
@@ -46,8 +46,8 @@ server.Start()
 
 scheduler.DoEventLoop()
 ```
-### Author ###
+## Author
 djwackey, worcy_kiddy@126.com
 
-### LICENSE ###
+## LICENSE
 dorsvr is licensed under the GNU Lesser General Public License, Version 2.1. See [LICENSE](https://github.com/djwackey/dorsvr/blob/master/LICENSE) for the full license text.
