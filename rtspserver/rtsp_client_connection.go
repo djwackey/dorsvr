@@ -9,6 +9,8 @@ import (
 	"github.com/djwackey/dorsvr/livemedia"
 )
 
+const RTSP_BUFFER_SIZE = 10000
+
 type RTSPClientConnection struct {
 	clientOutputSocket net.Conn
 	localPort          string
@@ -36,14 +38,17 @@ func newRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnecti
 func (c *RTSPClientConnection) incomingRequestHandler() {
 	defer c.clientOutputSocket.Close()
 
-	isclose := false
-	buffer := make([]byte, 4096)
+	var isclose bool
+	buffer := make([]byte, RTSP_BUFFER_SIZE)
 	for {
 		length, err := c.clientOutputSocket.Read(buffer)
 
 		switch err {
 		case nil:
-			c.handleRequestBytes(buffer, length)
+			ok := c.handleRequestBytes(buffer, length)
+			if !ok {
+				isclose = true
+			}
 		default:
 			if err.Error() == "EOF" {
 				isclose = true
@@ -59,7 +64,7 @@ func (c *RTSPClientConnection) incomingRequestHandler() {
 	fmt.Println("end connection.")
 }
 
-func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
+func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) bool {
 	reqStr := string(buffer[:length])
 
 	fmt.Printf("Received %d new bytes of request data.\n", length)
@@ -135,7 +140,9 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) {
 	sendBytes, err := c.clientOutputSocket.Write([]byte(c.responseBuffer))
 	if err != nil {
 		fmt.Println("failed to send response buffer.", sendBytes)
+		return false
 	}
+	return true
 }
 
 func (c *RTSPClientConnection) handleCommandOptions() {
@@ -166,7 +173,9 @@ func (c *RTSPClientConnection) handleCommandUnsupportedTransport() {
 }
 
 func (c *RTSPClientConnection) handleAlternativeRequestByte(requestByte uint) {
+	var buffer []byte
 	if requestByte == 0xFF {
+		c.handleRequestBytes(buffer, -1)
 	} else if requestByte == 0xFE {
 	} else {
 	}

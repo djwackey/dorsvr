@@ -9,7 +9,7 @@ type H264VideoRTPSource struct {
 	currentPacketCompletesFrame bool
 }
 
-func NewH264VideoRTPSource(RTPgs *gs.GroupSock,
+func newH264VideoRTPSource(RTPgs *gs.GroupSock,
 	rtpPayloadFormat, rtpTimestampFrequency uint) *H264VideoRTPSource {
 	source := new(H264VideoRTPSource)
 
@@ -83,7 +83,7 @@ type H264BufferedPacketFactory struct {
 	BufferedPacketFactory
 }
 
-func NewH264BufferedPacket(source *H264VideoRTPSource) *H264BufferedPacket {
+func newH264BufferedPacket(source *H264VideoRTPSource) *H264BufferedPacket {
 	packet := new(H264BufferedPacket)
 	packet.InitBufferedPacket()
 	packet.source = source
@@ -140,5 +140,5 @@ func (f *H264BufferedPacketFactory) createNewPacket(source interface{}) IBuffere
 	if source != nil {
 		h264VideoRTPSource = source.(*H264VideoRTPSource)
 	}
-	return NewH264BufferedPacket(h264VideoRTPSource)
+	return newH264BufferedPacket(h264VideoRTPSource)
 }

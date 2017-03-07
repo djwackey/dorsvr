@@ -16,8 +16,8 @@ func main() {
 	if !server.SetUpTunnelingOverHTTP(80) ||
 		!server.SetUpTunnelingOverHTTP(8000) ||
 		!server.SetUpTunnelingOverHTTP(8080) {
-		fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling, "+
-			"or for HTTP live streaming (for indexed Transport Stream files only).)",
+		fmt.Println(fmt.Sprintf("We use port %d for optional RTSP-over-HTTP tunneling, "+
+			"or for HTTP live streaming (for indexed Transport Stream files only).",
 			server.HttpServerPortNum()))
 	} else {
 		fmt.Println("(RTSP-over-HTTP tunneling is not available.)")

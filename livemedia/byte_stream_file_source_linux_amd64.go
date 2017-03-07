@@ -36,13 +36,13 @@ func newByteStreamFileSource(fileName string) *ByteStreamFileSource {
 	return fileSource
 }
 
-func (s *ByteStreamFileSource) doGetNextFrame() {
+func (s *ByteStreamFileSource) doGetNextFrame() bool {
 	if s.limitNumBytesToStream && s.numBytesToStream == 0 {
 		s.handleClosure()
-		return
+		return false
 	}
 
-	s.doReadFromFile()
+	return s.doReadFromFile()
 }
 
 func (s *ByteStreamFileSource) doStopGettingFrames() {
@@ -51,9 +51,10 @@ func (s *ByteStreamFileSource) doStopGettingFrames() {
 }
 
 func (s *ByteStreamFileSource) doReadFromFile() bool {
-	/*readBytes*/ _, err := s.fid.Read(s.buffTo)
+	_, err := s.fid.Read(s.buffTo)
 	if err != nil {
 		fmt.Println(err)
+		s.handleClosure()
 		return false
 	}
 

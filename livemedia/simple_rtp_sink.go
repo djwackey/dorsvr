@@ -7,7 +7,7 @@ type SimpleRTPSink struct {
 	allowMultipleFramesPerPacket bool
 }
 
-func NewSimpleRTPSink(rtpGS *gs.GroupSock, rtpPayloadFormat,
+func newSimpleRTPSink(rtpGS *gs.GroupSock, rtpPayloadFormat,
 	rtpTimestampFrequency, numChannels uint,
 	sdpMediaTypeString, rtpPayloadFormatName string,
 	allowMultipleFramesPerPacket, doNormalMBitRule bool) *SimpleRTPSink {

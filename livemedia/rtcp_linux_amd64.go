@@ -63,7 +63,7 @@ type RTCPInstance struct {
 	byeHandlerClientData interface{}
 }
 
-func NewSDESItem(tag int, value string) *SDESItem {
+func newSDESItem(tag int, value string) *SDESItem {
 	item := new(SDESItem)
 
 	length := len(value)
@@ -85,11 +85,11 @@ func (s *SDESItem) totalSize() uint {
 	return 2 + uint(s.data[1])
 }
 
-func NewRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string) *RTCPInstance {
+func newRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string) *RTCPInstance {
 	rtcp := new(RTCPInstance)
 	rtcp.typeOfEvent = EVENT_REPORT
 	rtcp.totSessionBW = totSessionBW
-	rtcp.CNAME = NewSDESItem(RTCP_SDES_CNAME, cname)
+	rtcp.CNAME = newSDESItem(RTCP_SDES_CNAME, cname)
 
 	rtcp.prevReportTime = dTimeNow()
 	rtcp.nextReportTime = rtcp.prevReportTime
@@ -97,7 +97,7 @@ func NewRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string) *RTC
 	rtcp.inBuf = make([]byte, maxRTCPPacketSize)
 	rtcp.outBuf = newOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
 
-	rtcp.rtcpInterface = NewRTPInterface(rtcp, rtcpGS)
+	rtcp.rtcpInterface = newRTPInterface(rtcp, rtcpGS)
 	rtcp.rtcpInterface.startNetworkReading(rtcp.incomingReportHandler)
 
 	rtcp.onExpire()

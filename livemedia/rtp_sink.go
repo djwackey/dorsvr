@@ -17,10 +17,10 @@ type IRTPSink interface {
 	StartPlaying(source IFramedSource) bool
 	StopPlaying()
 	ContinuePlaying()
-	addStreamSocket(sockNum net.Conn, streamChannelID uint)
+	addStreamSocket(socketNum net.Conn, streamChannelID uint)
 	delStreamSocket()
 	presetNextTimestamp() uint
-	setServerRequestAlternativeByteHandler(sockNum net.Conn)
+	setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{})
 }
 
 //////// RTPSink ////////
@@ -51,8 +51,8 @@ func (s *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType
 	s.rtpPayloadFormatName = rtpPayloadFormatName
 }
 
-func (s *RTPSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
-	s.rtpInterface.addStreamSocket(sockNum, streamChannelID)
+func (s *RTPSink) addStreamSocket(socketNum net.Conn, streamChannelID uint) {
+	s.rtpInterface.addStreamSocket(socketNum, streamChannelID)
 }
 
 func (s *RTPSink) delStreamSocket() {
@@ -111,8 +111,8 @@ func (s *RTPSink) convertToRTPTimestamp(tv sys.Timeval) uint {
 	return s.timestampBase + timestampIncrement
 }
 
-func (s *RTPSink) setServerRequestAlternativeByteHandler(sockNum net.Conn) {
-	s.rtpInterface.setServerRequestAlternativeByteHandler(sockNum, nil)
+func (s *RTPSink) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {
+	s.rtpInterface.setServerRequestAlternativeByteHandler(socketNum, handler)
 }
 
 //////// RTPTransmissionStatsDB ////////

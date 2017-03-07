@@ -35,10 +35,12 @@ func (p *H264VideoStreamParser) UsingSource() *H264VideoStreamFramer {
 }
 
 func (p *H264VideoStreamParser) parse() uint {
+	var ok bool
 	// The stream must start with a 0x00000001
 	if !p.haveSeenFirstStartCode {
 		for {
-			first4Bytes, ok := p.test4Bytes()
+			var first4Bytes uint
+			first4Bytes, ok = p.test4Bytes()
 			if !ok {
 				return 0
 			}
@@ -102,12 +104,17 @@ func (p *H264VideoStreamParser) parse() uint {
 				// Common case: 0x00000001 or 0x000001 definitely doesn't begin anywhere in "next4Bytes",
 				// so we save all of it:
 				p.save4Bytes(next4Bytes)
-				p.skipBytes(4)
+				ok = p.skipBytes(4)
 			} else {
 				// Save the first byte, and continue testing the rest:
 				p.saveByte(next4Bytes >> 24)
-				p.skipBytes(1)
+				ok = p.skipBytes(1)
 			}
+
+			if !ok {
+				return 0
+			}
+
 			p.setParseState() // ensures forward progress
 			next4Bytes, ok = p.test4Bytes()
 			if !ok {
@@ -118,9 +125,13 @@ func (p *H264VideoStreamParser) parse() uint {
 		// and we've saved all previous bytes (forming a complete NAL unit).
 		// Skip over these remaining bytes, up until the start of the next NAL unit:
 		if next4Bytes == 0x00000001 {
-			p.skipBytes(4)
+			ok = p.skipBytes(4)
 		} else {
-			p.skipBytes(3)
+			ok = p.skipBytes(3)
+		}
+
+		if !ok {
+			return 0
 		}
 	}
 
@@ -158,10 +169,14 @@ func (p *H264VideoStreamParser) parse() uint {
 	} else {
 		isVCL := nalUnitType <= 5 && nalUnitType > 0 // Would need to include type 20 for SVC and MVC #####
 		if isVCL {
-			var firstByteOfNextNALUnit uint
-			//this.testBytes(firstByteOfNextNALUnit, 1)
-			nextNalRefIdc := (firstByteOfNextNALUnit & 0x60) >> 5
-			nextNalUnitType := firstByteOfNextNALUnit & 0x1F
+			firstByteOfNextNALUnit := make([]byte, 1)
+			ok = p.testBytes(firstByteOfNextNALUnit, 1)
+			if !ok {
+				return 0
+			}
+
+			nextNalRefIdc := uint((firstByteOfNextNALUnit[0] & 0x60) >> 5)
+			nextNalUnitType := uint(firstByteOfNextNALUnit[0] & 0x1F)
 			if nextNalUnitType >= 6 {
 				// The next NAL unit is not a VCL; therefore, we assume that this NAL unit ends the current 'access unit':
 				thisNALUnitEndsAccessUnit = true

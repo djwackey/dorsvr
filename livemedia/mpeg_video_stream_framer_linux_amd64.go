@@ -74,9 +74,10 @@ func (f *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures ui
 	}
 }
 
-func (f *MPEGVideoStreamFramer) doGetNextFrame() {
+func (f *MPEGVideoStreamFramer) doGetNextFrame() bool {
 	f.parser.registerReadInterest(f.buffTo, f.maxSize)
 	f.continueReadProcessing()
+	return true
 }
 
 func (f *MPEGVideoStreamFramer) continueReadProcessing() {

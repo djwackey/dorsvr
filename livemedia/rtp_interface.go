@@ -10,7 +10,7 @@ type RTPInterface struct {
 	owner                      interface{}
 	auxReadHandlerFunc         interface{}
 	nextTCPReadStreamSocketNum int
-	tcpStreams                 *TCPStreamRecord
+	tcpStreams                 *tcpStreamRecord
 }
 
 func newRTPInterface(owner interface{}, gs *gs.GroupSock) *RTPInterface {
@@ -27,10 +27,6 @@ func (i *RTPInterface) startNetworkReading(handlerProc interface{}) {
 func (i *RTPInterface) stopNetworkReading() {
 }
 
-func (i *RTPInterface) GS() *gs.GroupSock {
-	return i.gs
-}
-
 func (i *RTPInterface) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {
 	descriptor := lookupSocketDescriptor(socketNum)
 	if descriptor != nil {
@@ -43,7 +39,17 @@ func (i *RTPInterface) addStreamSocket(socketNum net.Conn, streamChannelID uint)
 		return
 	}
 
-	i.tcpStreams = newTCPStreamRecord(socketNum, streamChannelID)
+	var streams *tcpStreamRecord
+	for streams = i.tcpStreams; streams != nil; streams = streams.next {
+		if streams.streamSocketNum == socketNum && streams.streamChannelID == streamChannelID {
+			return
+		}
+	}
+
+	i.tcpStreams = newTCPStreamRecord(socketNum, streamChannelID, i.tcpStreams)
+
+	descriptor := lookupSocketDescriptor(socketNum)
+	descriptor.registerRTPInterface(streamChannelID, i)
 }
 
 func (i *RTPInterface) delStreamSocket() {
@@ -58,16 +64,18 @@ func (i *RTPInterface) handleRead(buffer []byte) (int, error) {
 	return readBytes, err
 }
 
-type TCPStreamRecord struct {
+type tcpStreamRecord struct {
 	streamChannelID uint
 	streamSocketNum net.Conn
+	next            *tcpStreamRecord
 }
 
-func newTCPStreamRecord(streamSocketNum net.Conn, streamChannelID uint) *TCPStreamRecord {
-	tcpStreamRecord := new(TCPStreamRecord)
-	tcpStreamRecord.streamChannelID = streamChannelID
-	tcpStreamRecord.streamSocketNum = streamSocketNum
-	return tcpStreamRecord
+func newTCPStreamRecord(streamSocketNum net.Conn, streamChannelID uint, next *tcpStreamRecord) *tcpStreamRecord {
+	record := new(tcpStreamRecord)
+	record.streamChannelID = streamChannelID
+	record.streamSocketNum = streamSocketNum
+	record.next = next
+	return record
 }
 
 ///////////// Help Functions ///////////////
@@ -87,6 +95,16 @@ func newSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
 	descriptor := new(SocketDescriptor)
 	descriptor.socketNum = socketNum
 	return descriptor
+}
+
+func (s *SocketDescriptor) registerRTPInterface(streamChannelID uint, rtpInterface *RTPInterface) {
+	go s.tcpReadHandler()
+}
+
+func (s *SocketDescriptor) tcpReadHandler() {
+	for {
+		break
+	}
 }
 
 func (s *SocketDescriptor) setServerRequestAlternativeByteHandler(handler interface{}) {

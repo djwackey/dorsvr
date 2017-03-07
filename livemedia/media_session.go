@@ -744,7 +744,7 @@ func (s *MediaSubSession) createSourceObject() bool {
 	} else {
 		switch s.codecName {
 		case "H264":
-			s.readSource = NewH264VideoRTPSource(s.rtpSocket,
+			s.readSource = newH264VideoRTPSource(s.rtpSocket,
 				s.rtpPayloadFormat, s.rtpTimestampFrequency)
 		}
 	}

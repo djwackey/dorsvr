@@ -39,10 +39,11 @@ func (source *MultiFramedRTPSource) reset() {
 	source.needDelivery = false
 }
 
-func (source *MultiFramedRTPSource) doGetNextFrame() {
+func (source *MultiFramedRTPSource) doGetNextFrame() bool {
 	source.rtpInterface.startNetworkReading(source.networkReadHandler)
 
 	source.frameSize = 0
+	return true
 }
 
 func (source *MultiFramedRTPSource) doGetNextFrame1() {

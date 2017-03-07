@@ -38,7 +38,7 @@ func (s *M2TSFileMediaSubSession) createNewStreamSource() IFramedSource {
 }
 
 func (s *M2TSFileMediaSubSession) createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IRTPSink {
-	return NewSimpleRTPSink(rtpGroupSock, 33, 90000, 1, "video", "MP2T", true, false)
+	return newSimpleRTPSink(rtpGroupSock, 33, 90000, 1, "video", "MP2T", true, false)
 }
 
 func (s *M2TSFileMediaSubSession) Duration() float32 {
