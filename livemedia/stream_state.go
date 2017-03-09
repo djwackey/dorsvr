@@ -89,11 +89,14 @@ func (s *StreamState) pause() {
 }
 
 func (s *StreamState) endPlaying(dests *Destinations) {
-	if s.rtpSink != nil {
-		s.rtpSink.delStreamSocket()
-	}
-	if s.rtcpInstance != nil {
-		s.rtcpInstance.unsetSpecificRRHandler()
+	if dests.isTCP {
+		if s.rtpSink != nil {
+			s.rtpSink.delStreamSocket(dests.tcpSocketNum, dests.rtpChannelID)
+		}
+		if s.rtcpInstance != nil {
+			s.rtcpInstance.unsetSpecificRRHandler()
+		}
+	} else {
 	}
 }
 

@@ -18,7 +18,7 @@ type IRTPSink interface {
 	StopPlaying()
 	ContinuePlaying()
 	addStreamSocket(socketNum net.Conn, streamChannelID uint)
-	delStreamSocket()
+	delStreamSocket(socketNum net.Conn, streamChannelID uint)
 	presetNextTimestamp() uint
 	setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{})
 }
@@ -55,8 +55,8 @@ func (s *RTPSink) addStreamSocket(socketNum net.Conn, streamChannelID uint) {
 	s.rtpInterface.addStreamSocket(socketNum, streamChannelID)
 }
 
-func (s *RTPSink) delStreamSocket() {
-	s.rtpInterface.delStreamSocket()
+func (s *RTPSink) delStreamSocket(socketNum net.Conn, streamChannelID uint) {
+	s.rtpInterface.delStreamSocket(socketNum, streamChannelID)
 }
 
 func (s *RTPSink) currentSeqNo() uint {

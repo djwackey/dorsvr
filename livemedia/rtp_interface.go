@@ -10,11 +10,13 @@ type RTPInterface struct {
 	owner                      interface{}
 	auxReadHandlerFunc         interface{}
 	nextTCPReadStreamSocketNum int
+	socketDescriptors          map[net.Conn]*SocketDescriptor
 	tcpStreams                 *tcpStreamRecord
 }
 
 func newRTPInterface(owner interface{}, gs *gs.GroupSock) *RTPInterface {
 	rtpInterface := new(RTPInterface)
+	rtpInterface.socketDescriptors = make(map[net.Conn]*SocketDescriptor)
 	rtpInterface.owner = owner
 	rtpInterface.gs = gs
 	return rtpInterface
@@ -28,7 +30,7 @@ func (i *RTPInterface) stopNetworkReading() {
 }
 
 func (i *RTPInterface) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {
-	descriptor := lookupSocketDescriptor(socketNum)
+	descriptor := i.lookupSocketDescriptor(socketNum)
 	if descriptor != nil {
 		descriptor.setServerRequestAlternativeByteHandler(handler)
 	}
@@ -48,11 +50,22 @@ func (i *RTPInterface) addStreamSocket(socketNum net.Conn, streamChannelID uint)
 
 	i.tcpStreams = newTCPStreamRecord(socketNum, streamChannelID, i.tcpStreams)
 
-	descriptor := lookupSocketDescriptor(socketNum)
+	// Also, make sure this new socket is set up for receiving RTP/RTCP over TCP:
+	descriptor := i.lookupSocketDescriptor(socketNum)
 	descriptor.registerRTPInterface(streamChannelID, i)
 }
 
-func (i *RTPInterface) delStreamSocket() {
+func (i *RTPInterface) delStreamSocket(socketNum net.Conn, streamChannelID uint) {
+	var streams *tcpStreamRecord
+	for streams = i.tcpStreams; streams != nil; streams = streams.next {
+		if streams.streamSocketNum == socketNum && streams.streamChannelID == streamChannelID {
+			i.deregisterSocket(socketNum, streamChannelID)
+
+			next := streams.next
+			streams.next = nil
+			streams = next
+		}
+	}
 }
 
 func (i *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
@@ -62,6 +75,30 @@ func (i *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
 func (i *RTPInterface) handleRead(buffer []byte) (int, error) {
 	readBytes, err := i.gs.HandleRead(buffer)
 	return readBytes, err
+}
+
+func (i *RTPInterface) lookupSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
+	var existed bool
+	var descriptor *SocketDescriptor
+	if descriptor, existed = i.socketDescriptors[socketNum]; existed {
+		return descriptor
+	}
+
+	descriptor = newSocketDescriptor(socketNum)
+	i.socketDescriptors[socketNum] = descriptor
+	return descriptor
+}
+
+func (i *RTPInterface) deregisterSocket(socketNum net.Conn, streamChannelID uint) {
+	descriptor := i.lookupSocketDescriptor(socketNum)
+	if descriptor != nil {
+		i.removeSocketDescriptor(socketNum)
+		descriptor.deregisterRTPInterface(streamChannelID)
+	}
+}
+
+func (i *RTPInterface) removeSocketDescriptor(socketNum net.Conn) {
+	delete(i.socketDescriptors, socketNum)
 }
 
 type tcpStreamRecord struct {
@@ -86,7 +123,16 @@ func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannel
 	socketNum.Write(channelID)
 }
 
+const (
+	AWAITING_DOLLAR = iota
+	AWAITING_STREAM_CHANNEL_ID
+	AWAITING_SIZE1
+	AWAITING_SIZE2
+	AWAITING_PACKET_DATA
+)
+
 type SocketDescriptor struct {
+	tcpReadingState                     int
 	socketNum                           net.Conn
 	serverRequestAlternativeByteHandler interface{}
 }
@@ -94,23 +140,38 @@ type SocketDescriptor struct {
 func newSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
 	descriptor := new(SocketDescriptor)
 	descriptor.socketNum = socketNum
+	descriptor.tcpReadingState = AWAITING_DOLLAR
 	return descriptor
 }
 
 func (s *SocketDescriptor) registerRTPInterface(streamChannelID uint, rtpInterface *RTPInterface) {
-	go s.tcpReadHandler()
+	go s.tcpReadHandler(rtpInterface)
 }
 
-func (s *SocketDescriptor) tcpReadHandler() {
+func (s *SocketDescriptor) deregisterRTPInterface(streamChannelID uint) {
+	s.socketNum.Close()
+	if s.serverRequestAlternativeByteHandler != nil {
+		s.serverRequestAlternativeByteHandler.(func(requestByte uint))(0xFE)
+	}
+}
+
+func (s *SocketDescriptor) tcpReadHandler(rtpInterface *RTPInterface) {
+	defer s.socketNum.Close()
 	for {
-		break
+		buffer := make([]byte, 1)
+		if s.tcpReadingState != AWAITING_PACKET_DATA {
+			_, err := gs.ReadSocket(s.socketNum, buffer)
+			if err != nil {
+				if s.serverRequestAlternativeByteHandler != nil {
+					s.serverRequestAlternativeByteHandler.(func(requestByte uint))(0xFF)
+				}
+				rtpInterface.removeSocketDescriptor(s.socketNum)
+				break
+			}
+		}
 	}
 }
 
 func (s *SocketDescriptor) setServerRequestAlternativeByteHandler(handler interface{}) {
 	s.serverRequestAlternativeByteHandler = handler
-}
-
-func lookupSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
-	return newSocketDescriptor(socketNum)
 }
