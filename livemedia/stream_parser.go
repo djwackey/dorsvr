@@ -5,7 +5,7 @@ import (
 	sys "syscall"
 )
 
-var BANK_SIZE uint = 150000
+var bankSize uint = 150000
 
 type StreamParser struct {
 	curBankNum                 uint
@@ -30,8 +30,8 @@ func (p *StreamParser) initStreamParser(inputSource IFramedSource,
 	p.clientContinueFunc = clientContinueFunc
 	p.clientOnInputCloseFunc = clientOnInputCloseFunc
 
-	p.bank[0] = make([]byte, BANK_SIZE)
-	p.bank[1] = make([]byte, BANK_SIZE)
+	p.bank[0] = make([]byte, bankSize)
+	p.bank[1] = make([]byte, bankSize)
 
 	p.curBank = p.bank[p.curBankNum]
 }
@@ -71,7 +71,7 @@ func (p *StreamParser) get1Byte() (uint, bool) {
 	}
 
 	p.curParserIndex++
-	return uint(p.CurBank()[p.curParserIndex]), true
+	return uint(p.curBank[p.curParserIndex]), true
 }
 
 func (p *StreamParser) test4Bytes() (uint, bool) {
@@ -101,12 +101,8 @@ func (p *StreamParser) skipBytes(numBytes uint) bool {
 	return true
 }
 
-func (p *StreamParser) CurBank() []byte {
-	return p.curBank
-}
-
 func (p *StreamParser) nextToParse() []byte {
-	return p.CurBank()[p.curParserIndex:]
+	return p.curBank[p.curParserIndex:]
 }
 
 func (p *StreamParser) curOffset() uint {
@@ -132,7 +128,7 @@ func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) bool {
 		numBytesNeeded = maxInputFrameSize
 	}
 
-	if p.curParserIndex+numBytesNeeded > BANK_SIZE {
+	if p.curParserIndex+numBytesNeeded > bankSize {
 		numBytesToSave := p.totNumValidBytes + p.savedParserIndex
 
 		p.curBankNum = (p.curBankNum + 1) % 2
@@ -144,29 +140,31 @@ func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) bool {
 		p.totNumValidBytes = numBytesToSave
 	}
 
-	if p.curParserIndex+numBytesNeeded > BANK_SIZE {
+	if p.curParserIndex+numBytesNeeded > bankSize {
 		panic("StreamParser Internal error")
 	}
 
 	// Try to read as many new bytes as will fit in the current bank:
-	maxNumBytesToRead := BANK_SIZE - p.totNumValidBytes
-	p.inputSource.GetNextFrame(p.CurBank(), maxNumBytesToRead, p.afterGettingBytes, p.onInputClosure)
+	maxNumBytesToRead := bankSize - p.totNumValidBytes
+	p.inputSource.GetNextFrame(p.curBank[p.totNumValidBytes:], maxNumBytesToRead, p.afterGettingBytes, p.onInputClosure)
 	// no more buffered input
 	return true
 }
 
 func (p *StreamParser) afterGettingBytes(numBytesRead, numTruncatedBytes uint, presentationTime sys.Timeval) {
-	if p.totNumValidBytes+numBytesRead > BANK_SIZE {
-		fmt.Println(fmt.Sprintf("StreamParser::afterGettingBytes() "+
-			"warning: read %d bytes; expected no more than %d", numBytesRead, BANK_SIZE-p.totNumValidBytes))
+	if p.totNumValidBytes+numBytesRead > bankSize {
+		fmt.Printf("StreamParser::afterGettingBytes() "+
+			"warning: read %d bytes; expected no more than %d\n", numBytesRead, bankSize-p.totNumValidBytes)
 	}
 
 	p.lastSeenPresentationTime = presentationTime
 
+	p.totNumValidBytes += numBytesRead
+
 	// Continue our original calling source where it left off:
 	p.restoreSavedParserState()
 
-	//p.clientContinueFunc.(func())()
+	p.clientContinueFunc.(func())()
 }
 
 func (p *StreamParser) onInputClosure() {

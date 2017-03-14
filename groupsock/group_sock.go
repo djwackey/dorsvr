@@ -22,9 +22,10 @@ type OutputSocket struct {
 	lastSentTTL uint
 }
 
-func (o *OutputSocket) write(destAddr string, portNum uint, buffer []byte, bufferSize uint) bool {
-	udpConn := SetupDatagramSocket(destAddr, portNum)
-	return writeSocket(udpConn, buffer)
+func (o *OutputSocket) write(destAddr string, portNum uint, buffer []byte, bufferSize uint) (int, error) {
+	//udpConn := SetupDatagramSocket(destAddr, portNum)
+	//return writeSocket(udpConn, buffer)
+	return writeSocket(o.socketNum, buffer)
 }
 
 type GroupSock struct {
@@ -48,10 +49,11 @@ func NewGroupSock(addrStr string, portNum uint) *GroupSock {
 }
 
 func (g *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
+	var err error
 	var writeSuccess bool
 	for i := 0; i < len(g.dests); i++ {
 		dest := g.dests[i]
-		if g.write(dest.addrStr, dest.portNum, buffer, bufferSize) {
+		if _, err = g.write(dest.addrStr, dest.portNum, buffer, bufferSize); err == nil {
 			writeSuccess = true
 		}
 	}

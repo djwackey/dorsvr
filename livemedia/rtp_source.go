@@ -4,7 +4,7 @@ import gs "github.com/djwackey/dorsvr/groupsock"
 
 type RTPSource struct {
 	FramedSource
-	SSRC                   uint32
+	ssrc                   uint
 	lastReceivedSSRC       uint
 	rtpPayloadFormat       uint
 	timestampFrequency     uint
@@ -27,7 +27,7 @@ func (s *RTPSource) InitRTPSouce(isource IFramedSource, RTPgs *gs.GroupSock,
 	s.lastReceivedSSRC = 0
 	s.rtpPayloadFormat = rtpPayloadFormat
 	s.timestampFrequency = rtpTimestampFrequency
-	s.SSRC = gs.OurRandom32()
+	s.ssrc = uint(gs.OurRandom32())
 	s.curPacketSyncUsingRTCP = false
 	s.receptionStatsDB = NewRTPReceptionStatsDB()
 	s.InitFramedSource(isource)

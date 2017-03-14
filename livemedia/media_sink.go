@@ -145,19 +145,20 @@ func (b *OutPacketBuffer) resetOverflowData() {
 
 //////// MediaSink ////////
 type IMediaSink interface {
-	StartPlaying(source IFramedSource) bool
+	StartPlaying(source IFramedSource, afterFunc interface{}) bool
 }
 
 type MediaSink struct {
-	Source  IFramedSource
-	rtpSink IRTPSink
+	Source    IFramedSource
+	rtpSink   IRTPSink
+	afterFunc interface{}
 }
 
 func (s *MediaSink) InitMediaSink(rtpSink IRTPSink) {
 	s.rtpSink = rtpSink
 }
 
-func (s *MediaSink) StartPlaying(source IFramedSource) bool {
+func (s *MediaSink) StartPlaying(source IFramedSource, afterFunc interface{}) bool {
 	if s.Source != nil {
 		fmt.Println("This sink is already being played")
 		return false
@@ -169,6 +170,7 @@ func (s *MediaSink) StartPlaying(source IFramedSource) bool {
 	}
 
 	s.Source = source
+	s.afterFunc = afterFunc
 	s.rtpSink.ContinuePlaying()
 	return true
 }
@@ -178,6 +180,9 @@ func (s *MediaSink) StopPlaying() {
 	if s.Source != nil {
 		s.Source.stopGettingFrames()
 	}
+
+	s.Source = nil
+	s.afterFunc = nil
 }
 
 func (s *MediaSink) AuxSDPLine() string {
@@ -197,9 +202,12 @@ func (s *MediaSink) SdpMediaType() string {
 }
 
 func (s *MediaSink) OnSourceClosure() {
+	if s.afterFunc != nil {
+		s.afterFunc.(func())()
+	}
 }
 
-func (s *MediaSink) addStreamSocket(sockNum net.Conn, streamChannelID uint) {
+func (s *MediaSink) addStreamSocket(socketNum net.Conn, streamChannelID uint) {
 	return
 }
 

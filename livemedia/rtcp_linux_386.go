@@ -271,6 +271,7 @@ func (r *RTCPInstance) incomingReportHandler() {
 			r.byeHandlerTask.(func(subsession *MediaSubSession))(r.byeHandlerClientData.(*MediaSubSession))
 		}
 	}
+	fmt.Println("incomingReportHandler ending.")
 }
 
 func (r *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
@@ -285,6 +286,13 @@ func (r *RTCPInstance) sendReport() {
 	r.addSDES()
 
 	// Send the report:
+	r.sendBuiltPacket()
+}
+
+func (r *RTCPInstance) sendBye() {
+	r.addReport()
+
+	r.addBYE()
 	r.sendBuiltPacket()
 }
 
@@ -315,8 +323,8 @@ func (r *RTCPInstance) addReport() {
 }
 
 func (r *RTCPInstance) addSDES() {
-	numBytes := 4
-	//numBytes += r.CNAME.totalSize()
+	var numBytes uint = 4
+	numBytes += r.CNAME.totalSize()
 	numBytes += 1
 
 	num4ByteWords := (numBytes + 3) / 4
@@ -327,13 +335,26 @@ func (r *RTCPInstance) addSDES() {
 	r.outBuf.enqueueWord(uint(rtcpHdr))
 }
 
+func (r *RTCPInstance) addBYE() {
+	var rtcpHdr uint = 0x81000000
+	rtcpHdr |= RTCP_PT_BYE << 16
+	rtcpHdr |= 1
+	r.outBuf.enqueueWord(rtcpHdr)
+
+	if r.Source != nil {
+		r.outBuf.enqueueWord(r.Source.ssrc)
+	} else if r.Sink != nil {
+		r.outBuf.enqueueWord(r.Sink.ssrc)
+	}
+}
+
 func (r *RTCPInstance) addSR() {
-	//r.enqueueCommonReportPrefix(RTCP_PT_SR, r.Source.SSRC(), 0)
+	r.enqueueCommonReportPrefix(RTCP_PT_SR, r.Source.ssrc, 0)
 	r.enqueueCommonReportSuffix()
 }
 
 func (r *RTCPInstance) addRR() {
-	//r.enqueueCommonReportPrefix(RTCP_PT_RR, r.Source.SSRC(), 0)
+	r.enqueueCommonReportPrefix(RTCP_PT_RR, r.Source.ssrc, 0)
 	r.enqueueCommonReportSuffix()
 }
 
@@ -356,4 +377,10 @@ func (r *RTCPInstance) enqueueCommonReportPrefix(packetType, SSRC, numExtraWords
 }
 
 func (r *RTCPInstance) enqueueCommonReportSuffix() {
+}
+
+func (r *RTCPInstance) destroy() {
+	r.rtcpInterface.stopNetworkReading()
+
+	r.sendBye()
 }

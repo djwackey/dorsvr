@@ -47,12 +47,6 @@ func ReadSocket(conn net.Conn, buffer []byte) (int, error) {
 	return conn.Read(buffer)
 }
 
-func writeSocket(conn net.Conn, buffer []byte) bool {
-	_, err := conn.Write(buffer)
-	if err != nil {
-		//fmt.Println(writeBytes)
-		return false
-	}
-
-	return true
+func writeSocket(conn net.Conn, buffer []byte) (int, error) {
+	return conn.Write(buffer)
 }

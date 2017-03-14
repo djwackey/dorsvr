@@ -15,11 +15,11 @@ type RTPInterface struct {
 }
 
 func newRTPInterface(owner interface{}, gs *gs.GroupSock) *RTPInterface {
-	rtpInterface := new(RTPInterface)
-	rtpInterface.socketDescriptors = make(map[net.Conn]*SocketDescriptor)
-	rtpInterface.owner = owner
-	rtpInterface.gs = gs
-	return rtpInterface
+	return &RTPInterface{
+		gs:                gs,
+		owner:             owner,
+		socketDescriptors: make(map[net.Conn]*SocketDescriptor),
+	}
 }
 
 func (i *RTPInterface) startNetworkReading(handlerProc interface{}) {
@@ -27,6 +27,7 @@ func (i *RTPInterface) startNetworkReading(handlerProc interface{}) {
 }
 
 func (i *RTPInterface) stopNetworkReading() {
+	i.gs.Close()
 }
 
 func (i *RTPInterface) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {

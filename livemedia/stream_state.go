@@ -69,11 +69,11 @@ func (s *StreamState) startPlaying(dests *Destinations,
 
 	if !s.areCurrentlyPlaying && s.mediaSource != nil {
 		if s.rtpSink != nil {
-			s.rtpSink.StartPlaying(s.mediaSource)
+			s.rtpSink.StartPlaying(s.mediaSource, s.afterPlayingStreamState)
 			s.areCurrentlyPlaying = true
 		} else if s.udpSink != nil {
 			s.areCurrentlyPlaying = true
-			s.udpSink.StartPlaying(s.mediaSource)
+			s.udpSink.StartPlaying(s.mediaSource, s.afterPlayingStreamState)
 		}
 	}
 }
@@ -113,6 +113,7 @@ func (s *StreamState) afterPlayingStreamState() {
 }
 
 func (s *StreamState) reclaim() {
+	s.rtcpInstance.destroy()
 }
 
 func (s *StreamState) RtpSink() IRTPSink {

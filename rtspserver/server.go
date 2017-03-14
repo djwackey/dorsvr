@@ -28,28 +28,26 @@ type RTSPServer struct {
 }
 
 func New() *RTSPServer {
-	server := new(RTSPServer)
-
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	server.clientSessions = make(map[string]*RTSPClientSession)
-	server.serverMediaSessions = make(map[string]*livemedia.ServerMediaSession)
-	server.clientConnectionsForHTTPTunneling = make(map[string]*RTSPClientConnection)
-	server.reclamationTestSeconds = 65
-	return server
+	return &RTSPServer{
+		reclamationTestSeconds:            65,
+		clientSessions:                    make(map[string]*RTSPClientSession),
+		clientConnectionsForHTTPTunneling: make(map[string]*RTSPClientConnection),
+		serverMediaSessions:               make(map[string]*livemedia.ServerMediaSession),
+	}
 }
 
-func (s *RTSPServer) Listen(portNum int) bool {
+func (s *RTSPServer) Listen(portNum int) error {
 	s.rtspPort = portNum
 
 	var err error
 	s.rtspListen, err = s.setupOurSocket(portNum)
-	if err != nil {
-		return false
+	if err == nil {
+		s.startMonitor()
 	}
 
-	s.startMonitor()
-	return true
+	return err
 }
 
 func (s *RTSPServer) Start() {

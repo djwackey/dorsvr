@@ -28,8 +28,6 @@ func newByteStreamFileSource(fileName string) *ByteStreamFileSource {
 	fileSource := new(ByteStreamFileSource)
 	fileSource.fid = fid
 
-	fileSource.buffTo = make([]byte, 20000)
-
 	stat, _ := fid.Stat()
 	fileSource.fileSize = stat.Size()
 	fileSource.InitFramedFileSource(fileSource)
@@ -37,9 +35,13 @@ func newByteStreamFileSource(fileName string) *ByteStreamFileSource {
 }
 
 func (s *ByteStreamFileSource) doGetNextFrame() bool {
-	fmt.Println("ByteStreamFileSource::doGetNextFrame")
 	if s.limitNumBytesToStream && s.numBytesToStream == 0 {
 		s.handleClosure()
+		return false
+	}
+
+	if !s.source.isAwaitingData() {
+		s.doStopGettingFrames()
 		return false
 	}
 
@@ -47,6 +49,7 @@ func (s *ByteStreamFileSource) doGetNextFrame() bool {
 }
 
 func (s *ByteStreamFileSource) doStopGettingFrames() {
+	fmt.Println("ByteStreamFileSource::doStopGettingFrames")
 	defer s.fid.Close()
 	s.haveStartedReading = false
 }
@@ -58,7 +61,6 @@ func (s *ByteStreamFileSource) doReadFromFile() bool {
 		s.handleClosure()
 		return false
 	}
-	fmt.Println("ByteStreamFileSource::doReadFromFile")
 
 	// Set the 'presentation time':
 	if s.playTimePerFrame > 0 && s.preferredFrameSize > 0 {

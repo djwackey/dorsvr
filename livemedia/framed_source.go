@@ -5,6 +5,7 @@ import s "syscall"
 type IFramedSource interface {
 	GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{})
 	doGetNextFrame() bool
+	isAwaitingData() bool
 	afterGetting()
 	maxFrameSize() uint
 	handleClosure()
@@ -67,4 +68,8 @@ func (f *FramedSource) stopGettingFrames() {
 
 func (f *FramedSource) maxFrameSize() uint {
 	return 0
+}
+
+func (f *FramedSource) isAwaitingData() bool {
+	return f.isCurrentlyAwaitingData
 }

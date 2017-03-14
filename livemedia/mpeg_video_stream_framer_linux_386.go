@@ -105,6 +105,5 @@ func (f *MPEGVideoStreamFramer) continueReadProcessing() {
 		// We were unable to parse a complete frame from the input, because:
 		// - we had to read more data from the source stream, or
 		// - the source stream has ended.
-		f.continueReadProcessing()
 	}
 }
