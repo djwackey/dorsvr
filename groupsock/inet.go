@@ -17,6 +17,11 @@ func OurRandom32() uint32 {
 	return uint32((random16_1 << 8) | (random16_2 >> 8))
 }
 
+func OurRandom16() uint32 {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return uint32(r.Int31() >> 16)
+}
+
 func Ntohl(packet []byte) (uint32, error) {
 	var value uint32
 	buffer := bytes.NewReader(packet)

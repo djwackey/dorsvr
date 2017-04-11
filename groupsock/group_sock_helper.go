@@ -37,12 +37,6 @@ func SetupStreamSocket(address string, port uint) *net.TCPConn {
 	return tcpConn
 }
 
-func createSocket(sockType string) {
-}
-
-func closeSocket() {
-}
-
 func ReadSocket(conn net.Conn, buffer []byte) (int, error) {
 	return conn.Read(buffer)
 }

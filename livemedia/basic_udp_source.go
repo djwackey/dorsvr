@@ -19,13 +19,14 @@ func NewBasicUDPSource(inputSocket *gs.GroupSock) *BasicUDPSource {
 	return source
 }
 
-func (s *BasicUDPSource) doGetNextFrame() bool {
+func (s *BasicUDPSource) doGetNextFrame() error {
 	go s.incomingPacketHandler()
-	return true
+	return nil
 }
 
-func (s *BasicUDPSource) doStopGettingFrames() {
+func (s *BasicUDPSource) doStopGettingFrames() error {
 	s.haveStartedReading = false
+	return nil
 }
 
 func (s *BasicUDPSource) incomingPacketHandler() {

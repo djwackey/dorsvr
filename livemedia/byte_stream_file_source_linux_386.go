@@ -55,12 +55,13 @@ func (s *ByteStreamFileSource) doStopGettingFrames() {
 }
 
 func (s *ByteStreamFileSource) doReadFromFile() bool {
-	_, err := s.fid.Read(s.buffTo)
+	frameSize, err := s.fid.Read(s.buffTo)
 	if err != nil {
 		fmt.Println(err)
 		s.handleClosure()
 		return false
 	}
+	s.frameSize = uint(frameSize)
 
 	// Set the 'presentation time':
 	if s.playTimePerFrame > 0 && s.preferredFrameSize > 0 {

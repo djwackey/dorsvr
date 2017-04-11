@@ -8,7 +8,7 @@ type SimpleRTPSink struct {
 }
 
 func newSimpleRTPSink(rtpGS *gs.GroupSock, rtpPayloadFormat,
-	rtpTimestampFrequency, numChannels uint,
+	rtpTimestampFrequency, numChannels uint32,
 	sdpMediaTypeString, rtpPayloadFormatName string,
 	allowMultipleFramesPerPacket, doNormalMBitRule bool) *SimpleRTPSink {
 	sink := new(SimpleRTPSink)

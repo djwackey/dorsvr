@@ -158,7 +158,7 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 			j += 15
 			for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
 			}
-			if num, _ := fmt.Sscanf(reqStr[j:j+15], "%d", &reqInfo.ContentLength); num == 1 {
+			if n, _ := fmt.Sscanf(reqStr[j:j+15], "%d", &reqInfo.ContentLength); n == 1 {
 				break
 			}
 		}
@@ -281,28 +281,28 @@ func parseRangeParam(paramStr string) *RangeHeader {
 
 	var start, end float32
 	numCharsMatched := 0
-	num, err := fmt.Sscanf(paramStr, "npt = %lf - %lf", &start, &end)
+	n, err := fmt.Sscanf(paramStr, "npt = %lf - %lf", &start, &end)
 	if err != nil {
 		return nil
 	}
 
-	if num == 2 {
+	if n == 2 {
 		rangeHeader.RangeStart = start
 		rangeHeader.RangeEnd = end
 	} else {
-		num, err = fmt.Sscanf(paramStr, "npt = %lf -", &start)
+		n, err = fmt.Sscanf(paramStr, "npt = %lf -", &start)
 		if err != nil {
 			return nil
 		}
 
-		if num == 1 {
+		if n == 1 {
 			rangeHeader.RangeStart = start
 		} else {
 			if strings.EqualFold(paramStr, "npt = now -") {
 				rangeHeader.RangeStart = 0.0
 				rangeHeader.RangeEnd = 0.0
 			} else {
-				num, err = fmt.Sscanf(paramStr, "clock = %n", &numCharsMatched)
+				n, err = fmt.Sscanf(paramStr, "clock = %n", &numCharsMatched)
 				if err != nil {
 					return nil
 				}
@@ -310,15 +310,15 @@ func parseRangeParam(paramStr string) *RangeHeader {
 				if numCharsMatched > 0 {
 					as, ae := "", ""
 					utcTimes := string(paramStr[numCharsMatched:])
-					num, err = fmt.Sscanf(utcTimes, "%[^-]-%s", &as, &ae)
+					n, err = fmt.Sscanf(utcTimes, "%[^-]-%s", &as, &ae)
 					if err != nil {
 						return nil
 					}
 
-					if num == 2 {
+					if n == 2 {
 						rangeHeader.AbsStartTime = as
 						rangeHeader.AbsEndTime = ae
-					} else if num == 1 {
+					} else if n == 1 {
 						rangeHeader.AbsStartTime = as
 					}
 				} else {
@@ -380,8 +380,6 @@ func ParseScaleHeader(buf string) (float32, bool) {
 			break
 		}
 
-		fmt.Println("parseScaleHeader", buf, index)
-
 		fields := buf[index:]
 		i := 0
 		for {
@@ -391,7 +389,7 @@ func ParseScaleHeader(buf string) (float32, bool) {
 			i++
 		}
 		var sc float32
-		if num, _ := fmt.Sscanf(fields, "%f", &sc); num == 1 {
+		if n, _ := fmt.Sscanf(fields, "%f", &sc); n == 1 {
 			scale, result = sc, true
 		}
 

@@ -1,32 +1,41 @@
 package livemedia
 
-import "fmt"
-import sys "syscall"
+import (
+	"errors"
+	sys "syscall"
 
-var SPS_MAX_SIZE uint = 1000
-var SEI_MAX_SIZE uint = 5000 // larger than the largest possible SEI NAL unit
+	"github.com/djwackey/dorsvr/log"
+)
 
-var numNextSliceHeaderBytesToAnalyze uint = 12
+const (
+	spsMaxSize uint = 1000
+	seiMaxSize uint = 5000 // larger than the largest possible SEI NAL unit
+
+	numNextSliceHeaderBytesToAnalyze uint = 12
+)
 
 //////// H264VideoStreamParser ////////
 type H264VideoStreamParser struct {
 	MPEGVideoStreamParser
-	outputStartCodeSize        int
+	outputStartCodeSize        uint
 	firstByteOfNALUnit         uint
 	log2MaxFrameNum            uint
 	frameMbsOnlyFlag           bool
 	separateColourPlaneFlag    bool
+	includeStartCodeInOutput   bool
 	haveSeenFirstStartCode     bool
 	haveSeenFirstByteOfNALUnit bool
 }
 
 func newH264VideoStreamParser(usingSource, inputSource IFramedSource,
-	clientOnInputCloseFunc, clientContinueFunc interface{}) *H264VideoStreamParser {
+	clientOnInputCloseFunc interface{}) *H264VideoStreamParser {
 	parser := new(H264VideoStreamParser)
 	parser.log2MaxFrameNum = 5
 	parser.frameMbsOnlyFlag = true
-	parser.initMPEGVideoStreamParser(usingSource, inputSource,
-		clientOnInputCloseFunc, clientContinueFunc)
+	parser.initMPEGVideoStreamParser(usingSource, inputSource, clientOnInputCloseFunc)
+	if parser.includeStartCodeInOutput {
+		parser.outputStartCodeSize = 4
+	}
 	return parser
 }
 
@@ -34,32 +43,35 @@ func (p *H264VideoStreamParser) UsingSource() *H264VideoStreamFramer {
 	return p.usingSource.(*H264VideoStreamFramer)
 }
 
-func (p *H264VideoStreamParser) parse() uint {
-	var ok bool
+func (p *H264VideoStreamParser) parse() (uint, error) {
+	log.Trace("[H264VideoStreamParser] is's parsing h264 file video stream.")
+
+	var err error
 	// The stream must start with a 0x00000001
 	if !p.haveSeenFirstStartCode {
+		var first4Bytes uint
 		for {
-			var first4Bytes uint
-			first4Bytes, ok = p.test4Bytes()
-			if !ok {
-				return 0
+			if first4Bytes, err = p.test4Bytes(); err != nil {
+				log.Debug("failed to test of start of stream: %s", err.Error())
+				return 0, err
 			}
 
 			if first4Bytes != 0x00000001 {
-				_, ok = p.get1Byte()
-				if !ok {
-					return 0
+				if _, err = p.get1Byte(); err != nil {
+					log.Debug("failed to check first 4 bytes: %s", err.Error())
+					return 0, err
 				}
 
 				p.setParseState()
 			}
+			break
 		}
 
 		// skip this initial code
-		if !p.skipBytes(4) {
-			return 0
+		if err = p.skipBytes(4); err != nil {
+			log.Error(0, "skip this initial code: %s", err.Error())
+			return 0, err
 		}
-
 		p.haveSeenFirstStartCode = true
 	}
 
@@ -68,14 +80,15 @@ func (p *H264VideoStreamParser) parse() uint {
 		p.save4Bytes(0x00000001)
 	}
 
+	var nextByte, next4Bytes, skipBytes uint
 	if p.haveSeenEOF {
 		// We hit EOF the last time that we tried to parse this data, so we know that any remaining unparsed data
 		// forms a complete NAL unit, and that there's no 'start code' at the end:
 		remainingDataSize := p.totNumValidBytes - p.curOffset()
 		for remainingDataSize > 0 {
-			nextByte, ok := p.get1Byte()
-			if !ok {
-				return 0
+			if nextByte, err = p.get1Byte(); err != nil {
+				log.Fatal(0, "failed to get 1 byte from remaining data: %s", err.Error())
+				return 0, err
 			}
 
 			if !p.haveSeenFirstByteOfNALUnit {
@@ -87,51 +100,56 @@ func (p *H264VideoStreamParser) parse() uint {
 		}
 
 		p.get1Byte() // forces another read, which will cause EOF to get handled for real this time
-		return 0
+		return 0, errors.New("EOF")
 	} else {
-		next4Bytes, ok := p.test4Bytes()
-		if !ok {
-			return 0
+		if next4Bytes, err = p.test4Bytes(); err != nil {
+			log.Error(0, "failed to test next 4 bytes: %s", err.Error())
+			return 0, err
 		}
+		//log.Debug("progress next 4 bytes: %d", next4Bytes)
 
 		if !p.haveSeenFirstByteOfNALUnit {
 			p.firstByteOfNALUnit = next4Bytes >> 24
 			p.haveSeenFirstByteOfNALUnit = true
 		}
+
 		for next4Bytes != 0x00000001 && (next4Bytes&0xFFFFFF00) != 0x00000100 {
 			// We save at least some of "next4Bytes".
 			if next4Bytes&0xFF > 1 {
 				// Common case: 0x00000001 or 0x000001 definitely doesn't begin anywhere in "next4Bytes",
 				// so we save all of it:
 				p.save4Bytes(next4Bytes)
-				ok = p.skipBytes(4)
+				skipBytes = 4
 			} else {
 				// Save the first byte, and continue testing the rest:
 				p.saveByte(next4Bytes >> 24)
-				ok = p.skipBytes(1)
+				skipBytes = 1
 			}
 
-			if !ok {
-				return 0
+			if err = p.skipBytes(skipBytes); err != nil {
+				log.Warn("failed to skip 1 or 4 bytes: %s", err.Error())
+				return 0, err
 			}
 
 			p.setParseState() // ensures forward progress
-			next4Bytes, ok = p.test4Bytes()
-			if !ok {
-				return 0
+			if next4Bytes, err = p.test4Bytes(); err != nil {
+				log.Warn("failed to test 4 bytes(), ensures forward progress: %s", err.Error())
+				return 0, err
 			}
 		}
+
 		// Assert: next4Bytes starts with 0x00000001 or 0x000001,
 		// and we've saved all previous bytes (forming a complete NAL unit).
 		// Skip over these remaining bytes, up until the start of the next NAL unit:
 		if next4Bytes == 0x00000001 {
-			ok = p.skipBytes(4)
+			skipBytes = 4
 		} else {
-			ok = p.skipBytes(3)
+			skipBytes = 3
 		}
 
-		if !ok {
-			return 0
+		if err = p.skipBytes(skipBytes); err != nil {
+			log.Error(0, "failed to skip 3 or 4 bytes: %s", err.Error())
+			return 0, err
 		}
 	}
 
@@ -145,22 +163,24 @@ func (p *H264VideoStreamParser) parse() uint {
 		p.analyzeSEIData()
 	case 7: // Sequence parameter set
 		// First, save a copy of this NAL unit, in case the downstream object wants to see it:
-		size := uint(len(p.buffTo) - len(p.startOfFrame) - p.outputStartCodeSize)
+		size := p.numSavedBytes - p.outputStartCodeSize
 		p.UsingSource().saveCopyOfSPS(p.startOfFrame[p.outputStartCodeSize:], size)
 
 		// Parse this NAL unit to check whether frame rate information is present:
 		spsData := p.analyzeSPSData()
 		if spsData.timeScale > 0 && spsData.numUnitsInTick > 0 {
-			p.UsingSource().frameRate = float64(spsData.timeScale / (2.0 * spsData.numUnitsInTick))
+			p.UsingSource().frameRate = spsData.timeScale / (2.0 * spsData.numUnitsInTick)
+			log.Debug("Get the frameRate(%d) from Sequence parameter set", p.UsingSource().frameRate)
 		} else {
 		}
 	case 8: // Picture parameter set
 		// Save a copy of this NAL unit, in case the downstream object wants to see it:
-		size := uint(len(p.buffTo) - len(p.startOfFrame) - p.outputStartCodeSize)
+		size := p.numSavedBytes - p.outputStartCodeSize
 		p.UsingSource().saveCopyOfPPS(p.startOfFrame[p.outputStartCodeSize:], size)
 	}
 
 	p.UsingSource().setPresentationTime()
+	log.Trace("\tPresentation Time: %d.%06d", p.UsingSource().presentationTime.Sec, p.UsingSource().presentationTime.Usec)
 
 	thisNALUnitEndsAccessUnit := false // until we learn otherwise
 	if p.haveSeenEOF {
@@ -170,18 +190,20 @@ func (p *H264VideoStreamParser) parse() uint {
 		isVCL := nalUnitType <= 5 && nalUnitType > 0 // Would need to include type 20 for SVC and MVC #####
 		if isVCL {
 			firstByteOfNextNALUnit := make([]byte, 1)
-			ok = p.testBytes(firstByteOfNextNALUnit, 1)
-			if !ok {
-				return 0
+			if err = p.testBytes(firstByteOfNextNALUnit, 1); err != nil {
+				log.Error(0, "failed to test bytes(firstByteOfNextNALUnit): %s", err.Error())
+				return 0, err
 			}
 
 			nextNalRefIdc := uint((firstByteOfNextNALUnit[0] & 0x60) >> 5)
 			nextNalUnitType := uint(firstByteOfNextNALUnit[0] & 0x1F)
 			if nextNalUnitType >= 6 {
-				// The next NAL unit is not a VCL; therefore, we assume that this NAL unit ends the current 'access unit':
+				// The next NAL unit is not a VCL;
+				// therefore, we assume that this NAL unit ends the current 'access unit':
 				thisNALUnitEndsAccessUnit = true
 			} else {
-				// The next NAL unit is also a VCL.  We need to examine it a little to figure out if it's a different 'access unit'.
+				// The next NAL unit is also a VCL.
+				// We need to examine it a little to figure out if it's a different 'access unit'.
 				// (We use many of the criteria described in section 7.4.1.2.4 of the H.264 specification.)
 				var idrPicFlag bool
 				if nalUnitType == 5 {
@@ -243,27 +265,27 @@ func (p *H264VideoStreamParser) parse() uint {
 		p.UsingSource().pictureCount++
 
 		// Note that the presentation time for the next NAL unit will be different:
-		nextPT := p.UsingSource().nextPresentationTime // alias
-		nextPT = p.UsingSource().presentationTime
-		nextFraction := nextPT.Usec/1000000.0 + 1/int64(p.UsingSource().frameRate)
-		nextSecsIncrement := nextFraction
-		nextPT.Sec += nextSecsIncrement
-		nextPT.Usec = (nextFraction - nextSecsIncrement) * 1000000
+		p.UsingSource().nextPresentationTime = p.UsingSource().presentationTime
+
+		nextFraction := float32(p.UsingSource().nextPresentationTime.Usec)/1000000.0 + 1/float32(p.UsingSource().frameRate)
+		nextSecsIncrement := float32(uint(nextFraction))
+		p.UsingSource().nextPresentationTime.Sec += int64(nextSecsIncrement)
+		p.UsingSource().nextPresentationTime.Usec = int64((nextFraction - nextSecsIncrement) * 1000000)
 	}
 	p.setParseState()
-
-	return p.curFrameSize()
+	return p.curFrameSize(), nil
 }
 
 func (p *H264VideoStreamParser) removeEmulationBytes(nalUnitCopy []byte, maxSize uint) uint {
 	nalUnitOrig := p.startOfFrame[p.outputStartCodeSize:]
-	var NumBytesInNALunit uint //p.buffTo - nalUnitOrig
-	if NumBytesInNALunit > maxSize {
+
+	numBytesInNALUnit := p.numSavedBytes
+	if numBytesInNALUnit > maxSize {
 		return 0
 	}
 	var nalUnitCopySize, i uint
-	for i = 0; i < NumBytesInNALunit; i++ {
-		if i+2 < NumBytesInNALunit && nalUnitOrig[i] == 0 && nalUnitOrig[i+1] == 0 && nalUnitOrig[i+2] == 3 {
+	for i = 0; i < numBytesInNALUnit; i++ {
+		if i+2 < numBytesInNALUnit && nalUnitOrig[i] == 0 && nalUnitOrig[i+1] == 0 && nalUnitOrig[i+2] == 3 {
 			nalUnitCopy[nalUnitCopySize] = nalUnitOrig[i]
 			i++
 			nalUnitCopySize++
@@ -287,7 +309,7 @@ type sliceHeader struct {
 }
 
 func (p *H264VideoStreamParser) analyzeSliceHeader(start, end []byte, nalUnitType uint) *sliceHeader {
-	totNumBits := uint(8 * (len(end) - len(start)))
+	totNumBits := 8 * (p.numSavedBytes - p.outputStartCodeSize)
 	bv := newBitVector(start, 0, totNumBits)
 
 	// Some of the result parameters might not be present in the header; set them to default values:
@@ -297,7 +319,7 @@ func (p *H264VideoStreamParser) analyzeSliceHeader(start, end []byte, nalUnitTyp
 	bv.skipBits(8) // forbidden_zero_bit; nal_ref_idc; nal_unit_type
 	firstMBInSlice := bv.getExpGolomb()
 	sliceType := bv.getExpGolomb()
-	fmt.Printf("%d, %d", firstMBInSlice, sliceType)
+	log.Trace("firstMBInSlice: %d, sliceType: %d", firstMBInSlice, sliceType)
 	header.picParameterSetID = bv.getExpGolomb()
 
 	if p.separateColourPlaneFlag {
@@ -331,19 +353,20 @@ type seqParameterSet struct {
 
 func (p *H264VideoStreamParser) analyzeSPSData() *seqParameterSet {
 	// Begin by making a copy of the NAL unit data, removing any 'emulation prevention' bytes:
-	sps := make([]byte, SPS_MAX_SIZE)
-	spsSize := p.removeEmulationBytes(sps, SPS_MAX_SIZE)
+	sps := make([]byte, spsMaxSize)
+	spsSize := p.removeEmulationBytes(sps, spsMaxSize)
 
 	bv := newBitVector(sps, 0, 8*spsSize)
 
 	bv.skipBits(8) // forbidden_zero_bit; nal_ref_idc; nal_unit_type
 	profileIdc := bv.getBits(8)
+	log.Trace("profileIdc:%d", profileIdc)
 	constraintSetNFlag := bv.getBits(8) // also "reserved_zero_2bits" at end
-	fmt.Println(constraintSetNFlag)
+	log.Trace("constraintSetNFlag:%d", constraintSetNFlag)
 	levelIdc := bv.getBits(8)
-	fmt.Println(levelIdc)
+	log.Trace("levelIdc:%d", levelIdc)
 	seqParameterSetID := bv.getExpGolomb()
-	fmt.Println(seqParameterSetID)
+	log.Trace("seqParameterSetID:%d", seqParameterSetID)
 	if profileIdc == 100 ||
 		profileIdc == 110 ||
 		profileIdc == 122 ||
@@ -356,37 +379,38 @@ func (p *H264VideoStreamParser) analyzeSPSData() *seqParameterSet {
 		chromaFormatIdc := bv.getExpGolomb()
 		if chromaFormatIdc == 3 {
 			eparateColourPlaneFlag := bv.get1BitBoolean()
-			fmt.Println(eparateColourPlaneFlag)
-		}
-	}
-
-	bv.getExpGolomb() // bit_depth_luma_minus8
-	bv.getExpGolomb() // bit_depth_chroma_minus8
-	bv.skipBits(1)    // qpprime_y_zero_transform_bypass_flag
-	seqScalingMatrixPresentFlag := bv.get1Bit()
-	if seqScalingMatrixPresentFlag != 0 {
-		cond := 12
-		var chromaFormatIdc uint
-		if chromaFormatIdc != 3 {
-			//cond := 8
+			log.Trace("eparateColourPlaneFlag:%d", eparateColourPlaneFlag)
 		}
 
-		for i := 0; i < cond; i++ {
-			seqScalingMatrixPresentFlag := bv.get1Bit()
-			if seqScalingMatrixPresentFlag != 0 {
-				sizeOfScalingList := 24
-				if i < 6 {
-					sizeOfScalingList = 16
-				}
-				var lastScale uint = 8
-				var nextScale uint = 8
-				for j := 0; j < sizeOfScalingList; j++ {
-					if nextScale != 0 {
-						deltaScale := bv.getExpGolomb()
-						nextScale = (lastScale + deltaScale + 256) % 256
+		bv.getExpGolomb() // bit_depth_luma_minus8
+		bv.getExpGolomb() // bit_depth_chroma_minus8
+		bv.skipBits(1)    // qpprime_y_zero_transform_bypass_flag
+
+		seqScalingMatrixPresentFlag := bv.get1Bit()
+		log.Trace("seqScalingMatrixPresentFlag:%d", seqScalingMatrixPresentFlag)
+		if seqScalingMatrixPresentFlag != 0 {
+			cond := 12
+			if chromaFormatIdc != 3 {
+				cond = 8
+			}
+
+			for i := 0; i < cond; i++ {
+				seqScalingMatrixPresentFlag := bv.get1Bit()
+				if seqScalingMatrixPresentFlag != 0 {
+					sizeOfScalingList := 24
+					if i < 6 {
+						sizeOfScalingList = 16
 					}
-					if nextScale != 0 {
-						lastScale = nextScale
+					var lastScale uint = 8
+					var nextScale uint = 8
+					for j := 0; j < sizeOfScalingList; j++ {
+						if nextScale != 0 {
+							deltaScale := bv.getExpGolomb()
+							nextScale = (lastScale + deltaScale + 256) % 256
+						}
+						if nextScale != 0 {
+							lastScale = nextScale
+						}
 					}
 				}
 			}
@@ -394,11 +418,13 @@ func (p *H264VideoStreamParser) analyzeSPSData() *seqParameterSet {
 	}
 
 	log2MaxFrameNumMinus4 := bv.getExpGolomb()
+	log.Trace("log2MaxFrameNumMinus4:%d", log2MaxFrameNumMinus4)
 	p.log2MaxFrameNum = log2MaxFrameNumMinus4 + 4
 	picOrderCntType := bv.getExpGolomb()
+	log.Trace("picOrderCntType:%d", picOrderCntType)
 	if picOrderCntType == 0 {
 		log2MaxPicOrderCntLsbMinus4 := bv.getExpGolomb()
-		fmt.Println(log2MaxPicOrderCntLsbMinus4)
+		log.Trace("log2MaxPicOrderCntLsbMinus4:%d", log2MaxPicOrderCntLsbMinus4)
 	} else if picOrderCntType == 1 {
 		bv.skipBits(1)    // delta_pic_order_always_zero_flag
 		bv.getExpGolomb() // offset_for_non_ref_pic
@@ -410,19 +436,21 @@ func (p *H264VideoStreamParser) analyzeSPSData() *seqParameterSet {
 		}
 	}
 	maxNumRefFrames := bv.getExpGolomb()
-	fmt.Println(maxNumRefFrames)
+	log.Trace("maxNumRefFrames:%d", maxNumRefFrames)
 	gapsInFrameNumValueAllowedFlag := bv.get1Bit()
-	fmt.Println(gapsInFrameNumValueAllowedFlag)
+	log.Trace("gapsInFrameNumValueAllowedFlag:%d", gapsInFrameNumValueAllowedFlag)
 	picWidthInMbsMinus1 := bv.getExpGolomb()
-	fmt.Println(picWidthInMbsMinus1)
+	log.Trace("picWidthInMbsMinus1:%d", picWidthInMbsMinus1)
 	picHeightInMapUnitsMinus1 := bv.getExpGolomb()
-	fmt.Println(picHeightInMapUnitsMinus1)
+	log.Trace("picHeightInMapUnitsMinus1:%d", picHeightInMapUnitsMinus1)
 	frameMbsOnlyFlag := bv.get1BitBoolean()
+	log.Trace("frameMbsOnlyFlag:%d", frameMbsOnlyFlag)
 	if !frameMbsOnlyFlag {
 		bv.skipBits(1) // mb_adaptive_frame_field_flag
 	}
 	bv.skipBits(1) // direct_8x8_inference_flag
 	frameCroppingFlag := bv.get1Bit()
+	log.Trace("frameCroppingFlag:%d", frameCroppingFlag)
 	if frameCroppingFlag != 0 {
 		bv.getExpGolomb() // frame_crop_left_offset
 		bv.getExpGolomb() // frame_crop_right_offset
@@ -430,11 +458,14 @@ func (p *H264VideoStreamParser) analyzeSPSData() *seqParameterSet {
 		bv.getExpGolomb() // frame_crop_bottom_offset
 	}
 
-	spsData := new(seqParameterSet)
-
 	vuiParametersPresentFlag := bv.get1Bit()
+	log.Trace("vuiParametersPresentFlag:%d", vuiParametersPresentFlag)
+
+	var spsData *seqParameterSet
 	if vuiParametersPresentFlag != 0 {
 		spsData = p.analyzeVUIParameters(bv)
+	} else {
+		spsData = new(seqParameterSet)
 	}
 
 	return spsData
@@ -442,25 +473,37 @@ func (p *H264VideoStreamParser) analyzeSPSData() *seqParameterSet {
 
 func (p *H264VideoStreamParser) analyzeSEIData() {
 	// Begin by making a copy of the NAL unit data, removing any 'emulation prevention' bytes:
-	sei := make([]byte, SEI_MAX_SIZE)
-	seiSize := p.removeEmulationBytes(sei, SEI_MAX_SIZE)
+	sei := make([]byte, seiMaxSize)
+	seiSize := p.removeEmulationBytes(sei, seiMaxSize)
 
-	var j uint = 1 // skip the initial byte (forbidden_zero_bit; nal_ref_idc; nal_unit_type); we've already seen it
+	// skip the initial byte (forbidden_zero_bit; nal_ref_idc; nal_unit_type); we've already seen it
+	var j uint = 1
 	for j < seiSize {
-		var payloadType uint
-		for sei[j] == 255 && j < seiSize {
-			j++
+		var payloadType, payloadSize uint
+		for {
 			payloadType += uint(sei[j])
+			if sei[j] == 255 && j < seiSize {
+				j++
+			} else {
+				j++
+				break
+			}
 		}
+
 		if j >= seiSize {
 			break
 		}
 
-		var payloadSize uint
-		for sei[j] == 255 && j < seiSize {
-			j++
+		for {
 			payloadSize += uint(sei[j])
+			if sei[j] == 255 && j < seiSize {
+				j++
+			} else {
+				j++
+				break
+			}
 		}
+
 		if j >= seiSize {
 			break
 		}
@@ -510,7 +553,6 @@ func (p *H264VideoStreamParser) analyzeVUIParameters(bv *BitVector) *seqParamete
 //////// H264VideoStreamFramer ////////
 type H264VideoStreamFramer struct {
 	MPEGVideoStreamFramer
-	frameRate            float64
 	lastSeenSPS          []byte
 	lastSeenPPS          []byte
 	lastSeenSPSSize      uint
@@ -522,17 +564,21 @@ func newH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	framer := new(H264VideoStreamFramer)
 	framer.inputSource = inputSource
 	framer.frameRate = 25.0
-	framer.initMPEGVideoStreamFramer(newH264VideoStreamParser(framer, inputSource,
-		framer.handleClosure, framer.continueReadProcessing))
+	framer.initMPEGVideoStreamFramer(newH264VideoStreamParser(framer, inputSource, framer.handleClosure))
 	framer.InitFramedSource(framer)
+	framer.nextPresentationTime = framer.presentationTimeBase
 	return framer
 }
 
-func (f *H264VideoStreamFramer) getSPSandPPS(sps, pps string, spsSize, ppsSize uint) {
-	sps = string(f.lastSeenSPS)
-	pps = string(f.lastSeenPPS)
-	spsSize = f.lastSeenSPSSize
-	ppsSize = f.lastSeenPPSSize
+func (f *H264VideoStreamFramer) destroy() {
+	f.inputSource.destroy()
+	f.stopGettingFrames()
+}
+
+func (f *H264VideoStreamFramer) getSPSandPPS() (sps, pps []byte, spsSize, ppsSize uint) {
+	sps, pps = f.lastSeenSPS, f.lastSeenPPS
+	spsSize, ppsSize = f.lastSeenSPSSize, f.lastSeenPPSSize
+	return
 }
 
 func (f *H264VideoStreamFramer) setSPSandPPS(sPropParameterSetsStr string) {
@@ -554,14 +600,14 @@ func (f *H264VideoStreamFramer) setSPSandPPS(sPropParameterSetsStr string) {
 
 func (f *H264VideoStreamFramer) saveCopyOfSPS(from []byte, size uint) {
 	f.lastSeenSPS = make([]byte, size)
-	f.lastSeenSPS = from
 	f.lastSeenSPSSize = size
+	copy(f.lastSeenSPS, from)
 }
 
 func (f *H264VideoStreamFramer) saveCopyOfPPS(from []byte, size uint) {
 	f.lastSeenPPS = make([]byte, size)
-	f.lastSeenPPS = from
 	f.lastSeenPPSSize = size
+	copy(f.lastSeenPPS, from)
 }
 
 func (f *H264VideoStreamFramer) setPresentationTime() {

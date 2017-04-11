@@ -8,7 +8,6 @@ import (
 
 	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/dorsvr/livemedia"
-	"github.com/djwackey/dorsvr/scheduler"
 )
 
 // default value; you can reassign this in your application if you need to
@@ -63,7 +62,7 @@ func (c *RTSPClient) SendRequest() bool {
 }
 
 func (c *RTSPClient) Waiting() {
-	scheduler.DoEventLoop()
+	select {}
 }
 
 func (c *RTSPClient) Close() {

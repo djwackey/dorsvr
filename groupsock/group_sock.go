@@ -5,6 +5,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/djwackey/dorsvr/log"
 )
 
 type Socket struct {
@@ -23,9 +25,13 @@ type OutputSocket struct {
 }
 
 func (o *OutputSocket) write(destAddr string, portNum uint, buffer []byte, bufferSize uint) (int, error) {
-	//udpConn := SetupDatagramSocket(destAddr, portNum)
-	//return writeSocket(udpConn, buffer)
-	return writeSocket(o.socketNum, buffer)
+	addr := fmt.Sprintf("%s:%d", destAddr, portNum)
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		log.Error(1, "[OutputSocket::write] Failed to resolve UDP address.%s", err.Error())
+		return 0, err
+	}
+	return o.socketNum.(*net.UDPConn).WriteToUDP(buffer[:bufferSize], udpAddr)
 }
 
 type GroupSock struct {
@@ -44,15 +50,13 @@ func NewGroupSock(addrStr string, portNum uint) *GroupSock {
 	gs.ttl = 255
 	gs.portNum = portNum
 	gs.socketNum = socketNum
-	gs.AddDestination(addrStr, portNum)
 	return gs
 }
 
 func (g *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
 	var err error
 	var writeSuccess bool
-	for i := 0; i < len(g.dests); i++ {
-		dest := g.dests[i]
+	for _, dest := range g.dests {
 		if _, err = g.write(dest.addrStr, dest.portNum, buffer, bufferSize); err == nil {
 			writeSuccess = true
 		}
@@ -63,7 +67,7 @@ func (g *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
 func (g *GroupSock) HandleRead(buffer []byte) (int, error) {
 	numBytes, err := ReadSocket(g.socketNum, buffer)
 	if err != nil {
-		fmt.Printf("GroupSock read failed: %s\n", err.Error())
+		log.Error(1, "[GroupSock::HandleRead] read failed: %s\n", err.Error())
 		return numBytes, err
 	}
 
@@ -86,10 +90,10 @@ func (g *GroupSock) TTL() uint {
 }
 
 func (g *GroupSock) AddDestination(addr string, port uint) {
-	g.dests = append(g.dests, NewDestRecord(addr, port))
+	g.dests = append(g.dests, newDestRecord(addr, port))
 }
 
-func (g *GroupSock) delDestination(addr string, port uint) {
+func (g *GroupSock) delDestination() {
 }
 
 type destRecord struct {
@@ -97,9 +101,9 @@ type destRecord struct {
 	portNum uint
 }
 
-func NewDestRecord(addr string, port uint) *destRecord {
-	dest := new(destRecord)
-	dest.addrStr = addr
-	dest.portNum = port
-	return dest
+func newDestRecord(addr string, port uint) *destRecord {
+	return &destRecord{
+		addrStr: addr,
+		portNum: port,
+	}
 }

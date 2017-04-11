@@ -3,9 +3,10 @@ package livemedia
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"net"
 	sys "syscall"
+
+	"github.com/djwackey/dorsvr/log"
 )
 
 var OutPacketBufferMaxSize uint = 60000 // default
@@ -25,17 +26,20 @@ type OutPacketBuffer struct {
 }
 
 func newOutPacketBuffer(preferredPacketSize, maxPacketSize uint) *OutPacketBuffer {
-	outPacketBuffer := new(OutPacketBuffer)
-	outPacketBuffer.preferred = preferredPacketSize
-	outPacketBuffer.maxPacketSize = maxPacketSize
+	maxNumPackets := (OutPacketBufferMaxSize + (maxPacketSize - 1)) / maxPacketSize
+	limit := maxNumPackets * maxPacketSize
 
-	maxNumPackets := (OutPacketBufferMaxSize - (maxPacketSize - 1)) / maxPacketSize
-	outPacketBuffer.limit = maxNumPackets * maxPacketSize
-	outPacketBuffer.buff = make([]byte, outPacketBuffer.limit)
-	outPacketBuffer.resetOffset()
-	outPacketBuffer.resetPacketStart()
-	outPacketBuffer.resetOverflowData()
-	return outPacketBuffer
+	b := &OutPacketBuffer{
+		limit:         limit,
+		maxPacketSize: maxPacketSize,
+		preferred:     preferredPacketSize,
+		buff:          make([]byte, limit),
+	}
+
+	b.resetOffset()
+	b.resetPacketStart()
+	b.resetOverflowData()
+	return b
 }
 
 func (b *OutPacketBuffer) packet() []byte {
@@ -66,6 +70,14 @@ func (b *OutPacketBuffer) isPreferredSize() bool {
 	return b.curOffset >= b.preferred
 }
 
+func (b *OutPacketBuffer) setOverflowData(overflowDataOffset, overflowDataSize,
+	durationInMicroseconds uint, presentationTime sys.Timeval) {
+	b.overflowDataSize = overflowDataSize
+	b.overflowDataOffset = overflowDataOffset
+	b.overflowPresentationTime = presentationTime
+	b.overflowDurationInMicroseconds = durationInMicroseconds
+}
+
 func (b *OutPacketBuffer) useOverflowData() {
 	b.enqueue(b.buff[(b.packetStart+b.overflowDataOffset):], b.overflowDataSize)
 }
@@ -86,20 +98,24 @@ func (b *OutPacketBuffer) totalBytesAvailable() uint {
 
 func (b *OutPacketBuffer) enqueue(from []byte, numBytes uint) {
 	if numBytes > b.totalBytesAvailable() {
-		fmt.Printf("OutPacketBuffer::enqueue() warning: %d > %d\n", numBytes, b.totalBytesAvailable())
+		log.Warn("OutPacketBuffer::enqueue() warning: %d > %d\n", numBytes, b.totalBytesAvailable())
 		numBytes = b.totalBytesAvailable()
 	}
 
-	if !bytes.Equal(b.curPtr(), from) {
-		copy(b.curPtr(), from)
+	if !bytes.Equal(b.curPtr()[:numBytes], from[:numBytes]) {
+		copy(b.curPtr(), from[:numBytes])
 	}
 	b.increment(numBytes)
 }
 
-func (b *OutPacketBuffer) enqueueWord(word uint) {
-	buf := bytes.NewBuffer([]byte{})
-	binary.Write(buf, binary.BigEndian, word)
-	b.enqueue(buf.Bytes(), 4)
+func (b *OutPacketBuffer) enqueueWord(word uint32) {
+	buff := new(bytes.Buffer)
+	err := binary.Write(buff, binary.BigEndian, word)
+	if err != nil {
+		log.Error(0, "[OutPacketBuffer::enqueueWord] Failed to enqueueWord.%s", err.Error())
+		return
+	}
+	b.enqueue(buff.Bytes(), 4)
 }
 
 func (b *OutPacketBuffer) insert(from []byte, numBytes, toPosition uint) {
@@ -111,20 +127,61 @@ func (b *OutPacketBuffer) insert(from []byte, numBytes, toPosition uint) {
 		numBytes = b.limit - realToPosition
 	}
 
-	//memmove(&fBuf[realToPosition], from, numBytes)
+	copy(b.buff[realToPosition:], from[:numBytes])
 	if toPosition+numBytes > b.curOffset {
 		b.curOffset = toPosition + numBytes
 	}
+
+	//var i uint
+	//for i = 0; i < 30; i++ {
+	//	log.Debug("[OutPacketBuffer::insert] %d", b.buff[realToPosition:][i])
+	//}
 }
 
-func (b *OutPacketBuffer) insertWord(word byte, toPosition uint) {
+func (b *OutPacketBuffer) insertWord(word uint32, toPosition uint) {
+	buff := new(bytes.Buffer)
+	err := binary.Write(buff, binary.BigEndian, word)
+	if err == nil {
+		b.insert(buff.Bytes(), 4, toPosition)
+	}
 }
 
 func (b *OutPacketBuffer) wouldOverflow(numBytes uint) bool {
 	return (b.curOffset + numBytes) > b.maxPacketSize
 }
 
+func (b *OutPacketBuffer) numOverflowBytes(numBytes uint) uint {
+	return (b.curOffset + numBytes) - b.maxPacketSize
+}
+
+func (b *OutPacketBuffer) isTooBigForAPacket(numBytes uint) bool {
+	return numBytes > b.maxPacketSize
+}
+
+func (b *OutPacketBuffer) extract(to []byte, numBytes, fromPosition uint) {
+	realFromPosition := b.packetStart + fromPosition
+	if realFromPosition+numBytes > b.limit {
+		if realFromPosition > b.limit {
+			return
+		}
+		numBytes = b.limit - realFromPosition
+	}
+	copy(to, b.buff[realFromPosition:realFromPosition+numBytes])
+}
+
+func (b *OutPacketBuffer) extractWord(fromPosition uint) uint32 {
+	word := make([]byte, 4)
+	b.extract(word, 4, fromPosition)
+
+	return binary.BigEndian.Uint32(word)
+}
+
 func (b *OutPacketBuffer) skipBytes(numBytes uint) {
+	if numBytes > b.totalBytesAvailable() {
+		numBytes = b.totalBytesAvailable()
+	}
+
+	b.increment(numBytes)
 }
 
 func (b *OutPacketBuffer) resetPacketStart() {
@@ -145,27 +202,42 @@ func (b *OutPacketBuffer) resetOverflowData() {
 
 //////// MediaSink ////////
 type IMediaSink interface {
+	RtpPayloadType() uint32
+	AuxSDPLine() string
+	RtpmapLine() string
+	SdpMediaType() string
+	currentSeqNo() uint32
 	StartPlaying(source IFramedSource, afterFunc interface{}) bool
+	StopPlaying()
+	ContinuePlaying()
+	destroy()
+	addStreamSocket(socketNum net.Conn, streamChannelID uint)
+	delStreamSocket(socketNum net.Conn, streamChannelID uint)
+	presetNextTimestamp() uint32
+	setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{})
+	frameCanAppearAfterPacketStart(frameStart []byte, numBytesInFrame uint) bool
+	doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint,
+		frameStart []byte, framePresentationTime sys.Timeval)
 }
 
 type MediaSink struct {
 	Source    IFramedSource
-	rtpSink   IRTPSink
+	rtpSink   IMediaSink
 	afterFunc interface{}
 }
 
-func (s *MediaSink) InitMediaSink(rtpSink IRTPSink) {
+func (s *MediaSink) InitMediaSink(rtpSink IMediaSink) {
 	s.rtpSink = rtpSink
 }
 
 func (s *MediaSink) StartPlaying(source IFramedSource, afterFunc interface{}) bool {
 	if s.Source != nil {
-		fmt.Println("This sink is already being played")
+		log.Error(1, "This sink is already being played")
 		return false
 	}
 
 	if s.rtpSink == nil {
-		fmt.Println("This RTP Sink is nil")
+		log.Error(1, "This RTP Sink is nil")
 		return false
 	}
 
@@ -185,39 +257,25 @@ func (s *MediaSink) StopPlaying() {
 	s.afterFunc = nil
 }
 
-func (s *MediaSink) AuxSDPLine() string {
-	return ""
+func (s *MediaSink) addStreamSocket(socketNum net.Conn, streamChannelID uint) {}
+func (s *MediaSink) delStreamSocket(socketNum net.Conn, streamChannelID uint) {}
+func (s *MediaSink) frameCanAppearAfterPacketStart(frameStart []byte, numBytesInFrame uint) bool {
+	return false
 }
+func (s *MediaSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint, frameStart []byte, framePresentationTime sys.Timeval) {
+}
+func (s *MediaSink) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {}
 
-func (s *MediaSink) RtpPayloadType() uint {
-	return 0
-}
-
-func (s *MediaSink) RtpmapLine() string {
-	return ""
-}
-
-func (s *MediaSink) SdpMediaType() string {
-	return ""
-}
+func (s *MediaSink) AuxSDPLine() string        { return "" }
+func (s *MediaSink) RtpmapLine() string        { return "" }
+func (s *MediaSink) SdpMediaType() string      { return "" }
+func (s *MediaSink) presetNextTimestamp() uint { return 0 }
+func (s *MediaSink) RtpPayloadType() uint      { return 0 }
+func (s *MediaSink) currentSeqNo() uint        { return 0 }
+func (s *MediaSink) destroy()                  {}
 
 func (s *MediaSink) OnSourceClosure() {
 	if s.afterFunc != nil {
 		s.afterFunc.(func())()
 	}
-}
-
-func (s *MediaSink) addStreamSocket(socketNum net.Conn, streamChannelID uint) {
-	return
-}
-
-func (s *MediaSink) delStreamSocket() {
-}
-
-func (s *MediaSink) currentSeqNo() uint {
-	return 0
-}
-
-func (s *MediaSink) presetNextTimestamp() uint {
-	return 0
 }

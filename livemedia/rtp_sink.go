@@ -6,35 +6,20 @@ import (
 	sys "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
+	//"github.com/djwackey/dorsvr/log"
 )
-
-type IRTPSink interface {
-	RtpPayloadType() uint
-	AuxSDPLine() string
-	RtpmapLine() string
-	SdpMediaType() string
-	currentSeqNo() uint
-	StartPlaying(source IFramedSource, afterFunc interface{}) bool
-	StopPlaying()
-	ContinuePlaying()
-	addStreamSocket(socketNum net.Conn, streamChannelID uint)
-	delStreamSocket(socketNum net.Conn, streamChannelID uint)
-	presetNextTimestamp() uint
-	setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{})
-}
 
 //////// RTPSink ////////
 type RTPSink struct {
 	MediaSink
-	ssrc                       uint
-	seqNo                      uint
+	ssrc                       uint32
+	seqNo                      uint32
 	octetCount                 uint
 	packetCount                uint // incl RTP hdr
-	timestampBase              uint
 	totalOctetCount            uint
-	rtpPayloadType             uint
-	rtpTimestampFrequency      uint
-	timestampFrequency         uint
+	timestampBase              uint32
+	rtpPayloadType             uint32
+	rtpTimestampFrequency      uint32
 	rtpPayloadFormatName       string
 	enableRTCPReports          bool
 	nextTimestampHasBeenPreset bool
@@ -42,13 +27,17 @@ type RTPSink struct {
 	transmissionStatsDB        *RTPTransmissionStatsDB
 }
 
-func (s *RTPSink) InitRTPSink(rtpSink IRTPSink, gs *gs.GroupSock, rtpPayloadType,
-	rtpTimestampFrequency uint, rtpPayloadFormatName string) {
+func (s *RTPSink) InitRTPSink(rtpSink IMediaSink, g *gs.GroupSock, rtpPayloadType,
+	rtpTimestampFrequency uint32, rtpPayloadFormatName string) {
 	s.InitMediaSink(rtpSink)
-	s.rtpInterface = newRTPInterface(s, gs)
+	s.rtpInterface = newRTPInterface(s, g)
 	s.rtpPayloadType = rtpPayloadType
 	s.rtpTimestampFrequency = rtpTimestampFrequency
 	s.rtpPayloadFormatName = rtpPayloadFormatName
+
+	s.seqNo = gs.OurRandom16()
+	s.ssrc = gs.OurRandom32()
+	s.timestampBase = gs.OurRandom32()
 }
 
 func (s *RTPSink) addStreamSocket(socketNum net.Conn, streamChannelID uint) {
@@ -59,31 +48,31 @@ func (s *RTPSink) delStreamSocket(socketNum net.Conn, streamChannelID uint) {
 	s.rtpInterface.delStreamSocket(socketNum, streamChannelID)
 }
 
-func (s *RTPSink) currentSeqNo() uint {
+func (s *RTPSink) currentSeqNo() uint32 {
 	return s.seqNo
 }
 
-func (sink *RTPSink) SdpMediaType() string {
+func (s *RTPSink) SdpMediaType() string {
 	return "data"
 }
 
-func (sink *RTPSink) RtpPayloadType() uint {
-	return sink.rtpPayloadType
+func (s *RTPSink) RtpPayloadType() uint32 {
+	return s.rtpPayloadType
 }
 
-func (sink *RTPSink) RtpmapLine() string {
+func (s *RTPSink) RtpmapLine() string {
 	var rtpmapLine, encodingParamsPart string
-	if sink.rtpPayloadType >= 96 {
+	if s.rtpPayloadType >= 96 {
 		rtpmapLine = fmt.Sprintf("a=rtpmap:%d %s/%d%s\r\n",
-			sink.rtpPayloadType,
-			sink.rtpPayloadFormatName,
-			sink.rtpTimestampFrequency, encodingParamsPart)
+			s.rtpPayloadType,
+			s.rtpPayloadFormatName,
+			s.rtpTimestampFrequency, encodingParamsPart)
 	}
 
 	return rtpmapLine
 }
 
-func (s *RTPSink) presetNextTimestamp() uint {
+func (s *RTPSink) presetNextTimestamp() uint32 {
 	var timeNow sys.Timeval
 	sys.Gettimeofday(&timeNow)
 
@@ -94,10 +83,10 @@ func (s *RTPSink) presetNextTimestamp() uint {
 	return tsNow
 }
 
-func (s *RTPSink) convertToRTPTimestamp(tv sys.Timeval) uint {
+func (s *RTPSink) convertToRTPTimestamp(tv sys.Timeval) uint32 {
 	// Begin by converting from "struct timeval" units to RTP timestamp units:
-	timestampIncrement := s.timestampFrequency * uint(tv.Sec)
-	timestampIncrement += (2.0*s.timestampFrequency*uint(tv.Usec) + 1000000.0) / 2000000
+	timestampIncrement := s.rtpTimestampFrequency * uint32(tv.Sec)
+	timestampIncrement += (2.0*s.rtpTimestampFrequency*uint32(tv.Usec) + 1000000.0) / 2000000
 
 	// Then add this to our 'timestamp base':
 	if s.nextTimestampHasBeenPreset {

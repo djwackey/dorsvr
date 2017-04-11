@@ -53,7 +53,7 @@ func continueAfterSETUP(c *RTSPClient, resultCode int, resultStr string) {
 			scs.Subsession.MediumName(), scs.Subsession.CodecName())
 
 		scs.Subsession.MiscPtr = c
-		scs.Subsession.Sink.StartPlaying(scs.Subsession.ReadSource())
+		scs.Subsession.Sink.StartPlaying(scs.Subsession.ReadSource(), nil)
 		if scs.Subsession.RtcpInstance() != nil {
 			scs.Subsession.RtcpInstance().SetByeHandler(subsessionByeHandler, scs.Subsession)
 		}

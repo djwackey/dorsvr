@@ -1,8 +1,9 @@
 package livemedia
 
 import (
-	gs "github.com/djwackey/dorsvr/groupsock"
 	"net"
+
+	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
 type RTPInterface struct {
@@ -69,13 +70,20 @@ func (i *RTPInterface) delStreamSocket(socketNum net.Conn, streamChannelID uint)
 	}
 }
 
+// normal case: send as a UDP packet, also, send over each of our TCP sockets
 func (i *RTPInterface) sendPacket(packet []byte, packetSize uint) bool {
-	return i.gs.Output(packet, packetSize, i.gs.TTL())
+	success := i.gs.Output(packet, packetSize, i.gs.TTL())
+
+	var streams *tcpStreamRecord
+	for streams = i.tcpStreams; streams != nil; streams = streams.next {
+		sendRTPOverTCP(streams.streamSocketNum, packet, packetSize, streams.streamChannelID)
+	}
+
+	return success
 }
 
 func (i *RTPInterface) handleRead(buffer []byte) (int, error) {
-	readBytes, err := i.gs.HandleRead(buffer)
-	return readBytes, err
+	return i.gs.HandleRead(buffer)
 }
 
 func (i *RTPInterface) lookupSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
@@ -109,19 +117,45 @@ type tcpStreamRecord struct {
 }
 
 func newTCPStreamRecord(streamSocketNum net.Conn, streamChannelID uint, next *tcpStreamRecord) *tcpStreamRecord {
-	record := new(tcpStreamRecord)
-	record.streamChannelID = streamChannelID
-	record.streamSocketNum = streamSocketNum
-	record.next = next
-	return record
+	return &tcpStreamRecord{
+		next:            next,
+		streamChannelID: streamChannelID,
+		streamSocketNum: streamSocketNum,
+	}
 }
 
 ///////////// Help Functions ///////////////
-func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannelID int) {
+
+// Send RTP over TCP, using the encoding defined RFC 2326, section 10.12:
+func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannelID uint) error {
+	var err error
+
 	dollar := []byte{'$'}
+	_, err = socketNum.Write(dollar)
+	if err != nil {
+		return err
+	}
+
 	channelID := []byte{byte(streamChannelID)}
-	socketNum.Write(dollar)
-	socketNum.Write(channelID)
+	_, err = socketNum.Write(channelID)
+	if err != nil {
+		return err
+	}
+
+	netPacketSize := make([]byte, 2)
+	netPacketSize[0] = byte((packetSize & 0xFF00) >> 8)
+	netPacketSize[1] = byte(packetSize & 0xFF)
+	_, err = socketNum.Write(netPacketSize)
+	if err != nil {
+		return err
+	}
+
+	_, err = socketNum.Write(packet[:packetSize])
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 const (
@@ -139,10 +173,10 @@ type SocketDescriptor struct {
 }
 
 func newSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
-	descriptor := new(SocketDescriptor)
-	descriptor.socketNum = socketNum
-	descriptor.tcpReadingState = AWAITING_DOLLAR
-	return descriptor
+	return &SocketDescriptor{
+		socketNum:       socketNum,
+		tcpReadingState: AWAITING_DOLLAR,
+	}
 }
 
 func (s *SocketDescriptor) registerRTPInterface(streamChannelID uint, rtpInterface *RTPInterface) {

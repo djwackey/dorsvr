@@ -6,7 +6,6 @@ Dorsvr Streaming Server
  * rtspserver - rtsp server
  * rtspclient - rtsp client
  * groupsock  - group socket
- * scheduler  - task scheduler
  * livemedia  - media library
 
 ## Feature
@@ -29,20 +28,23 @@ import (
     "fmt"
 
     "github.com/djwackey/dorsvr/rtspserver"
-    "github.com/djwackey/dorsvr/scheduler"
 )
 
 func main() {
     server := rtspserver.New()
 
     portNum := 8554
-    server.Listen(portNum)
+    err := server.Listen(portNum)
+    if err != nil {
+        fmt.Printf("Failed to bind port: %d\n", portNum)
+        return
+    }
 
-    if !server.SetUpTunnelingOverHTTP(80) ||
-        !server.SetUpTunnelingOverHTTP(8000) ||
-        !server.SetUpTunnelingOverHTTP(8080) {
-        fmt.Println(fmt.Sprintf("(We use port %d for optional RTSP-over-HTTP tunneling, "+
-                                "or for HTTP live streaming (for indexed Transport Stream files only).)", server.HttpServerPortNum()))
+    if !server.SetupTunnelingOverHTTP(80) ||
+        !server.SetupTunnelingOverHTTP(8000) ||
+        !server.SetupTunnelingOverHTTP(8080) {
+        fmt.Printf("We use port %d for optional RTSP-over-HTTP tunneling, "+
+                   "or for HTTP live streaming (for indexed Transport Stream files only).\n", server.HttpServerPortNum()))
     } else {
         fmt.Println("(RTSP-over-HTTP tunneling is not available.)")
     }
@@ -52,7 +54,7 @@ func main() {
 
     server.Start()
 
-    scheduler.DoEventLoop()
+    select {}
 }
 ```
 ## Author

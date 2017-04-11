@@ -13,6 +13,7 @@ import (
 
 	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/dorsvr/livemedia"
+	lg "github.com/djwackey/dorsvr/log"
 )
 
 type RTSPServer struct {
@@ -69,7 +70,7 @@ func (s *RTSPServer) setupOurSocket(portNum int) (*net.TCPListener, error) {
 	return net.ListenTCP("tcp", addr)
 }
 
-func (s *RTSPServer) SetUpTunnelingOverHTTP(httpPort int) bool {
+func (s *RTSPServer) SetupTunnelingOverHTTP(httpPort int) bool {
 	s.httpPort = httpPort
 
 	var err error
@@ -100,7 +101,7 @@ func (s *RTSPServer) incomingConnectionHandler(serverListen *net.TCPListener) {
 	for {
 		tcpConn, err := s.rtspListen.AcceptTCP()
 		if err != nil {
-			fmt.Println("failed to accept client.")
+			lg.Error(0, "failed to accept client.%s", err.Error())
 			continue
 		}
 
@@ -169,6 +170,7 @@ func (s *RTSPServer) createNewSMS(fileName string) *livemedia.ServerMediaSession
 	switch extension {
 	case "264":
 		// Assumed to be a H.264 Video Elementary Stream file:
+		livemedia.OutPacketBufferMaxSize = 100000
 		serverMediaSession = livemedia.NewServerMediaSession("H.264 Video", fileName)
 		serverMediaSession.AddSubSession(livemedia.NewH264FileMediaSubSession(fileName))
 	case "ts":

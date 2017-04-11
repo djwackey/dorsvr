@@ -15,20 +15,22 @@ type MultiFramedRTPSink struct {
 	nextSendTime                    sys.Timeval
 	noFramesLeft                    bool
 	isFirstPacket                   bool
-	currentTimestamp                uint
+	currentTimestamp                uint32
 	ourMaxPacketSize                uint
 	timestampPosition               uint
 	specialHeaderSize               uint
 	numFramesUsedSoFar              uint
 	specialHeaderPosition           uint
 	curFragmentationOffset          uint
+	curFrameSpecificHeaderSize      uint
 	totalFrameSpecificHeaderSizes   uint
+	curFrameSpecificHeaderPosition  uint
 	previousFrameEndedFragmentation bool
 	onSendErrorFunc                 interface{}
 }
 
-func (s *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IRTPSink,
-	rtpGroupSock *gs.GroupSock, rtpPayloadType, rtpTimestampFrequency uint, rtpPayloadFormatName string) {
+func (s *MultiFramedRTPSink) InitMultiFramedRTPSink(rtpSink IMediaSink,
+	rtpGroupSock *gs.GroupSock, rtpPayloadType, rtpTimestampFrequency uint32, rtpPayloadFormatName string) {
 	// Default max packet size (1500, minus allowance for IP, UDP, UMTP headers)
 	// (Also, make it a multiple of 4 bytes, just in case that matters.)
 	s.setPacketSizes(1000, 1448)
@@ -48,7 +50,7 @@ func (s *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 	s.isFirstPacket = isFirstPacket
 
 	// Set up the RTP header:
-	var rtpHdr uint = 0x80000000
+	var rtpHdr uint32 = 0x80000000
 	rtpHdr |= s.rtpPayloadType << 16
 	rtpHdr |= s.seqNo
 	s.outBuf.enqueueWord(rtpHdr)
@@ -58,8 +60,7 @@ func (s *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 
 	s.outBuf.enqueueWord(s.ssrc)
 
-	// Allow for a special, payload-format-specific header following the
-	// RTP header:
+	// Allow for a special, payload-format-specific header following the RTP header:
 	s.specialHeaderPosition = s.outBuf.curPacketSize()
 	s.specialHeaderSize = s.SpecialHeaderSize()
 	s.outBuf.skipBytes(s.specialHeaderSize)
@@ -86,6 +87,12 @@ func (s *MultiFramedRTPSink) packFrame() {
 		if s.Source == nil {
 			return
 		}
+
+		s.curFrameSpecificHeaderPosition = s.outBuf.curPacketSize()
+		s.curFrameSpecificHeaderSize = s.frameSpecificHeaderSize()
+		s.outBuf.skipBytes(s.curFrameSpecificHeaderSize)
+		s.totalFrameSpecificHeaderSizes += s.curFrameSpecificHeaderSize
+
 		// H264FUAFragmenter
 		s.Source.GetNextFrame(s.outBuf.curPtr(), s.outBuf.totalBytesAvailable(),
 			s.afterGettingFrame, s.ourHandlerClosure)
@@ -102,6 +109,34 @@ func (s *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds
 	numFrameBytesToUse := frameSize
 	var overflowBytes uint
 
+	if s.numFramesUsedSoFar > 0 {
+		if s.previousFrameEndedFragmentation &&
+			!s.allowOtherFramesAfterLastFragment() &&
+			!s.rtpSink.frameCanAppearAfterPacketStart(s.outBuf.curPtr(), frameSize) {
+			numFrameBytesToUse = 0
+			s.outBuf.setOverflowData(s.outBuf.curPacketSize(), frameSize, durationInMicroseconds, presentationTime)
+		}
+	}
+	s.previousFrameEndedFragmentation = false
+
+	if numFrameBytesToUse > 0 {
+		// Check whether this frame overflows the packet
+		if s.outBuf.wouldOverflow(frameSize) {
+			if s.isTooBigForAPacket(frameSize) && (s.numFramesUsedSoFar == 0 || s.allowOtherFramesAfterLastFragment()) {
+				overflowBytes = s.computeOverflowForNewFrame(frameSize)
+				numFrameBytesToUse -= overflowBytes
+				s.curFragmentationOffset += numFrameBytesToUse
+			} else {
+				overflowBytes = frameSize
+				numFrameBytesToUse = 0
+			}
+			s.outBuf.setOverflowData(s.outBuf.curPacketSize()+numFrameBytesToUse, overflowBytes, durationInMicroseconds, presentationTime)
+		} else if s.curFragmentationOffset > 0 {
+			s.curFragmentationOffset = 0
+			s.previousFrameEndedFragmentation = true
+		}
+	}
+
 	if numFrameBytesToUse == 0 && frameSize > 0 {
 		// Send our packet now, because we have filled it up:
 		s.sendPacketIfNecessary()
@@ -112,7 +147,7 @@ func (s *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds
 		// do this now, in case "doSpecialFrameHandling()" calls "setFramePadding()" to append padding bytes
 
 		// Here's where any payload format specific processing gets done:
-		s.doSpecialFrameHandling(curFragmentationOffset, numFrameBytesToUse, overflowBytes, string(frameStart), presentationTime)
+		s.rtpSink.doSpecialFrameHandling(curFragmentationOffset, numFrameBytesToUse, overflowBytes, frameStart, presentationTime)
 
 		s.numFramesUsedSoFar++
 
@@ -135,7 +170,7 @@ func (s *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds
 		if s.outBuf.isPreferredSize() ||
 			s.outBuf.wouldOverflow(numFrameBytesToUse) ||
 			s.previousFrameEndedFragmentation && !s.allowOtherFramesAfterLastFragment() ||
-			!s.frameCanAppearAfterPacketStart(s.outBuf.curPtr(), frameSize) {
+			!s.rtpSink.frameCanAppearAfterPacketStart(s.outBuf.curPtr(), frameSize) {
 			// The packet is ready to be sent now
 			s.sendPacketIfNecessary()
 		} else {
@@ -143,6 +178,11 @@ func (s *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds
 			s.packFrame()
 		}
 	}
+}
+
+func (s *MultiFramedRTPSink) isTooBigForAPacket(numBytes uint) bool {
+	numBytes += rtpHeaderSize + s.SpecialHeaderSize() + s.frameSpecificHeaderSize()
+	return s.outBuf.isTooBigForAPacket(numBytes)
 }
 
 func (s *MultiFramedRTPSink) sendPacketIfNecessary() {
@@ -155,7 +195,7 @@ func (s *MultiFramedRTPSink) sendPacketIfNecessary() {
 
 		s.packetCount++
 		s.totalOctetCount += s.outBuf.curPacketSize()
-		s.octetCount += s.outBuf.curPacketSize() - uint(rtpHeaderSize) - s.specialHeaderSize - s.totalFrameSpecificHeaderSizes
+		s.octetCount += s.outBuf.curPacketSize() - rtpHeaderSize - s.specialHeaderSize - s.totalFrameSpecificHeaderSizes
 
 		s.seqNo++ // for next time
 	}
@@ -192,6 +232,7 @@ func (s *MultiFramedRTPSink) sendPacketIfNecessary() {
 		}
 
 		// Delay this amount of time:
+		//log.Debug("[MultiFramedRTPSink::sendPacketIfNecessary] uSecondsToGo: %d", uSecondsToGo)
 		time.Sleep(time.Duration(uSecondsToGo) * time.Microsecond)
 		s.sendNext()
 	}
@@ -214,16 +255,16 @@ func (s *MultiFramedRTPSink) setTimestamp(framePresentationTime sys.Timeval) {
 	s.currentTimestamp = s.convertToRTPTimestamp(framePresentationTime)
 
 	// Then, insert it into the RTP packet:
-	s.outBuf.insertWord(byte(s.currentTimestamp), s.timestampPosition)
+	s.outBuf.insertWord(s.currentTimestamp, s.timestampPosition)
 }
 
+// default implementation: Assume no special header:
 func (s *MultiFramedRTPSink) SpecialHeaderSize() uint {
-	// default implementation: Assume no special header:
 	return 0
 }
 
+// default implementation: Assume no frame-specific header:
 func (s *MultiFramedRTPSink) frameSpecificHeaderSize() uint {
-	// default implementation: Assume no frame-specific header:
 	return 0
 }
 
@@ -235,8 +276,18 @@ func (s *MultiFramedRTPSink) frameCanAppearAfterPacketStart(frameStart []byte, n
 	return true
 }
 
+func (s *MultiFramedRTPSink) computeOverflowForNewFrame(newFrameSize uint) uint {
+	return s.outBuf.numOverflowBytes(newFrameSize)
+}
+
+func (s *MultiFramedRTPSink) setMarkerBit() {
+	rtpHdr := s.outBuf.extractWord(0)
+	rtpHdr |= 0x00800000
+	s.outBuf.insertWord(rtpHdr, 0)
+}
+
 func (s *MultiFramedRTPSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint,
-	frameStart string, framePresentationTime sys.Timeval) {
+	frameStart []byte, framePresentationTime sys.Timeval) {
 	if s.isFirstFrameInPacket() {
 		s.setTimestamp(framePresentationTime)
 	}

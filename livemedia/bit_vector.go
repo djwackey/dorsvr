@@ -1,6 +1,10 @@
 package livemedia
 
-var MAX_LENGTH uint = 32
+import (
+	"encoding/binary"
+)
+
+var maxLength uint = 32
 var singleBitMask = [8]byte{0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01}
 
 type BitVector struct {
@@ -11,9 +15,11 @@ type BitVector struct {
 }
 
 func newBitVector(baseByte []byte, baseBitOffset, totNumBits uint) *BitVector {
-	bitVector := new(BitVector)
-	bitVector.init(baseByte, baseBitOffset, totNumBits)
-	return bitVector
+	return &BitVector{
+		baseByte:      baseByte,
+		baseBitOffset: baseBitOffset,
+		totNumBits:    totNumBits,
+	}
 }
 
 func (v *BitVector) init(baseByte []byte, baseBitOffset, totNumBits uint) {
@@ -27,10 +33,10 @@ func (v *BitVector) getBits(numBits uint) uint {
 		return 0
 	}
 
-	tmpBuf := []byte{0, 0, 0, 0}
+	tmpBuf := make([]byte, 4)
 
-	if numBits > MAX_LENGTH {
-		numBits = MAX_LENGTH
+	if numBits > maxLength {
+		numBits = maxLength
 	}
 
 	var overflowingBits uint
@@ -41,20 +47,19 @@ func (v *BitVector) getBits(numBits uint) uint {
 	v.shiftBits(tmpBuf, v.baseByte, 0, v.baseBitOffset+v.curBitIndex, numBits-overflowingBits)
 	v.curBitIndex += (numBits - overflowingBits)
 
-	result := uint((tmpBuf[0] << 24) | (tmpBuf[1] << 16) | (tmpBuf[2] << 8) | tmpBuf[3])
-	result >>= (MAX_LENGTH - numBits)         // move into low-order part of word
+	result := uint(binary.BigEndian.Uint32(tmpBuf))
+	result >>= (maxLength - numBits)          // move into low-order part of word
 	result &= (0xFFFFFFFF << overflowingBits) // so any overflow bits are 0
 	return result
 }
 
+// The following is equivalent to "getBits(1)", except faster:
 func (v *BitVector) get1Bit() uint {
-	// The following is equivalent to "getBits(1)", except faster:
-
 	if v.curBitIndex >= v.totNumBits { /* overflow */
 		return 0
 	} else {
-		v.curBitIndex++
 		totBitOffset := v.baseBitOffset + v.curBitIndex
+		v.curBitIndex++
 		curFromByte := v.baseByte[totBitOffset/8]
 		result := (curFromByte >> (7 - (totBitOffset % 8))) & 0x01
 		return uint(result)
@@ -71,32 +76,32 @@ func (v *BitVector) shiftBits(toBaseByte, fromBaseByte []byte, toBitOffset, from
 	}
 
 	/* Note that from and to may overlap, if from>to */
-	//fromBytePtr := fromBaseByte[fromBitOffset/8:]
+	fromBytePtr := fromBaseByte[fromBitOffset/8:]
 	fromBitRem := fromBitOffset % 8
-	//toByte := toBaseByte[toBitOffset/8:]
+	toBytePtr := toBaseByte[toBitOffset/8:]
 	toBitRem := toBitOffset % 8
 
 	for numBits > 0 {
 		fromBitMask := singleBitMask[fromBitRem]
-		fromBit := fromBitMask
+		fromBit := fromBytePtr[0] & fromBitMask
 		toBitMask := singleBitMask[toBitRem]
-		var toBytePtr byte
+
 		if fromBit != 0 {
-			//toByte |= toBitMask
+			toBytePtr[0] |= toBitMask
 		} else {
-			toBytePtr &= ^toBitMask
+			toBytePtr[0] &= ^toBitMask
 		}
 
+		fromBitRem++
 		if fromBitRem == 8 {
-			//fromBytePtr++
+			fromBytePtr = fromBytePtr[1:]
 			fromBitRem = 0
 		}
-		fromBitRem++
+		toBitRem++
 		if toBitRem == 8 {
-			toBytePtr++
+			toBytePtr = toBytePtr[1:]
 			toBitRem = 0
 		}
-		toBitRem++
 		numBits--
 	}
 }

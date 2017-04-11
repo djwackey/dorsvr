@@ -35,41 +35,43 @@ var (
 func TestParseRTSPRequestString(t *testing.T) {
 	var verify bool = true
 
+	cmdList := []string{"OPTIONS", "DESCRIBE", "SETUP", "PLAY", "TEARDOWN"}
 	reqList := []string{optionsRequest, descriptionRequest, setupRequest, playRequest, teardownRequest}
 	for i, req := range reqList {
-		info, ok := ParseRTSPRequestString(req, len(req))
+		reqStr, ok := ParseRTSPRequestString(req, len(req))
 		if !ok {
 			break
 		}
 
 		// check request command
-		cmdList := []string{"OPTIONS", "DESCRIBE", "SETUP", "PLAY", "TEARDOWN"}
-		if info.CmdName != cmdList[i] {
+		if reqStr.CmdName != cmdList[i] {
 			verify = false
 			break
 		}
 
 		// check cseq
-		if info.Cseq != fmt.Sprintf("%d", i+1) {
-			fmt.Println("parse cseq error", info.Cseq, i+1)
+		if reqStr.Cseq != fmt.Sprintf("%d", i+1) {
+			fmt.Println("parse cseq error", reqStr.Cseq, i+1)
 			verify = false
 			break
 		}
 
 		// check session id
-		if info.CmdName == "PLAY" || info.CmdName == "TEARDOWN" {
+		if reqStr.CmdName == "PLAY" || reqStr.CmdName == "TEARDOWN" {
 			var sessionID string = "E1155C20"
-			if info.SessionIDStr != sessionID {
-				fmt.Println("parse session id error", info.Cseq, i+1)
+			if reqStr.SessionIDStr != sessionID {
+				fmt.Println("parse session id error", reqStr.Cseq, i+1)
 				verify = false
 				break
 			}
 		}
 
 		// check content length
-		fmt.Printf("CommandName: %s ContentLength: %s\n", info.CmdName, info.ContentLength)
+		fmt.Printf("CommandName: %s\n", reqStr.CmdName)
+		fmt.Printf("ContentLength: %s\n", reqStr.ContentLength)
 		// check url presuffix and suffix
-		fmt.Printf("UrlPreSuffix: %s UrlSuffix: %s\n\n", info.UrlPreSuffix, info.UrlSuffix)
+		fmt.Printf("UrlPreSuffix: %s\n", reqStr.UrlPreSuffix)
+		fmt.Printf("UrlSuffix: %s\n\n", reqStr.UrlSuffix)
 	}
 	if verify {
 		t.Log("success")

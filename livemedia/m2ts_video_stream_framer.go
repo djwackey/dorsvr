@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-var TRANSPORT_SYNC_BYTE byte = 0x47
+var transportSyncByte byte = 0x47
 
 type PIDStatus struct {
 	firstClock, lastClock, firstRealTime, lastRealTime float32
@@ -30,27 +30,24 @@ func NewM2TSVideoStreamFramer(inputSource IFramedSource) *M2TSVideoStreamFramer 
 	return new(M2TSVideoStreamFramer)
 }
 
-func (f *M2TSVideoStreamFramer) GetNextFrame(buffTo []byte, maxSize uint, afterGettingFunc interface{}, onCloseFunc interface{}) {
-}
-
-func (f *M2TSVideoStreamFramer) doGetNextFrame() bool {
+func (f *M2TSVideoStreamFramer) doGetNextFrame() error {
 	if f.limitNumTSPacketsToStream {
 		if f.numTSPacketsToStream == 0 {
 			//f.handleClosure(this)
-			return false
+			return nil
 		}
 		if f.numTSPacketsToStream*TRANSPORT_PACKET_SIZE < f.maxSize {
 			f.maxSize = f.numTSPacketsToStream * TRANSPORT_PACKET_SIZE
 		}
 	}
-	return true
+	return nil
 }
 
-func (f *M2TSVideoStreamFramer) doStopGettingFrames() {
+func (f *M2TSVideoStreamFramer) doStopGettingFrames() error {
 	f.tsPacketCount = 0
 	f.tsPCRCount = 0
 
-	f.clearPIDStatusTable()
+	return f.clearPIDStatusTable()
 }
 
 func (f *M2TSVideoStreamFramer) afterGettingFrame() {
@@ -65,11 +62,12 @@ func (f *M2TSVideoStreamFramer) setNumTSPacketsToStream(numTSRecordsToStream uin
 	}
 }
 
-func (f *M2TSVideoStreamFramer) clearPIDStatusTable() {
+func (f *M2TSVideoStreamFramer) clearPIDStatusTable() error {
+	return nil
 }
 
 func (f *M2TSVideoStreamFramer) updateTSPacketDurationEstimate(pkt []byte, timeNow float32) bool {
-	if pkt[0] == TRANSPORT_SYNC_BYTE {
+	if pkt[0] == transportSyncByte {
 		fmt.Println("Missing sync byte!")
 		return false
 	}

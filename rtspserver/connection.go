@@ -7,49 +7,51 @@ import (
 
 	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/dorsvr/livemedia"
+	"github.com/djwackey/dorsvr/log"
 )
 
-const RTSP_BUFFER_SIZE = 10000
+const rtspBufferSize = 10000
 
 type RTSPClientConnection struct {
-	clientOutputSocket net.Conn
-	localPort          string
-	remotePort         string
-	localAddr          string
-	remoteAddr         string
-	currentCSeq        string
-	responseBuffer     string
-	rtspServer         *RTSPServer
+	clientSocket   net.Conn
+	localPort      string
+	remotePort     string
+	localAddr      string
+	remoteAddr     string
+	currentCSeq    string
+	responseBuffer string
+	rtspServer     *RTSPServer
 }
 
 func newRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnection {
-	connection := new(RTSPClientConnection)
-	connection.rtspServer = s
-	connection.clientOutputSocket = socket
 	localAddr := strings.Split(socket.LocalAddr().String(), ":")
 	remoteAddr := strings.Split(socket.RemoteAddr().String(), ":")
-	connection.localAddr = localAddr[0]
-	connection.localPort = localAddr[1]
-	connection.remoteAddr = remoteAddr[0]
-	connection.remotePort = remoteAddr[1]
-	return connection
+	return &RTSPClientConnection{
+		rtspServer:   s,
+		localAddr:    localAddr[0],
+		localPort:    localAddr[1],
+		remoteAddr:   remoteAddr[0],
+		remotePort:   remoteAddr[1],
+		clientSocket: socket,
+	}
 }
 
 func (c *RTSPClientConnection) incomingRequestHandler() {
-	defer c.clientOutputSocket.Close()
+	defer c.clientSocket.Close()
 
 	var isclose bool
-	buffer := make([]byte, RTSP_BUFFER_SIZE)
+	buffer := make([]byte, rtspBufferSize)
 	for {
-		length, err := c.clientOutputSocket.Read(buffer)
+		length, err := c.clientSocket.Read(buffer)
 
 		switch err {
 		case nil:
-			ok := c.handleRequestBytes(buffer, length)
-			if !ok {
+			err = c.handleRequestBytes(buffer, length)
+			if err != nil {
 				isclose = true
 			}
 		default:
+			log.Info("default: %s", err.Error())
 			if err.Error() == "EOF" {
 				isclose = true
 			}
@@ -60,20 +62,19 @@ func (c *RTSPClientConnection) incomingRequestHandler() {
 		}
 	}
 
-	//delete(c.rtspServer.clientSessions, c.sessionIDStr)
-	fmt.Println("end connection.")
+	log.Info("end connection.")
 }
 
-func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) bool {
+func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) error {
 	reqStr := string(buffer[:length])
 
-	fmt.Printf("Received %d new bytes of request data.\n", length)
+	log.Info("Received %d new bytes of request data.", length)
 
 	var existed bool
 	var clientSession *RTSPClientSession
 	requestString, parseSucceeded := livemedia.ParseRTSPRequestString(reqStr, length)
 	if parseSucceeded {
-		fmt.Printf("Received a complete %s request:\n%s\n", requestString.CmdName, reqStr)
+		log.Info("Received a complete %s request:\n%s", requestString.CmdName, reqStr)
 
 		c.currentCSeq = requestString.Cseq
 		sessionIDStr := requestString.SessionIDStr
@@ -85,16 +86,13 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) boo
 		case "SETUP":
 			{
 				if sessionIDStr == "" {
-					var sessionID uint
 					for {
-						sessionID = uint(gs.OurRandom32())
-						sessionIDStr = fmt.Sprintf("%08X", sessionID)
-
+						sessionIDStr = fmt.Sprintf("%08X", gs.OurRandom32())
 						if _, existed = c.rtspServer.clientSessions[sessionIDStr]; !existed {
 							break
 						}
 					}
-					clientSession = c.newClientSession(sessionID)
+					clientSession = c.newClientSession(sessionIDStr)
 					c.rtspServer.clientSessions[sessionIDStr] = clientSession
 				} else {
 					if clientSession, existed = c.rtspServer.clientSessions[sessionIDStr]; !existed {
@@ -137,12 +135,13 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) boo
 		}
 	}
 
-	sendBytes, err := c.clientOutputSocket.Write([]byte(c.responseBuffer))
+	sendBytes, err := c.clientSocket.Write([]byte(c.responseBuffer))
 	if err != nil {
-		fmt.Println("failed to send response buffer.", sendBytes)
-		return false
+		log.Error(0, "failed to send response buffer.", sendBytes)
+		return err
 	}
-	return true
+	log.Info("send response:\n%s", c.responseBuffer)
+	return nil
 }
 
 func (c *RTSPClientConnection) handleCommandOptions() {
@@ -215,8 +214,8 @@ func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fu
 		c.currentCSeq, livemedia.DateHeader(), rtspURL, sdpDescriptionSize, sdpDescription)
 }
 
+// Don't do anything with "currentCSeq", because it might be nonsense
 func (c *RTSPClientConnection) handleCommandBad() {
-	// Don't do anything with "currentCSeq", because it might be nonsense
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 400 Bad Request\r\n"+
 		"%sAllow: %s\r\n\r\n", livemedia.DateHeader(), livemedia.AllowedCommandNames)
 }
@@ -252,8 +251,8 @@ func (c *RTSPClientConnection) handleHTTPCommandTunnelingGET(sessionCookie strin
 func (c *RTSPClientConnection) handleHTTPCommandTunnelingPOST(sessionCookie, extraData string, extraDataSize uint) {
 }
 
+// By default, we don't support requests to access streams via HTTP:
 func (c *RTSPClientConnection) handleHTTPCommandStreamingGET(urlSuffix, fullRequestStr string) {
-	// By default, we don't support requests to access streams via HTTP:
 	c.handleHTTPCommandNotSupported()
 }
 
@@ -264,11 +263,10 @@ func (c *RTSPClientConnection) setRTSPResponse(responseStr string) {
 		responseStr, c.currentCSeq, livemedia.DateHeader())
 }
 
-func (c *RTSPClientConnection) setRTSPResponseWithSessionID(responseStr string, sessionID uint) {
+func (c *RTSPClientConnection) setRTSPResponseWithSessionID(responseStr string, sessionID string) {
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 %s\r\n"+
 		"CSeq: %s\r\n"+
-		"%s\r\n"+
-		"Session: %08X\r\n\r\n",
+		"%sSession: %s\r\n\r\n",
 		responseStr, c.currentCSeq, livemedia.DateHeader(), sessionID)
 }
 
@@ -276,6 +274,6 @@ func (c *RTSPClientConnection) AuthenticationOK(cmdName, urlSuffix, fullRequestS
 	return true
 }
 
-func (c *RTSPClientConnection) newClientSession(sessionID uint) *RTSPClientSession {
+func (c *RTSPClientConnection) newClientSession(sessionID string) *RTSPClientSession {
 	return newRTSPClientSession(c, sessionID)
 }

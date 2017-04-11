@@ -5,7 +5,7 @@ import gs "github.com/djwackey/dorsvr/groupsock"
 //////// StreamState ////////
 type StreamState struct {
 	master              IServerMediaSubSession
-	rtpSink             IRTPSink
+	rtpSink             IMediaSink
 	udpSink             *BasicUDPSink
 	rtpGS               *gs.GroupSock
 	rtcpGS              *gs.GroupSock
@@ -18,19 +18,19 @@ type StreamState struct {
 }
 
 func newStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint,
-	rtpSink IRTPSink, udpSink *BasicUDPSink, totalBW uint,
+	rtpSink IMediaSink, udpSink *BasicUDPSink, totalBW uint,
 	mediaSource IFramedSource, rtpGS, rtcpGS *gs.GroupSock) *StreamState {
-	state := new(StreamState)
-	state.rtpGS = rtpGS
-	state.rtcpGS = rtcpGS
-	state.master = master
-	state.rtpSink = rtpSink
-	state.udpSink = udpSink
-	state.totalBW = totalBW
-	state.mediaSource = mediaSource
-	state.serverRTPPort = serverRTPPort
-	state.serverRTCPPort = serverRTCPPort
-	return state
+	return &StreamState{
+		rtpGS:          rtpGS,
+		rtcpGS:         rtcpGS,
+		master:         master,
+		rtpSink:        rtpSink,
+		udpSink:        udpSink,
+		totalBW:        totalBW,
+		mediaSource:    mediaSource,
+		serverRTPPort:  serverRTPPort,
+		serverRTCPPort: serverRTCPPort,
+	}
 }
 
 func (s *StreamState) startPlaying(dests *Destinations,
@@ -89,6 +89,10 @@ func (s *StreamState) pause() {
 }
 
 func (s *StreamState) endPlaying(dests *Destinations) {
+	if dests == nil {
+		return
+	}
+
 	if dests.isTCP {
 		if s.rtpSink != nil {
 			s.rtpSink.delStreamSocket(dests.tcpSocketNum, dests.rtpChannelID)
@@ -116,6 +120,6 @@ func (s *StreamState) reclaim() {
 	s.rtcpInstance.destroy()
 }
 
-func (s *StreamState) RtpSink() IRTPSink {
+func (s *StreamState) RtpSink() IMediaSink {
 	return s.rtpSink
 }
