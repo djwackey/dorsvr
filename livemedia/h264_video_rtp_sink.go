@@ -6,7 +6,7 @@ import (
 	sys "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
-	"github.com/djwackey/dorsvr/log"
+	"github.com/djwackey/gitea/log"
 )
 
 //////// H264VideoRTPSink ////////

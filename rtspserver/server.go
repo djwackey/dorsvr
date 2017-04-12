@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/djwackey/dorsvr/auth"
 	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/dorsvr/livemedia"
-	lg "github.com/djwackey/dorsvr/log"
+	lg "github.com/djwackey/gitea/log"
 )
 
 type RTSPServer struct {
@@ -26,7 +27,7 @@ type RTSPServer struct {
 	clientHttpConnections  map[string]*RTSPClientConnection
 	serverMediaSessions    map[string]*livemedia.ServerMediaSession
 	reclamationTestSeconds time.Duration
-	authentication         *Authentication
+	authDatabase           *auth.Database
 }
 
 func New() *RTSPServer {

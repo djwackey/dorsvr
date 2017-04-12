@@ -4,7 +4,7 @@ import (
 	"errors"
 	sys "syscall"
 
-	"github.com/djwackey/dorsvr/log"
+	"github.com/djwackey/gitea/log"
 )
 
 var bankSize uint = 150000

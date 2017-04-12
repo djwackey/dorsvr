@@ -6,7 +6,7 @@ import (
 	"net"
 	sys "syscall"
 
-	"github.com/djwackey/dorsvr/log"
+	"github.com/djwackey/gitea/log"
 )
 
 var OutPacketBufferMaxSize uint = 60000 // default

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/djwackey/dorsvr/log"
+	"github.com/djwackey/gitea/log"
 )
 
 type Socket struct {

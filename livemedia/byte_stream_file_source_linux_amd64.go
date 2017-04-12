@@ -6,7 +6,7 @@ import (
 	"os"
 	sys "syscall"
 
-	"github.com/djwackey/dorsvr/log"
+	"github.com/djwackey/gitea/log"
 )
 
 type ByteStreamFileSource struct {

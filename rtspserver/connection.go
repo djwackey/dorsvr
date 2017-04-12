@@ -5,9 +5,10 @@ import (
 	"net"
 	"strings"
 
+	"github.com/djwackey/dorsvr/auth"
 	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/dorsvr/livemedia"
-	"github.com/djwackey/dorsvr/log"
+	"github.com/djwackey/gitea/log"
 )
 
 const rtspBufferSize = 10000
@@ -21,6 +22,7 @@ type RTSPClientConnection struct {
 	currentCSeq    string
 	responseBuffer string
 	rtspServer     *RTSPServer
+	digest         *auth.Digest
 }
 
 func newRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnection {
@@ -33,6 +35,7 @@ func newRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnecti
 		remoteAddr:   remoteAddr[0],
 		remotePort:   remoteAddr[1],
 		clientSocket: socket,
+		digest:       auth.NewDigest(),
 	}
 }
 
@@ -278,51 +281,52 @@ func (c *RTSPClientConnection) authenticationOK(cmdName, urlSuffix, fullRequestS
 		return false
 	}
 
-	authentication := c.rtspServer.authentication
+	authDatabase := c.rtspServer.authDatabase
 	// dont enable authentication control, pass it
-	if authentication == nil {
+	if authDatabase == nil {
 		return true
 	}
 
 	for {
 		// To authenticate, we first need to have a nonce set up
 		// from a previous attempt:
-		if authentication.nonce == "" {
+		if c.digest.Nonce == "" {
 			break
 		}
 
 		// Next, the request needs to contain an "Authorization:" header,
 		// containing a username, (our) realm, (our) nonce, uri,
 		// and response string:
-		header := parseAuthorizationHeader(fullRequestStr)
+		header := auth.ParseAuthorizationHeader(fullRequestStr)
 		if header == nil {
 			break
 		}
 
 		// Next, the username has to be known to us:
-		authentication.password = authentication.lookupPassword(header.username)
-		if authentication.password == "" {
+		c.digest.Password = authDatabase.LookupPassword(header.Username)
+		if c.digest.Password == "" {
 			break
 		}
-		authentication.username = header.username
+		c.digest.Username = header.Username
 
 		// Finally, compute a digest response from the information that we have,
 		// and compare it to the one that we were given:
-		response := authentication.computeDigestResponse(cmdName, header.uri)
-		if response == header.response {
+		response := c.digest.ComputeResponse(cmdName, header.Uri)
+		if response == header.Response {
 			return true
 		}
 		break
 	}
 
-	authentication.randomNonce()
+	c.digest.Realm = authDatabase.Realm
+	c.digest.RandomNonce()
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 401 Unauthorized\r\n"+
 		"CSeq: %s\r\n"+
 		"%s"+
 		"WWW-Authenticate: Digest realm=\"%s\", nonce=\"%s\"\r\n\r\n",
 		c.currentCSeq,
 		livemedia.DateHeader(),
-		authentication.realm, authentication.nonce)
+		c.digest.Realm, c.digest.Nonce)
 	return false
 }
 
