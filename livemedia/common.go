@@ -168,11 +168,11 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 }
 
 func ParseHTTPRequestString(reqStr string, reqStrSize int) (*HTTPRequestInfo, bool) {
-	reqInfo := new(HTTPRequestInfo)
+	var cmdName, acceptStr, sessionCookie string
 
 	i := 0
 	for i = 0; i < reqStrSize && reqStr[i] != ' ' && reqStr[i] != '\t'; i++ {
-		reqInfo.CmdName += string(reqStr[i])
+		cmdName += string(reqStr[i])
 	}
 	if i >= reqStrSize {
 		return nil, false // parse failed
@@ -191,9 +191,13 @@ func ParseHTTPRequestString(reqStr string, reqStrSize int) (*HTTPRequestInfo, bo
 	}
 
 	// Look for various headers that we're interested in:
-	reqInfo.SessionCookie, _ = lookForHeader("x-sessioncookie", reqStr[i:], reqStrSize-i)
-	reqInfo.AcceptStr, _ = lookForHeader("Accept", reqStr[i:], reqStrSize-i)
-	return reqInfo, true
+	sessionCookie, _ = lookForHeader("x-sessioncookie", reqStr[i:], reqStrSize-i)
+	acceptStr, _ = lookForHeader("Accept", reqStr[i:], reqStrSize-i)
+	return &HTTPRequestInfo{
+		CmdName:       cmdName,
+		AcceptStr:     acceptStr,
+		SessionCookie: sessionCookie,
+	}, true
 }
 
 func lookForHeader(headerName string, source string, sourceLen int) (string, int) {
@@ -232,7 +236,7 @@ func ParseTransportHeader(reqStr string) *TransportHeader {
 			break
 		}
 
-		var num int
+		var n int
 		var p1, p2, rtpCid, rtcpCid, ttl uint
 
 		tranStr := reqStr[index+10:]
@@ -249,23 +253,23 @@ func ParseTransportHeader(reqStr string) *TransportHeader {
 				header.StreamingModeStr = field
 			} else if strings.Index(field, "destination=") != -1 {
 				header.DestinationAddr = field[12:]
-			} else if num, _ = fmt.Sscanf(field, "ttl%d", &ttl); num == 1 {
+			} else if n, _ = fmt.Sscanf(field, "ttl%d", &ttl); n == 1 {
 				header.DestinationTTL = ttl
-			} else if num, _ = fmt.Sscanf(field, "client_port=%d-%d", &p1, &p2); num == 2 {
+			} else if n, _ = fmt.Sscanf(field, "client_port=%d-%d", &p1, &p2); n == 2 {
 				header.ClientRTPPortNum = p1
 				if header.StreamingMode == RAW_UDP {
 					header.ClientRTCPPortNum = 0
 				} else {
 					header.ClientRTCPPortNum = p2
 				}
-			} else if num, _ = fmt.Sscanf(field, "client_port=%s", &p1); num == 1 {
+			} else if n, _ = fmt.Sscanf(field, "client_port=%s", &p1); n == 1 {
 				header.ClientRTPPortNum = p1
 				if header.StreamingMode == RAW_UDP {
 					header.ClientRTCPPortNum = 0
 				} else {
 					header.ClientRTCPPortNum = p1
 				}
-			} else if num, _ = fmt.Sscanf(field, "interleaved=%d-%d", &rtpCid, &rtcpCid); num == 2 {
+			} else if n, _ = fmt.Sscanf(field, "interleaved=%d-%d", &rtpCid, &rtcpCid); n == 2 {
 				header.RTPChannelID = rtpCid
 				header.RTCPChannelID = rtcpCid
 			}
