@@ -8,7 +8,7 @@ import (
 	sys "syscall"
 )
 
-const counter = 0
+var counter = 0
 
 type Authentication struct {
 	realm    string
