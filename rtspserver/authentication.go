@@ -54,8 +54,10 @@ func (a *Authentication) randomNonce() {
 	var timeNow sys.Timeval
 	sys.Gettimeofday(&timeNow)
 
+	counter++
 	seedData := fmt.Sprintf("%d.%06d%d", timeNow.Sec, timeNow.Usec, counter)
 
+	// Use MD5 to compute a 'random' nonce from this seed data:
 	h := md5.New()
 	io.WriteString(h, seedData)
 	a.nonce = string(h.Sum(nil))
