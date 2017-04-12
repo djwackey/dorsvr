@@ -9,9 +9,10 @@ Dorsvr Streaming Server
  * livemedia  - media library
 
 ## Feature
- * Streaming Video (H264)
+ * Streaming Video (H264, M2TS)
  * Streaming Audio (MP3)
  * Protocols: RTP, RTCP, RTSP
+ * Access Control
 
 ## Install
     go get github.com/djwackey/dorsvr
