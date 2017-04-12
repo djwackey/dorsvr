@@ -186,7 +186,9 @@ func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fu
 		urlTotalSuffix = fmt.Sprintf("%s/%s", urlPreSuffix, urlSuffix)
 	}
 
-	c.AuthenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr)
+	if ok := c.authenticationOK("DESCRIPE", urlTotalSuffix, fullRequestStr); !ok {
+		return
+	}
 
 	var session *livemedia.ServerMediaSession
 	session = c.rtspServer.lookupServerMediaSession(urlTotalSuffix)
@@ -236,8 +238,8 @@ func (c *RTSPClientConnection) handleHTTPCommandNotFound() {
 }
 
 func (c *RTSPClientConnection) handleHTTPCommandTunnelingGET(sessionCookie string) {
-	if _, existed := c.rtspServer.clientConnectionsForHTTPTunneling[sessionCookie]; !existed {
-		c.rtspServer.clientConnectionsForHTTPTunneling[sessionCookie] = c
+	if _, existed := c.rtspServer.clientHttpConnections[sessionCookie]; !existed {
+		c.rtspServer.clientHttpConnections[sessionCookie] = c
 	}
 
 	// Construct our response:
@@ -270,8 +272,58 @@ func (c *RTSPClientConnection) setRTSPResponseWithSessionID(responseStr string, 
 		responseStr, c.currentCSeq, livemedia.DateHeader(), sessionID)
 }
 
-func (c *RTSPClientConnection) AuthenticationOK(cmdName, urlSuffix, fullRequestStr string) bool {
-	return true
+func (c *RTSPClientConnection) authenticationOK(cmdName, urlSuffix, fullRequestStr string) bool {
+	if !c.rtspServer.specialClientAccessCheck(c.clientSocket, c.remoteAddr, urlSuffix) {
+		c.setRTSPResponse("401 Unauthorized")
+		return false
+	}
+
+	authentication := c.rtspServer.authentication
+	// dont enable authentication control, pass it
+	if authentication == nil {
+		return true
+	}
+
+	for {
+		// To authenticate, we first need to have a nonce set up
+		// from a previous attempt:
+		if authentication.nonce == "" {
+			break
+		}
+
+		// Next, the request needs to contain an "Authorization:" header,
+		// containing a username, (our) realm, (our) nonce, uri,
+		// and response string:
+		header := parseAuthorizationHeader(fullRequestStr)
+		if header == nil {
+			break
+		}
+
+		// Next, the username has to be known to us:
+		authentication.password = authentication.lookupPassword(header.username)
+		if authentication.password == "" {
+			break
+		}
+		authentication.username = header.username
+
+		// Finally, compute a digest response from the information that we have,
+		// and compare it to the one that we were given:
+		response := authentication.computeDigestResponse(cmdName, header.uri)
+		if response == header.response {
+			return true
+		}
+		break
+	}
+
+	authentication.randomNonce()
+	c.responseBuffer = fmt.Sprintf("RTSP/1.0 401 Unauthorized\r\n"+
+		"CSeq: %s\r\n"+
+		"%s"+
+		"WWW-Authenticate: Digest realm=\"%s\", nonce=\"%s\"\r\n\r\n",
+		c.currentCSeq,
+		livemedia.DateHeader(),
+		authentication.realm, authentication.nonce)
+	return false
 }
 
 func (c *RTSPClientConnection) newClientSession(sessionID string) *RTSPClientSession {

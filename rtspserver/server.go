@@ -17,25 +17,26 @@ import (
 )
 
 type RTSPServer struct {
-	urlPrefix                         string
-	rtspPort                          int
-	httpPort                          int
-	rtspListen                        *net.TCPListener
-	httpListen                        *net.TCPListener
-	clientSessions                    map[string]*RTSPClientSession
-	clientConnectionsForHTTPTunneling map[string]*RTSPClientConnection
-	serverMediaSessions               map[string]*livemedia.ServerMediaSession
-	reclamationTestSeconds            time.Duration
+	urlPrefix              string
+	rtspPort               int
+	httpPort               int
+	rtspListen             *net.TCPListener
+	httpListen             *net.TCPListener
+	clientSessions         map[string]*RTSPClientSession
+	clientHttpConnections  map[string]*RTSPClientConnection
+	serverMediaSessions    map[string]*livemedia.ServerMediaSession
+	reclamationTestSeconds time.Duration
+	authentication         *Authentication
 }
 
 func New() *RTSPServer {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	return &RTSPServer{
-		reclamationTestSeconds:            65,
-		clientSessions:                    make(map[string]*RTSPClientSession),
-		clientConnectionsForHTTPTunneling: make(map[string]*RTSPClientConnection),
-		serverMediaSessions:               make(map[string]*livemedia.ServerMediaSession),
+		reclamationTestSeconds: 65,
+		clientSessions:         make(map[string]*RTSPClientSession),
+		clientHttpConnections:  make(map[string]*RTSPClientConnection),
+		serverMediaSessions:    make(map[string]*livemedia.ServerMediaSession),
 	}
 }
 
@@ -121,18 +122,18 @@ func (s *RTSPServer) newClientConnection(conn net.Conn) {
 
 func (s *RTSPServer) lookupServerMediaSession(streamName string) *livemedia.ServerMediaSession {
 	// Next, check whether we already have a "ServerMediaSession" for server file:
-	sms, smsExists := s.serverMediaSessions[streamName]
+	sms, exists := s.serverMediaSessions[streamName]
 
 	fid, err := os.Open(streamName)
 	if err != nil {
-		if smsExists {
+		if exists {
 			s.removeServerMediaSession(sms)
 		}
 		return nil
 	}
 	defer fid.Close()
 
-	if !smsExists {
+	if !exists {
 		sms = s.createNewSMS(streamName)
 		s.addServerMediaSession(sms)
 	}
@@ -180,4 +181,8 @@ func (s *RTSPServer) createNewSMS(fileName string) *livemedia.ServerMediaSession
 	default:
 	}
 	return serverMediaSession
+}
+
+func (s *RTSPServer) specialClientAccessCheck(clientSocket net.Conn, clientAddr, urlSuffix string) bool {
+	return true
 }
