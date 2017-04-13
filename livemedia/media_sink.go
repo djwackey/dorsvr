@@ -266,13 +266,13 @@ func (s *MediaSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame,
 }
 func (s *MediaSink) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {}
 
-func (s *MediaSink) AuxSDPLine() string        { return "" }
-func (s *MediaSink) RtpmapLine() string        { return "" }
-func (s *MediaSink) SdpMediaType() string      { return "" }
-func (s *MediaSink) presetNextTimestamp() uint { return 0 }
-func (s *MediaSink) RtpPayloadType() uint      { return 0 }
-func (s *MediaSink) currentSeqNo() uint        { return 0 }
-func (s *MediaSink) destroy()                  {}
+func (s *MediaSink) AuxSDPLine() string          { return "" }
+func (s *MediaSink) RtpmapLine() string          { return "" }
+func (s *MediaSink) SdpMediaType() string        { return "" }
+func (s *MediaSink) presetNextTimestamp() uint32 { return 0 }
+func (s *MediaSink) RtpPayloadType() uint32      { return 0 }
+func (s *MediaSink) currentSeqNo() uint32        { return 0 }
+func (s *MediaSink) destroy()                    {}
 
 func (s *MediaSink) OnSourceClosure() {
 	if s.afterFunc != nil {

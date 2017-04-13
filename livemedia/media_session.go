@@ -65,13 +65,13 @@ func (s *MediaSession) InitWithSDP(sdpLine string) bool {
 		}
 
 		// Check for various special SDP lines that we understand:
-		if s.parseSDPLine_s(thisSDPLine) {
+		if s.parseSDPLineS(thisSDPLine) {
 			continue
 		}
-		if s.parseSDPLine_i(thisSDPLine) {
+		if s.parseSDPLineI(thisSDPLine) {
 			continue
 		}
-		if s.parseSDPLine_c(thisSDPLine) {
+		if s.parseSDPLineC(thisSDPLine) {
 			continue
 		}
 		if s.parseSDPAttributeControl(thisSDPLine) {
@@ -89,6 +89,7 @@ func (s *MediaSession) InitWithSDP(sdpLine string) bool {
 	}
 
 	var payloadFormat uint
+	var n1, n2, n3, n4, n5 int
 	var mediumName, protocolName string
 	for {
 		subsession := NewMediaSubSession(s)
@@ -97,27 +98,27 @@ func (s *MediaSession) InitWithSDP(sdpLine string) bool {
 			return false
 		}
 
-		num1, _ := fmt.Sscanf(thisSDPLine, "m=%s %d RTP/AVP %d", &mediumName,
+		n1, _ = fmt.Sscanf(thisSDPLine, "m=%s %d RTP/AVP %d", &mediumName,
 			&subsession.clientPortNum, &payloadFormat)
-		num2, _ := fmt.Sscanf(thisSDPLine, "m=%s %d/%*d RTP/AVP %d", &mediumName,
+		n2, _ = fmt.Sscanf(thisSDPLine, "m=%s %d/%*d RTP/AVP %d", &mediumName,
 			&subsession.clientPortNum, &payloadFormat)
-		num3, _ := fmt.Sscanf(thisSDPLine, "m=%s %d UDP %d", &mediumName,
+		n3, _ = fmt.Sscanf(thisSDPLine, "m=%s %d UDP %d", &mediumName,
 			&subsession.clientPortNum, &payloadFormat)
-		num4, _ := fmt.Sscanf(thisSDPLine, "m=%s %d udp %d", &mediumName,
+		n4, _ = fmt.Sscanf(thisSDPLine, "m=%s %d udp %d", &mediumName,
 			&subsession.clientPortNum, &payloadFormat)
-		num5, _ := fmt.Sscanf(thisSDPLine, "m=%s %d RAW/RAW/UDP %d", &mediumName,
+		n5, _ = fmt.Sscanf(thisSDPLine, "m=%s %d RAW/RAW/UDP %d", &mediumName,
 			&subsession.clientPortNum, &payloadFormat)
 
-		if (num1 == 3 || num2 == 3) && int(payloadFormat) <= 127 {
+		if (n1 == 3 || n2 == 3) && int(payloadFormat) <= 127 {
 			protocolName = "RTP"
-		} else if (num3 == 3 || num4 == 3 || num5 == 3) && int(payloadFormat) <= 127 {
+		} else if (n3 == 3 || n4 == 3 || n5 == 3) && int(payloadFormat) <= 127 {
 			// This is a RAW UDP source
 			protocolName = "UDP"
 		} else {
 		}
 
 		// Insert this subsession at the end of the list:
-		//this.mediaSubSessions = append(this.mediaSubSessions, subsession)
+		//s.mediaSubSessions = append(s.mediaSubSessions, subsession)
 		s.mediaSubSessions[s.subSessionNum] = subsession
 		s.subSessionNum++
 
@@ -145,10 +146,10 @@ func (s *MediaSession) InitWithSDP(sdpLine string) bool {
 			}
 
 			// Check for various special SDP lines that we understand:
-			if subsession.parseSDPLine_c(thisSDPLine) {
+			if subsession.parseSDPLineC(thisSDPLine) {
 				continue
 			}
-			if subsession.parseSDPLine_b(thisSDPLine) {
+			if subsession.parseSDPLineB(thisSDPLine) {
 				continue
 			}
 			if subsession.parseSDPAttributeRtpmap(thisSDPLine) {
@@ -214,12 +215,12 @@ func (session *MediaSession) HasSubSessions() bool {
 	return len(session.mediaSubSessions) > 0
 }
 
-func (this *MediaSession) SubSession() *MediaSubSession {
-	this.subSessionIndex++
-	return this.mediaSubSessions[this.subSessionIndex-1]
+func (s *MediaSession) SubSession() *MediaSubSession {
+	s.subSessionIndex++
+	return s.mediaSubSessions[s.subSessionIndex-1]
 }
 
-func (this *MediaSession) parseSDPLine(inputLine string) (nextLine, thisLine string, result bool) {
+func (s *MediaSession) parseSDPLine(inputLine string) (nextLine, thisLine string, result bool) {
 	inputLen := len(inputLine)
 
 	// Begin by finding the start of the next line (if any):
@@ -241,69 +242,67 @@ func (this *MediaSession) parseSDPLine(inputLine string) (nextLine, thisLine str
 	return
 }
 
-func parseCLine(sdpLine string) string {
-	var result string
+func parseCLine(sdpLine string) (result string) {
 	fmt.Sscanf(sdpLine, "c=IN IP4 %s", &result)
-	return result
+	return
 }
 
-func (session *MediaSession) parseSDPLine_s(sdpLine string) bool {
-	// Check for "s=<session name>" line
+// Check for "s=<session name>" line
+func (s *MediaSession) parseSDPLineS(sdpLine string) bool {
 	var parseSuccess bool
 
 	if sdpLine[0] == 's' && sdpLine[1] == '=' {
-		session.sessionName = sdpLine[2:]
+		s.sessionName = sdpLine[2:]
 		parseSuccess = true
 	}
 
 	return parseSuccess
 }
 
-func (this *MediaSession) parseSDPLine_i(sdpLine string) bool {
-	// Check for "i=<session description>" line
+// Check for "i=<session description>" line
+func (s *MediaSession) parseSDPLineI(sdpLine string) bool {
 	var parseSuccess bool
 
 	if sdpLine[0] == 'i' && sdpLine[1] == '=' {
-		this.sessionDescription = sdpLine[2:]
+		s.sessionDescription = sdpLine[2:]
 		parseSuccess = true
 	}
 
 	return parseSuccess
 }
 
-func (this *MediaSession) parseSDPLine_c(sdpLine string) bool {
-	// Check for "c=IN IP4 <connection-endpoint>"
-	// or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
-	// (Later, do something with <ttl+numAddresses> also #####)
+// Check for "c=IN IP4 <connection-endpoint>"
+// or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
+// (Later, do something with <ttl+numAddresses> also #####)
+func (s *MediaSession) parseSDPLineC(sdpLine string) bool {
 	connectionEndpointName := parseCLine(sdpLine)
 	if connectionEndpointName != "" {
-		this.connectionEndpointName = connectionEndpointName
+		s.connectionEndpointName = connectionEndpointName
 		return true
 	}
 
 	return false
 }
 
-func (this *MediaSession) parseSDPAttributeType(sdpLine string) bool {
-	// Check for a "a=type:broadcast|meeting|moderated|test|H.332|recvonly" line:
+// Check for a "a=type:broadcast|meeting|moderated|test|H.332|recvonly" line:
+func (s *MediaSession) parseSDPAttributeType(sdpLine string) bool {
 	var parseSuccess bool
 
 	var buffer string
-	if num, _ := fmt.Sscanf(sdpLine, "a=type: %[^ ]", &buffer); num == 1 {
-		this.mediaSessionType = buffer
+	if n, _ := fmt.Sscanf(sdpLine, "a=type: %[^ ]", &buffer); n == 1 {
+		s.mediaSessionType = buffer
 		parseSuccess = true
 	}
 
 	return parseSuccess
 }
 
-func (this *MediaSession) parseSDPAttributeControl(sdpLine string) bool {
-	// Check for a "a=control:<control-path>" line:
+// Check for a "a=control:<control-path>" line:
+func (s *MediaSession) parseSDPAttributeControl(sdpLine string) bool {
 	var parseSuccess bool
 
-	ok := strings.HasPrefix(sdpLine, "a=control:")
-	if ok {
-		this.controlPath = sdpLine[10:]
+	if ok := strings.HasPrefix(sdpLine, "a=control:"); ok {
+		s.controlPath = sdpLine[10:]
 		parseSuccess = true
 	}
 
@@ -311,29 +310,30 @@ func (this *MediaSession) parseSDPAttributeControl(sdpLine string) bool {
 }
 
 func parseRangeAttribute(sdpLine, method string) (string, string, bool) {
+	var n int
 	if method == "npt" {
 		var startTime, endTime string
-		num, _ := fmt.Sscanf(sdpLine, "a=range: npt = %f - %f", &startTime, &endTime)
-		return startTime, endTime, (num == 2)
+		n, _ = fmt.Sscanf(sdpLine, "a=range: npt = %f - %f", &startTime, &endTime)
+		return startTime, endTime, (n == 2)
 	} else if method == "clock" {
 		var as, ae, absStartTime, absEndTime string
-		num, _ := fmt.Sscanf(sdpLine, "a=range: clock = %[^-\r\n]-%[^\r\n]", &as, &ae)
-		if num == 2 {
+		n, _ = fmt.Sscanf(sdpLine, "a=range: clock = %[^-\r\n]-%[^\r\n]", &as, &ae)
+		if n == 2 {
 			absStartTime = as
 			absEndTime = ae
-		} else if num == 1 {
+		} else if n == 1 {
 			absStartTime = as
 		}
 
-		return absStartTime, absEndTime, (num == 2) || (num == 1)
+		return absStartTime, absEndTime, (n == 2) || (n == 1)
 	}
 
 	return "", "", false
 }
 
-func (this *MediaSession) parseSDPAttributeRange(sdpLine string) bool {
-	// Check for a "a=range:npt=<startTime>-<endTime>" line:
-	// (Later handle other kinds of "a=range" attributes also???#####)
+// Check for a "a=range:npt=<startTime>-<endTime>" line:
+// (Later handle other kinds of "a=range" attributes also???#####)
+func (s *MediaSession) parseSDPAttributeRange(sdpLine string) bool {
 	var parseSuccess bool
 
 	startTime, endTime, ok := parseRangeAttribute(sdpLine, "npt")
@@ -343,147 +343,96 @@ func (this *MediaSession) parseSDPAttributeRange(sdpLine string) bool {
 		playStartTime, _ := strconv.ParseFloat(startTime, 32)
 		playEndTime, _ := strconv.ParseFloat(endTime, 32)
 
-		if playStartTime > this.maxPlayStartTime {
-			this.maxPlayStartTime = playStartTime
+		if playStartTime > s.maxPlayStartTime {
+			s.maxPlayStartTime = playStartTime
 		}
-		if playEndTime > this.maxPlayEndTime {
-			this.maxPlayEndTime = playEndTime
+		if playEndTime > s.maxPlayEndTime {
+			s.maxPlayEndTime = playEndTime
 		}
-	} else if this.absStartTime, this.absEndTime, ok = parseRangeAttribute(sdpLine, "clock"); ok {
+	} else if s.absStartTime, s.absEndTime, ok = parseRangeAttribute(sdpLine, "clock"); ok {
 		parseSuccess = true
 	}
 
 	return parseSuccess
 }
 
+// Check for a "a=source-filter:incl IN IP4 <something> <source>" line.
+// Note: At present, we don't check that <something> really matches
+// one of our multicast addresses.  We also don't support more than
+// one <source> #####
 func parseSourceFilterAttribute(sdpLine string) bool {
-	// Check for a "a=source-filter:incl IN IP4 <something> <source>" line.
-	// Note: At present, we don't check that <something> really matches
-	// one of our multicast addresses.  We also don't support more than
-	// one <source> #####
 	var sourceName string
-	num, _ := fmt.Sscanf(sdpLine, "a=source-filter: incl IN IP4 %*s %s", &sourceName)
-	return (num == 1)
+	n, _ := fmt.Sscanf(sdpLine, "a=source-filter: incl IN IP4 %*s %s", &sourceName)
+	return (n == 1)
 }
 
-func (this *MediaSession) parseSDPAttributeSourceFilter(sdpLine string) bool {
+func (s *MediaSession) parseSDPAttributeSourceFilter(sdpLine string) bool {
 	return parseSourceFilterAttribute(sdpLine)
 }
 
-func (this *MediaSession) lookupPayloadFormat(rtpPayloadType uint) (string, uint, uint) {
-	// Look up the codec name and timestamp frequency for known (static)
-	// RTP payload formats.
-	var codecName string
-	var freq, nCh uint
+// Look up the codec name and timestamp frequency for known (static)
+// RTP payload formats.
+func (s *MediaSession) lookupPayloadFormat(rtpPayloadType uint) (codecName string, freq, ch uint) {
 	switch rtpPayloadType {
 	case 0:
-		codecName = "PCMU"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "PCMU", 8000, 1
 	case 2:
-		codecName = "G726-32"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "G726-32", 8000, 1
 	case 3:
-		codecName = "GSM"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "GSM", 8000, 1
 	case 4:
-		codecName = "G723"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "G723", 8000, 1
 	case 5:
-		codecName = "DVI4"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "DVI4", 8000, 1
 	case 6:
-		codecName = "DVI4"
-		freq = 16000
-		nCh = 1
+		codecName, freq, ch = "DVI4", 16000, 1
 	case 7:
-		codecName = "LPC"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "LPC", 8000, 1
 	case 8:
-		codecName = "PCMA"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "PCMA", 8000, 1
 	case 9:
-		codecName = "G722"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "G722", 8000, 1
 	case 10:
-		codecName = "L16"
-		freq = 44100
-		nCh = 2
+		codecName, freq, ch = "L16", 44100, 2
 	case 11:
-		codecName = "L16"
-		freq = 44100
-		nCh = 1
+		codecName, freq, ch = "L16", 44100, 1
 	case 12:
-		codecName = "QCELP"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "QCELP", 8000, 1
 	case 14:
-		codecName = "MPA"
-		freq = 90000
-		nCh = 1
+		codecName, freq, ch = "MPA", 90000, 1
 	// 'number of channels' is actually encoded in the media stream
 	case 15:
-		codecName = "G728"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "G728", 8000, 1
 	case 16:
-		codecName = "DVI4"
-		freq = 11025
-		nCh = 1
+		codecName, freq, ch = "DVI4", 11025, 1
 	case 17:
-		codecName = "DVI4"
-		freq = 22050
-		nCh = 1
+		codecName, freq, ch = "DVI4", 22050, 1
 	case 18:
-		codecName = "G729"
-		freq = 8000
-		nCh = 1
+		codecName, freq, ch = "G729", 8000, 1
 	case 25:
-		codecName = "CELB"
-		freq = 90000
-		nCh = 1
+		codecName, freq, ch = "CELB", 90000, 1
 	case 26:
-		codecName = "JPEG"
-		freq = 90000
-		nCh = 1
+		codecName, freq, ch = "JPEG", 90000, 1
 	case 28:
-		codecName = "NV"
-		freq = 90000
-		nCh = 1
+		codecName, freq, ch = "NV", 90000, 1
 	case 31:
-		codecName = "H261"
-		freq = 90000
-		nCh = 1
+		codecName, freq, ch = "H261", 90000, 1
 	case 32:
-		codecName = "MPV"
-		freq = 90000
-		nCh = 1
+		codecName, freq, ch = "MPV", 90000, 1
 	case 33:
-		codecName = "MP2T"
-		freq = 90000
-		nCh = 1
+		codecName, freq, ch = "MP2T", 90000, 1
 	case 34:
-		codecName = "H263"
-		freq = 90000
-		nCh = 1
+		codecName, freq, ch = "H263", 90000, 1
 	}
-
-	return codecName, freq, nCh
+	return
 }
 
-func (this *MediaSession) guessRTPTimestampFrequency(mediumName, codecName string) uint {
-	// By default, we assume that audio sessions use a frequency of 8000,
-	// video sessions use a frequency of 90000,
-	// and text sessions use a frequency of 1000.
-	// Begin by checking for known exceptions to this rule
-	// (where the frequency is known unambiguously (e.g., not like "DVI4"))
+// By default, we assume that audio sessions use a frequency of 8000,
+// video sessions use a frequency of 90000,
+// and text sessions use a frequency of 1000.
+// Begin by checking for known exceptions to s rule
+// (where the frequency is known unambiguously (e.g., not like "DVI4"))
+func (s *MediaSession) guessRTPTimestampFrequency(mediumName, codecName string) uint {
 	if strings.EqualFold(codecName, "L16") {
 		return 44100
 	}
@@ -502,7 +451,7 @@ func (this *MediaSession) guessRTPTimestampFrequency(mediumName, codecName strin
 	return 8000 // for "audio", and any other medium
 }
 
-func (this *MediaSession) initiateByMediaType(mimeType string, useSpecialRTPoffset int) bool {
+func (s *MediaSession) initiateByMediaType(mimeType string, useSpecialRTPoffset int) bool {
 	return true
 }
 
@@ -546,54 +495,54 @@ func NewMediaSubSession(parent *MediaSession) *MediaSubSession {
 		return nil
 	}
 
-	subsession := new(MediaSubSession)
-	subsession.parent = parent
-	subsession.scale = 1.0
-	return subsession
+	return &MediaSubSession{
+		scale:  1.0,
+		parent: parent,
+	}
 }
 
 func (subsession *MediaSubSession) ParentSession() *MediaSession {
 	return subsession.parent
 }
 
-func (this *MediaSubSession) Initiate() bool {
+func (s *MediaSubSession) Initiate() bool {
 	// has already been initiated
-	if this.readSource != nil {
+	if s.readSource != nil {
 		return true
 	}
 
-	if len(this.codecName) <= 0 {
+	if len(s.codecName) <= 0 {
 		fmt.Println("Codec is unspecified")
 		return false
 	}
 
-	tempAddr := this.ConnectionEndpointName()
+	tempAddr := s.ConnectionEndpointName()
 
 	var success bool
 	for {
 		// create new socket
-		this.rtpSocket = gs.NewGroupSock(tempAddr, 0)
-		if this.rtpSocket == nil {
+		s.rtpSocket = gs.NewGroupSock(tempAddr, 0)
+		if s.rtpSocket == nil {
 			fmt.Println("Unable to create RTP socket")
 			break
 		}
 
-		clientPortNum := this.rtpSocket.GetSourcePort()
+		clientPortNum := s.rtpSocket.GetSourcePort()
 		if clientPortNum == 0 {
 			fmt.Println("Failed to get RTP port number")
 			break
 		}
 
 		if clientPortNum&1 != 0 {
-			this.rtpSocket.Close()
+			s.rtpSocket.Close()
 			continue
 		}
 
-		this.clientPortNum = clientPortNum
+		s.clientPortNum = clientPortNum
 
 		rtcpPortNum := clientPortNum | 1
-		this.rtcpSocket = gs.NewGroupSock(tempAddr, rtcpPortNum)
-		if this.rtcpSocket == nil {
+		s.rtcpSocket = gs.NewGroupSock(tempAddr, rtcpPortNum)
+		if s.rtcpSocket == nil {
 			fmt.Println("Unable to create RTCP socket")
 			break
 		}
@@ -603,32 +552,32 @@ func (this *MediaSubSession) Initiate() bool {
 	}
 
 	if !success {
-		if this.rtpSocket != nil {
-			this.rtpSocket.Close()
+		if s.rtpSocket != nil {
+			s.rtpSocket.Close()
 		}
-		if this.rtcpSocket != nil {
-			this.rtcpSocket.Close()
+		if s.rtcpSocket != nil {
+			s.rtcpSocket.Close()
 		}
 		return false
 	}
 
-	if !this.createSourceObject() {
+	if !s.createSourceObject() {
 		return false
 	}
 
-	if this.readSource == nil {
+	if s.readSource == nil {
 		fmt.Println("Failed to create read source.")
 		return false
 	}
 
 	var totSessionBandwidth uint
-	if this.bandWidth != 0 {
-		totSessionBandwidth = this.bandWidth + this.bandWidth/20
+	if s.bandWidth != 0 {
+		totSessionBandwidth = s.bandWidth + s.bandWidth/20
 	} else {
 		totSessionBandwidth = 500
 	}
 
-	this.rtcpInstance = newRTCPInstance(this.rtcpSocket, totSessionBandwidth, this.parent.cname)
+	s.rtcpInstance = newRTCPInstance(s.rtcpSocket, totSessionBandwidth, s.parent.cname)
 	return true
 }
 
@@ -671,47 +620,47 @@ func (subsession *MediaSubSession) AbsStartTime() string {
 	return subsession.parent.AbsStartTime()
 }
 
-func (this *MediaSubSession) AbsEndTime() string {
-	if this.absEndTime != "" {
-		return this.absEndTime
+func (s *MediaSubSession) AbsEndTime() string {
+	if s.absEndTime != "" {
+		return s.absEndTime
 	}
 
-	return this.parent.AbsEndTime()
+	return s.parent.AbsEndTime()
 }
 
-func (this *MediaSubSession) CodecName() string {
-	return this.codecName
+func (s *MediaSubSession) CodecName() string {
+	return s.codecName
 }
 
-func (this *MediaSubSession) MediumName() string {
-	return this.mediumName
+func (s *MediaSubSession) MediumName() string {
+	return s.mediumName
 }
 
-func (this *MediaSubSession) ClientPortNum() uint {
-	return this.clientPortNum
+func (s *MediaSubSession) ClientPortNum() uint {
+	return s.clientPortNum
 }
 
-func (this *MediaSubSession) ProtocolName() string {
-	return this.protocolName
+func (s *MediaSubSession) ProtocolName() string {
+	return s.protocolName
 }
 
-func (this *MediaSubSession) ControlPath() string {
-	return this.controlPath
+func (s *MediaSubSession) ControlPath() string {
+	return s.controlPath
 }
 
-func (this *MediaSubSession) ReadSource() IFramedSource {
-	return this.readSource
+func (s *MediaSubSession) ReadSource() IFramedSource {
+	return s.readSource
 }
 
-func (this *MediaSubSession) RtcpInstance() *RTCPInstance {
-	return this.rtcpInstance
+func (s *MediaSubSession) RtcpInstance() *RTCPInstance {
+	return s.rtcpInstance
 }
 
-func (this *MediaSubSession) SetDestinations(destAddress string) {
+func (s *MediaSubSession) SetDestinations(destAddress string) {
 }
 
-func (subsession *MediaSubSession) ConnectionEndpointName() string {
-	connectionEndpointName := subsession.connectionEndpointName
+func (s *MediaSubSession) ConnectionEndpointName() string {
+	connectionEndpointName := s.connectionEndpointName
 
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
@@ -738,8 +687,8 @@ func (s *MediaSubSession) createSourceObject() bool {
 
 		// MPEG-2 Transport Stream
 		if strings.EqualFold(s.codecName, "MP2T") {
-			// this sets "durationInMicroseconds" correctly, based on the PCR values
-			//this.readSource = NewMPEG2TransportStreamFramer(this.readSource)
+			// s sets "durationInMicroseconds" correctly, based on the PCR values
+			//s.readSource = NewMPEG2TransportStreamFramer(s.readSource)
 		}
 	} else {
 		switch s.codecName {
@@ -751,15 +700,15 @@ func (s *MediaSubSession) createSourceObject() bool {
 	return true
 }
 
-func (s *MediaSubSession) parseSDPLine_b(sdpLine string) bool {
+func (s *MediaSubSession) parseSDPLineB(sdpLine string) bool {
 	n, _ := fmt.Sscanf(sdpLine, "b=AS:%d", &s.bandWidth)
 	return (n == 1)
 }
 
-func (s *MediaSubSession) parseSDPLine_c(sdpLine string) bool {
-	// Check for "c=IN IP4 <connection-endpoint>"
-	// or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
-	// (Later, do something with <ttl+numAddresses> also #####)
+// Check for "c=IN IP4 <connection-endpoint>"
+// or "c=IN IP4 <connection-endpoint>/<ttl+numAddresses>"
+// (Later, do something with <ttl+numAddresses> also #####)
+func (s *MediaSubSession) parseSDPLineC(sdpLine string) bool {
 	connectionEndpointName := parseCLine(sdpLine)
 	if connectionEndpointName != "" {
 		s.connectionEndpointName = connectionEndpointName
@@ -811,8 +760,8 @@ func (s *MediaSubSession) parseSDPAttributeRtpmap(sdpLine string) bool {
 	return parseSuccess
 }
 
+// Check for a "a=control:<control-path>" line:
 func (s *MediaSubSession) parseSDPAttributeControl(sdpLine string) bool {
-	// Check for a "a=control:<control-path>" line:
 	var parseSuccess bool
 
 	ok := strings.HasPrefix(sdpLine, "a=control:")
@@ -864,31 +813,31 @@ func (s *MediaSubSession) parseSDPAttributeSourceFilter(sdpLine string) bool {
 func (s *MediaSubSession) parseSDPAttributeXDimensions(sdpLine string) bool {
 	var parseSuccess bool
 	var width, height uint
-	num, _ := fmt.Sscanf(sdpLine, "a=x-dimensions:%d,%d", &width, &height)
-	if num == 2 {
+	n, _ := fmt.Sscanf(sdpLine, "a=x-dimensions:%d,%d", &width, &height)
+	if n == 2 {
+		s.videoWidth, s.videoHeight = width, height
 		parseSuccess = true
-		s.videoWidth = width
-		s.videoHeight = height
 	}
 	return parseSuccess
 }
 
+// check for a "a=framerate: <fps>" r "a=x-framerate: <fps>" line:
 func (s *MediaSubSession) parseSDPAttributeFrameRate(sdpLine string) bool {
-	// check for a "a=framerate: <fps>" r "a=x-framerate: <fps>" line:
 	parseSuccess := true
+	var n int
 	for {
-		num, _ := fmt.Sscanf(sdpLine, "a=framerate: %f", &s.videoFPS)
-		if num == 1 {
+		n, _ = fmt.Sscanf(sdpLine, "a=framerate: %f", &s.videoFPS)
+		if n == 1 {
 			break
 		}
 
-		num, _ = fmt.Sscanf(sdpLine, "a=framerate:%f", &s.videoFPS)
-		if num == 1 {
+		n, _ = fmt.Sscanf(sdpLine, "a=framerate:%f", &s.videoFPS)
+		if n == 1 {
 			break
 		}
 
-		num, _ = fmt.Sscanf(sdpLine, "a=x-framerate: %f", &s.videoFPS)
-		if num == 1 {
+		n, _ = fmt.Sscanf(sdpLine, "a=x-framerate: %f", &s.videoFPS)
+		if n == 1 {
 			break
 		}
 
