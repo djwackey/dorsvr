@@ -3,10 +3,10 @@ package groupsock
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
-	"strings"
 	"time"
 )
 
@@ -36,12 +36,21 @@ func Ntohl(packet []byte) (uint32, error) {
 }
 
 func OurIPAddress() (string, error) {
-	conn, err := net.Dial("udp", "www.baidu.com:80")
+	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		fmt.Println("Failed to get our IP address", err.Error())
+		fmt.Printf("Failed to get InterfaceAddrs.%s\n", err.Error())
 		return "", err
 	}
-	defer conn.Close()
 
-	return strings.Split(conn.LocalAddr().String(), ":")[0], nil
+	var ip string
+	err = errors.New("ip address not found")
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				ip, err = ipnet.IP.String(), nil
+				break
+			}
+		}
+	}
+	return ip, err
 }

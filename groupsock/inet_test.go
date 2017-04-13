@@ -13,3 +13,13 @@ func TestOurRandom32(t *testing.T) {
 		t.Error("failed")
 	}
 }
+
+func TestOurIPAddress(t *testing.T) {
+	ip, _ := OurIPAddress()
+	if ip != "" {
+		println(ip)
+		t.Log("success")
+	} else {
+		t.Error("failed")
+	}
+}
