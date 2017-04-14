@@ -11,14 +11,14 @@ type DummySink struct {
 	livemedia.MediaSink
 	streamID      string
 	receiveBuffer []byte
-	subsession    *livemedia.MediaSubSession
+	subsession    *livemedia.MediaSubsession
 }
 
 // Implementation of "DummySink":
 
 var dummySinkReceiveBufferSize uint = 100000
 
-func NewDummySink(subsession *livemedia.MediaSubSession, streamID string) *DummySink {
+func NewDummySink(subsession *livemedia.MediaSubsession, streamID string) *DummySink {
 	sink := new(DummySink)
 	sink.streamID = streamID
 	sink.subsession = subsession

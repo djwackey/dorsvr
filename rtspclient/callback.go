@@ -21,7 +21,7 @@ func continueAfterDESCRIBE(c *RTSPClient, resultCode int, resultStr string) {
 		if scs.Session == nil {
 			fmt.Println("Failed to create a MediaSession object from the sdp Description.")
 			break
-		} else if !scs.Session.HasSubSessions() {
+		} else if !scs.Session.HasSubsessions() {
 			fmt.Println("This session has no media subsessions (i.e., no \"-m\" lines)")
 			break
 		}
@@ -79,14 +79,14 @@ func continueAfterPLAY(c *RTSPClient, resultCode int, resultStr string) {
 	shutdownStream(c)
 }
 
-func subsessionByeHandler(subsession *livemedia.MediaSubSession) {
+func subsessionByeHandler(subsession *livemedia.MediaSubsession) {
 	fmt.Println("Received RTCP BYE on subsession.")
 
 	// Now act as if the subsession had closed:
 	subsessionAfterPlaying(subsession)
 }
 
-func subsessionAfterPlaying(subsession *livemedia.MediaSubSession) {
+func subsessionAfterPlaying(subsession *livemedia.MediaSubsession) {
 	rtspClient := subsession.MiscPtr.(*RTSPClient)
 	shutdownStream(rtspClient)
 }

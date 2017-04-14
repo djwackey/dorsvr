@@ -56,6 +56,7 @@ func (c *RTSPClient) DialRTSP(rtspURL string) bool {
 		return false
 	}
 
+	go c.incomingDataHandler()
 	return true
 }
 
@@ -105,7 +106,7 @@ func (c *RTSPClient) sendDescribeCommand(responseHandler interface{}) int {
 	return c.sendRequest(newRequestRecord(c.cseq, "DESCRIBE", responseHandler))
 }
 
-func (c *RTSPClient) sendSetupCommand(subsession *livemedia.MediaSubSession, responseHandler interface{}) int {
+func (c *RTSPClient) sendSetupCommand(subsession *livemedia.MediaSubsession, responseHandler interface{}) int {
 	c.cseq++
 	record := newRequestRecord(c.cseq, "SETUP", responseHandler)
 	record.subsession = subsession
@@ -166,8 +167,6 @@ func (c *RTSPClient) openConnection() bool {
 	if err != nil {
 		return false
 	}
-
-	go c.incomingDataHandler()
 	return true
 }
 
@@ -646,7 +645,7 @@ func (c *RTSPClient) isAbsoluteURL(url string) bool {
 	return isAbsolute
 }
 
-func (c *RTSPClient) constructSubSessionURL(subsession *livemedia.MediaSubSession) (
+func (c *RTSPClient) constructSubSessionURL(subsession *livemedia.MediaSubsession) (
 	prefix, separator, suffix string) {
 
 	prefix = c.sessionURL(subsession.ParentSession())
@@ -735,7 +734,7 @@ func (c *RTSPClient) parseResponseCode(line string) (responseCode int, responseS
 	return responseCode, responseString, result
 }
 
-func (c *RTSPClient) handleSetupResponse(subsession *livemedia.MediaSubSession,
+func (c *RTSPClient) handleSetupResponse(subsession *livemedia.MediaSubsession,
 	sessionParamsStr, transportParamsStr string, streamUsingTCP bool) bool {
 	var success bool
 	for {
@@ -745,9 +744,7 @@ func (c *RTSPClient) handleSetupResponse(subsession *livemedia.MediaSubSession,
 		}
 
 		sessionID := sessionParamsStr
-
 		subsession.SetSessionID(sessionID)
-
 		c.lastSessionID = sessionID
 
 		// Parse the "Transport:" header parameters:
@@ -866,13 +863,14 @@ func (c *RTSPClient) handleAuthenticationFailure(paramsStr string) bool {
 	}
 
 	// Fill in "fCurrentAuthenticator" with the information from the "WWW-Authenticate:" header:
-	alreadyHadRealm := c.digest.Realm != ""
+	var n int
 	var realm, nonce string
 	success := true
+	alreadyHadRealm := c.digest.Realm != ""
 	if n, _ = fmt.Sscanf(paramsStr, "Digest realm=\"%[^\"]\", nonce=\"%[^\"]\"", &realm, &nonce); n == 2 {
 		c.digest.Realm = realm
 		c.digest.RandomNonce()
-	} else if fmt.Sscanf(paramsStr, "Basic realm=\"%[^\"]\"", &realm) == 1 { // Basic authentication
+	} else if n, _ = fmt.Sscanf(paramsStr, "Basic realm=\"%[^\"]\"", &realm); n == 1 { // Basic authentication
 		c.digest.Realm = realm
 		c.digest.RandomNonce()
 	} else {
@@ -924,7 +922,7 @@ type RequestRecord struct {
 	absStartTime string
 	absEndTime   string
 	handler      interface{}
-	subsession   *livemedia.MediaSubSession
+	subsession   *livemedia.MediaSubsession
 	session      *livemedia.MediaSession
 }
 
