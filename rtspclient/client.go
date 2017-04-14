@@ -376,7 +376,9 @@ func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 		} else if rangeParamsStr, result = c.checkForHeader(thisLineStart, "Range:", 6); result {
 		} else if rtpInfoParamsStr, result = c.checkForHeader(thisLineStart, "RTP-Info:", 9); result {
 		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "WWW-Authenticate:", 17); result {
-			if wwwAuthenticateParamsStr == "" || headerParamsStr == "Digest" {
+			// If we've already seen a "WWW-Authenticate:" header, then we replace it with this new one only if
+			// the new one specifies "Digest" authentication:
+			if wwwAuthenticateParamsStr == "" || headerParamsStr[:6] == "Digest" {
 				wwwAuthenticateParamsStr = headerParamsStr
 			}
 		} else if publicParamsStr, result = c.checkForHeader(thisLineStart, "Public:", 7); result {

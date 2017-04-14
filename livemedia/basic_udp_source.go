@@ -12,10 +12,10 @@ type BasicUDPSource struct {
 	haveStartedReading bool
 }
 
-func NewBasicUDPSource(inputSocket *gs.GroupSock) *BasicUDPSource {
+func newBasicUDPSource(inputSocket *gs.GroupSock) *BasicUDPSource {
 	source := new(BasicUDPSource)
 	source.inputSocket = inputSocket
-	source.InitFramedSource(source)
+	source.initFramedSource(source)
 	return source
 }
 

@@ -7,6 +7,6 @@ type FramedFileSource struct {
 	fid *os.File
 }
 
-func (s *FramedFileSource) InitFramedFileSource(source IFramedSource) {
-	s.InitFramedSource(source)
+func (s *FramedFileSource) initFramedFileSource(source IFramedSource) {
+	s.initFramedSource(source)
 }

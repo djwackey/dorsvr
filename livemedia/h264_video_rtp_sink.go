@@ -107,7 +107,7 @@ func newH264FUAFragmenter(inputSource IFramedSource,
 	fragment.maxOutputPacketSize = maxOutputPacketSize
 	fragment.inputBuffer = make([]byte, fragment.inputBufferSize)
 	fragment.initFramedFilter(inputSource)
-	fragment.InitFramedSource(fragment)
+	fragment.initFramedSource(fragment)
 	return fragment
 }
 

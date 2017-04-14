@@ -565,7 +565,7 @@ func newH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	framer.inputSource = inputSource
 	framer.frameRate = 25.0
 	framer.initMPEGVideoStreamFramer(newH264VideoStreamParser(framer, inputSource, framer.handleClosure))
-	framer.InitFramedSource(framer)
+	framer.initFramedSource(framer)
 	framer.nextPresentationTime = framer.presentationTimeBase
 	return framer
 }

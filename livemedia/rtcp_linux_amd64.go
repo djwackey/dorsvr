@@ -278,7 +278,7 @@ func (r *RTCPInstance) incomingReportHandler() {
 		r.onReceive(typeOfPacket, totPacketSize, uint(reportSenderSSRC))
 
 		if callByeHandler && r.byeHandlerTask != nil {
-			r.byeHandlerTask.(func(subsession *MediaSubSession))(r.byeHandlerClientData.(*MediaSubSession))
+			r.byeHandlerTask.(func(subsession *MediaSubsession))(r.byeHandlerClientData.(*MediaSubsession))
 		}
 	}
 	log.Info("incomingReportHandler ending.")
@@ -383,7 +383,7 @@ func (r *RTCPInstance) onExpire() {
 func (r *RTCPInstance) unsetSpecificRRHandler() {
 }
 
-func (r *RTCPInstance) enqueueCommonReportPrefix(packetType, SSRC, numExtraWords uint) {
+func (r *RTCPInstance) enqueueCommonReportPrefix(packetType, ssrc, numExtraWords uint32) {
 }
 
 func (r *RTCPInstance) enqueueCommonReportSuffix() {

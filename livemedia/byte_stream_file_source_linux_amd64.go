@@ -29,7 +29,7 @@ func newByteStreamFileSource(fileName string) *ByteStreamFileSource {
 	fileSource := new(ByteStreamFileSource)
 	fileSource.fid = fid
 	fileSource.fileSize = stat.Size()
-	fileSource.InitFramedFileSource(fileSource)
+	fileSource.initFramedFileSource(fileSource)
 	return fileSource
 }
 

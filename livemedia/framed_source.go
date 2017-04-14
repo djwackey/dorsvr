@@ -27,7 +27,7 @@ type FramedSource struct {
 	presentationTime        sys.Timeval
 }
 
-func (f *FramedSource) InitFramedSource(source IFramedSource) {
+func (f *FramedSource) initFramedSource(source IFramedSource) {
 	f.source = source
 }
 

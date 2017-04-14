@@ -10,19 +10,20 @@ type H264VideoRTPSource struct {
 }
 
 func newH264VideoRTPSource(RTPgs *gs.GroupSock,
-	rtpPayloadFormat, rtpTimestampFrequency uint) *H264VideoRTPSource {
+	rtpPayloadFormat, rtpTimestampFrequency uint32) *H264VideoRTPSource {
 	source := new(H264VideoRTPSource)
 
-	source.InitMultiFramedRTPSource(source, RTPgs,
-		rtpPayloadFormat, rtpTimestampFrequency, NewH264BufferedPacketFactory())
+	source.initMultiFramedRTPSource(source, RTPgs,
+		rtpPayloadFormat, rtpTimestampFrequency, newH264BufferedPacketFactory())
 	source.setSpecialHeaderHandler(source.processSpecialHeader)
 	return source
 }
 
-func (s *H264VideoRTPSource) processSpecialHeader(packet IBufferedPacket) (resultSpecialHeaderSize uint, processOK bool) {
+func (s *H264VideoRTPSource) processSpecialHeader(packet IBufferedPacket) (
+	resultSpecialHeaderSize uint32, processOK bool) {
 	headerStart, packetSize := packet.data(), packet.dataSize()
 
-	var expectedHeaderSize uint
+	var expectedHeaderSize uint32
 
 	// Check if the type field is 28 (FU-A) or 29 (FU-B)
 	s.curPacketNALUnitType = uint(headerStart[0]) & 0x1F
@@ -85,36 +86,36 @@ type H264BufferedPacketFactory struct {
 
 func newH264BufferedPacket(source *H264VideoRTPSource) *H264BufferedPacket {
 	packet := new(H264BufferedPacket)
-	packet.InitBufferedPacket()
+	packet.initBufferedPacket()
 	packet.source = source
 	packet.nextEnclosedFrameProc = packet.nextEnclosedFrameSize
 	return packet
 }
 
-func (p *H264BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint) uint {
+func (p *H264BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint) uint32 {
 	framePtr, dataSize := buff[p.head:], p.tail-p.head
 
-	var resultNALUSize, frameSize uint
+	var resultNALUSize, frameSize uint32
 
 	switch p.source.curPacketNALUnitType {
 	case 24, 25: // STAP-A or STAP-B
 		// The first two bytes are NALU size:
 		if dataSize >= 2 {
-			resultNALUSize = (uint(framePtr[0]) << 8) | uint(framePtr[1])
+			resultNALUSize = (uint32(framePtr[0]) << 8) | uint32(framePtr[1])
 			framePtr = framePtr[2:]
 		}
 	case 26: // MTAP16
 		// The first two bytes are NALU size.
 		// The next three are the DOND and TS offset:
 		if dataSize >= 5 {
-			resultNALUSize = (uint(framePtr[0]) << 8) | uint(framePtr[1])
+			resultNALUSize = (uint32(framePtr[0]) << 8) | uint32(framePtr[1])
 			framePtr = framePtr[5:]
 		}
 	case 27: // MTAP24
 		// The first two bytes are NALU size.
 		// The next four are the DOND and TS offset:
 		if dataSize >= 6 {
-			resultNALUSize = (uint(framePtr[0]) << 8) | uint(framePtr[1])
+			resultNALUSize = (uint32(framePtr[0]) << 8) | uint32(framePtr[1])
 			framePtr = framePtr[6:]
 		}
 	default:
@@ -131,7 +132,7 @@ func (p *H264BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint) uint 
 	return frameSize
 }
 
-func NewH264BufferedPacketFactory() IBufferedPacketFactory {
+func newH264BufferedPacketFactory() IBufferedPacketFactory {
 	return new(H264BufferedPacketFactory)
 }
 
