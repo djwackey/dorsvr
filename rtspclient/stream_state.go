@@ -7,7 +7,7 @@ type StreamClientState struct {
 	Subsession *livemedia.MediaSubSession
 }
 
-func NewStreamClientState() *StreamClientState {
+func newStreamClientState() *StreamClientState {
 	return new(StreamClientState)
 }
 

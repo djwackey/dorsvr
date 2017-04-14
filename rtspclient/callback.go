@@ -9,7 +9,7 @@ import (
 func continueAfterDESCRIBE(c *RTSPClient, resultCode int, resultStr string) {
 	for {
 		if resultCode != 0 {
-			fmt.Println(fmt.Sprintf("Failed to get a SDP description: %s", resultStr))
+			fmt.Printf("Failed to get a SDP description: %s\n", resultStr)
 			break
 		}
 
@@ -67,7 +67,7 @@ func continueAfterSETUP(c *RTSPClient, resultCode int, resultStr string) {
 func continueAfterPLAY(c *RTSPClient, resultCode int, resultStr string) {
 	for {
 		if resultCode != 0 {
-			fmt.Println(fmt.Sprintf("Failed to start playing session: %s", resultStr))
+			fmt.Printf("Failed to start playing session: %s\n", resultStr)
 			break
 		}
 
@@ -87,7 +87,7 @@ func subsessionByeHandler(subsession *livemedia.MediaSubSession) {
 }
 
 func subsessionAfterPlaying(subsession *livemedia.MediaSubSession) {
-	var rtspClient *RTSPClient = subsession.MiscPtr.(*RTSPClient)
+	rtspClient := subsession.MiscPtr.(*RTSPClient)
 	shutdownStream(rtspClient)
 }
 

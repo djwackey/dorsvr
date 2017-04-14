@@ -29,7 +29,7 @@ func main() {
 	client.SendRequest()
 
 	//go TimeCloser(client)
-	client.Waiting()
+	select {}
 
 	fmt.Println("exit")
 }
