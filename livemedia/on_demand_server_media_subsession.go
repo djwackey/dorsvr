@@ -8,8 +8,8 @@ import (
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
-type OnDemandServerMediaSubSession struct {
-	ServerMediaSubSession
+type OnDemandServerMediaSubsession struct {
+	ServerMediaSubsession
 	cname            string
 	sdpLines         string
 	portNumForSDP    int
@@ -30,14 +30,14 @@ type StreamParameter struct {
 	StreamToken     *StreamState
 }
 
-func (s *OnDemandServerMediaSubSession) InitOnDemandServerMediaSubSession(isubsession IServerMediaSubSession) {
+func (s *OnDemandServerMediaSubsession) initOnDemandServerMediaSubsession(isubsession IServerMediaSubsession) {
 	s.initialPortNum = 6970
 	s.cname, _ = os.Hostname()
 	s.destinations = make(map[string]*Destinations)
 	s.initBaseClass(isubsession)
 }
 
-func (s *OnDemandServerMediaSubSession) SDPLines() string {
+func (s *OnDemandServerMediaSubsession) SDPLines() string {
 	if s.sdpLines == "" {
 		rtpPayloadType := 96 + s.TrackNumber() - 1
 
@@ -54,7 +54,7 @@ func (s *OnDemandServerMediaSubSession) SDPLines() string {
 	return s.sdpLines
 }
 
-func (s *OnDemandServerMediaSubSession) GetStreamParameters(tcpSocketNum net.Conn, destAddr,
+func (s *OnDemandServerMediaSubsession) GetStreamParameters(tcpSocketNum net.Conn, destAddr,
 	clientSessionID string, clientRTPPort, clientRTCPPort, rtpChannelID, rtcpChannelID uint) *StreamParameter {
 	var streamBitrate uint = 500
 
@@ -67,22 +67,47 @@ func (s *OnDemandServerMediaSubSession) GetStreamParameters(tcpSocketNum net.Con
 
 		sp.StreamToken = s.lastStreamToken
 	} else {
-		serverPortNum := s.initialPortNum
-
-		sp.ServerRTPPort = serverPortNum
-		sp.ServerRTCPPort = serverPortNum + 1
+		mediaSource := s.isubsession.createNewStreamSource()
 
 		var dummyAddr string
-		rtpGroupSock := gs.NewGroupSock(dummyAddr, sp.ServerRTPPort)
-		rtcpGroupSock := gs.NewGroupSock(dummyAddr, sp.ServerRTCPPort)
+		var rtpSink IMediaSink
+		var udpSink *BasicUDPSink
+		var rtpGroupSock, rtcpGroupSock *gs.GroupSock
 
-		rtpPayloadType := 96 + s.TrackNumber() - 1
+		sp.ServerRTPPort = s.initialPortNum
+		if clientRTCPPort == 0 {
+			// We're streaming raw UDP (not RTP). Create a single groupsock:
+			for {
+				rtpGroupSock = gs.NewGroupSock(dummyAddr, sp.ServerRTPPort)
+				if rtpGroupSock != nil {
+					break
+				}
+				sp.ServerRTPPort++
+			}
+			udpSink = NewBasicUDPSink(rtpGroupSock)
+		} else {
+			// Normal case: We're streaming RTP (over UDP or TCP).  Create a pair of
+			// groupsocks (RTP and RTCP), with adjacent port numbers (RTP port number even):
+			for {
+				rtpGroupSock = gs.NewGroupSock(dummyAddr, sp.ServerRTPPort)
+				if rtpGroupSock == nil {
+					sp.ServerRTPPort += 2
+					continue
+				}
 
-		mediaSource := s.isubsession.createNewStreamSource()
-		rtpSink := s.isubsession.createNewRTPSink(rtpGroupSock, rtpPayloadType)
+				sp.ServerRTCPPort = sp.ServerRTPPort + 1
+				rtcpGroupSock = gs.NewGroupSock(dummyAddr, sp.ServerRTCPPort)
+				if rtcpGroupSock == nil {
+					sp.ServerRTPPort += 2
+					continue
+				}
+				break
+			}
+			rtpPayloadType := 96 + s.TrackNumber() - 1
+			rtpSink = s.isubsession.createNewRTPSink(rtpGroupSock, rtpPayloadType)
+		}
 
-		udpSink := NewBasicUDPSink(rtpGroupSock)
-
+		// Set up the state of the stream.  The stream will get started later:
 		s.lastStreamToken = newStreamState(s.isubsession,
 			sp.ServerRTPPort,
 			sp.ServerRTCPPort,
@@ -102,7 +127,7 @@ func (s *OnDemandServerMediaSubSession) GetStreamParameters(tcpSocketNum net.Con
 	return sp
 }
 
-func (s *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink IMediaSink, inputSource IFramedSource) string {
+func (s *OnDemandServerMediaSubsession) getAuxSDPLine(rtpSink IMediaSink, inputSource IFramedSource) string {
 	if rtpSink == nil {
 		return ""
 	}
@@ -110,7 +135,7 @@ func (s *OnDemandServerMediaSubSession) getAuxSDPLine(rtpSink IMediaSink, inputS
 	return rtpSink.AuxSDPLine()
 }
 
-func (s *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink IMediaSink, inputSource IFramedSource, estBitrate uint) {
+func (s *OnDemandServerMediaSubsession) setSDPLinesFromRTPSink(rtpSink IMediaSink, inputSource IFramedSource, estBitrate uint) {
 	if rtpSink == nil {
 		return
 	}
@@ -147,11 +172,11 @@ func (s *OnDemandServerMediaSubSession) setSDPLinesFromRTPSink(rtpSink IMediaSin
 		s.TrackID())
 }
 
-func (s *OnDemandServerMediaSubSession) CNAME() string {
+func (s *OnDemandServerMediaSubsession) CNAME() string {
 	return s.cname
 }
 
-func (s *OnDemandServerMediaSubSession) StartStream(clientSessionID string, streamState *StreamState,
+func (s *OnDemandServerMediaSubsession) StartStream(clientSessionID string, streamState *StreamState,
 	rtcpRRHandler, serverRequestAlternativeByteHandler interface{}) (rtpSeqNum, rtpTimestamp uint32) {
 	destinations, _ := s.destinations[clientSessionID]
 	go streamState.startPlaying(destinations, rtcpRRHandler, serverRequestAlternativeByteHandler)
@@ -163,17 +188,17 @@ func (s *OnDemandServerMediaSubSession) StartStream(clientSessionID string, stre
 	return
 }
 
-func (s *OnDemandServerMediaSubSession) SeekStream() {
+func (s *OnDemandServerMediaSubsession) SeekStream() {
 	if s.reuseFirstSource {
 		return
 	}
 }
 
-func (s *OnDemandServerMediaSubSession) PauseStream(streamState *StreamState) {
+func (s *OnDemandServerMediaSubsession) PauseStream(streamState *StreamState) {
 	streamState.pause()
 }
 
-func (s *OnDemandServerMediaSubSession) DeleteStream(sessionID string, streamState *StreamState) {
+func (s *OnDemandServerMediaSubsession) DeleteStream(sessionID string, streamState *StreamState) {
 	if dest, existed := s.destinations[sessionID]; existed {
 		streamState.endPlaying(dest)
 		delete(s.destinations, sessionID)

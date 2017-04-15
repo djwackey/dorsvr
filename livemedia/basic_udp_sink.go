@@ -6,6 +6,8 @@ import (
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
+const maxPayloadSize = 1450
+
 type BasicUDPSink struct {
 	MediaSink
 	gs             *gs.GroupSock
@@ -15,11 +17,11 @@ type BasicUDPSink struct {
 }
 
 func NewBasicUDPSink(gs *gs.GroupSock) *BasicUDPSink {
-	sink := new(BasicUDPSink)
-	sink.maxPayloadSize = 1450
-	sink.outputBuffer = make([]byte, sink.maxPayloadSize)
-	sink.gs = gs
-	return sink
+	return &BasicUDPSink{
+		gs:             gs,
+		maxPayloadSize: maxPayloadSize,
+		outputBuffer:   make([]byte, maxPayloadSize),
+	}
 }
 
 func (s *BasicUDPSink) ContinuePlaying() {

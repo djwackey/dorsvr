@@ -4,7 +4,7 @@ import gs "github.com/djwackey/dorsvr/groupsock"
 
 //////// StreamState ////////
 type StreamState struct {
-	master              IServerMediaSubSession
+	master              IServerMediaSubsession
 	rtpSink             IMediaSink
 	udpSink             *BasicUDPSink
 	rtpGS               *gs.GroupSock
@@ -17,7 +17,7 @@ type StreamState struct {
 	areCurrentlyPlaying bool
 }
 
-func newStreamState(master IServerMediaSubSession, serverRTPPort, serverRTCPPort uint,
+func newStreamState(master IServerMediaSubsession, serverRTPPort, serverRTCPPort uint,
 	rtpSink IMediaSink, udpSink *BasicUDPSink, totalBW uint,
 	mediaSource IFramedSource, rtpGS, rtcpGS *gs.GroupSock) *StreamState {
 	return &StreamState{

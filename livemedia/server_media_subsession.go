@@ -7,7 +7,7 @@ import (
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
-type IServerMediaSubSession interface {
+type IServerMediaSubsession interface {
 	getAuxSDPLine(rtpSink IMediaSink, inputSource IFramedSource) string
 	setParentSession(parentSession *ServerMediaSession)
 	createNewStreamSource() IFramedSource
@@ -27,42 +27,42 @@ type IServerMediaSubSession interface {
 	SeekStream()
 }
 
-type ServerMediaSubSession struct {
+type ServerMediaSubsession struct {
 	trackNumber   uint
 	trackID       string
 	parentSession *ServerMediaSession
-	isubsession   IServerMediaSubSession
+	isubsession   IServerMediaSubsession
 }
 
-func (s *ServerMediaSubSession) initBaseClass(isubsession IServerMediaSubSession) {
+func (s *ServerMediaSubsession) initBaseClass(isubsession IServerMediaSubsession) {
 	s.isubsession = isubsession
 }
 
-func (s *ServerMediaSubSession) setParentSession(parentSession *ServerMediaSession) {
+func (s *ServerMediaSubsession) setParentSession(parentSession *ServerMediaSession) {
 	s.parentSession = parentSession
 }
 
-func (s *ServerMediaSubSession) TrackID() string {
+func (s *ServerMediaSubsession) TrackID() string {
 	if s.trackID == "" {
 		s.trackID = fmt.Sprintf("track%d", s.trackNumber)
 	}
 	return s.trackID
 }
 
-func (s *ServerMediaSubSession) TrackNumber() uint {
+func (s *ServerMediaSubsession) TrackNumber() uint {
 	return s.trackNumber
 }
 
-func (s *ServerMediaSubSession) IncrTrackNumber() {
+func (s *ServerMediaSubsession) IncrTrackNumber() {
 	s.trackNumber++
 }
 
-func (s *ServerMediaSubSession) getAbsoluteTimeRange(absStartTime, absEndTime *string) {
+func (s *ServerMediaSubsession) getAbsoluteTimeRange(absStartTime, absEndTime *string) {
 	absStartTime = nil
 	absEndTime = nil
 }
 
-func (s *ServerMediaSubSession) rangeSDPLine() string {
+func (s *ServerMediaSubsession) rangeSDPLine() string {
 	var absStart, absEnd *string
 	s.getAbsoluteTimeRange(absStart, absEnd)
 	if absStart != nil {
@@ -85,12 +85,12 @@ func (s *ServerMediaSubSession) rangeSDPLine() string {
 }
 
 // default implementation: Support scale = 1 only
-func (s *ServerMediaSubSession) TestScaleFactor(scale float32) float32 {
+func (s *ServerMediaSubsession) TestScaleFactor(scale float32) float32 {
 	scale = 1.0
 	return scale
 }
 
 // default implementation: assume an unbounded session
-func (s *ServerMediaSubSession) Duration() float32 {
+func (s *ServerMediaSubsession) Duration() float32 {
 	return 0.0
 }

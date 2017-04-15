@@ -7,19 +7,19 @@ import (
 	//"github.com/djwackey/dorsvr/log"
 )
 
-type H264FileMediaSubSession struct {
-	FileServerMediaSubSession
+type H264FileMediaSubsession struct {
+	FileServerMediaSubsession
 	dummyRTPSink IMediaSink
 	auxSDPLine   string
 }
 
-func NewH264FileMediaSubSession(fileName string) *H264FileMediaSubSession {
-	subsession := new(H264FileMediaSubSession)
-	subsession.InitFileServerMediaSubSession(subsession, fileName)
+func NewH264FileMediaSubsession(fileName string) *H264FileMediaSubsession {
+	subsession := new(H264FileMediaSubsession)
+	subsession.initFileServerMediaSubsession(subsession, fileName)
 	return subsession
 }
 
-func (s *H264FileMediaSubSession) createNewStreamSource() IFramedSource {
+func (s *H264FileMediaSubsession) createNewStreamSource() IFramedSource {
 	//estBitrate = 500 // kbps, estimate
 
 	// Create the video source:
@@ -33,11 +33,11 @@ func (s *H264FileMediaSubSession) createNewStreamSource() IFramedSource {
 	return newH264VideoStreamFramer(fileSource)
 }
 
-func (s *H264FileMediaSubSession) createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IMediaSink {
+func (s *H264FileMediaSubsession) createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IMediaSink {
 	return newH264VideoRTPSink(rtpGroupSock, uint32(rtpPayloadType))
 }
 
-func (s *H264FileMediaSubSession) getAuxSDPLine(rtpSink IMediaSink, inputSource IFramedSource) string {
+func (s *H264FileMediaSubsession) getAuxSDPLine(rtpSink IMediaSink, inputSource IFramedSource) string {
 	if s.auxSDPLine != "" {
 		return s.auxSDPLine
 	}
@@ -53,7 +53,7 @@ func (s *H264FileMediaSubSession) getAuxSDPLine(rtpSink IMediaSink, inputSource 
 	return s.auxSDPLine
 }
 
-func (s *H264FileMediaSubSession) checkForAuxSDPLine() {
+func (s *H264FileMediaSubsession) checkForAuxSDPLine() {
 	var auxSDPLine string
 	for s.auxSDPLine == "" {
 		if s.dummyRTPSink == nil {
@@ -72,5 +72,5 @@ func (s *H264FileMediaSubSession) checkForAuxSDPLine() {
 	}
 }
 
-func (s *H264FileMediaSubSession) afterPlayingDummy() {
+func (s *H264FileMediaSubsession) afterPlayingDummy() {
 }

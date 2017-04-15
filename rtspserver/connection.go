@@ -40,6 +40,10 @@ func newRTSPClientConnection(server *RTSPServer, socket net.Conn) *RTSPClientCon
 	}
 }
 
+func (c *RTSPClientConnection) destroy() error {
+	return c.socket.Close()
+}
+
 func (c *RTSPClientConnection) incomingRequestHandler() {
 	defer c.socket.Close()
 
@@ -66,7 +70,7 @@ func (c *RTSPClientConnection) incomingRequestHandler() {
 		}
 	}
 
-	log.Info("end connection.")
+	log.Info("end connection[%s:%s].", c.remoteAddr, c.remotePort)
 }
 
 func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) error {
@@ -96,14 +100,14 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) err
 				if sessionIDStr == "" {
 					for {
 						sessionIDStr = fmt.Sprintf("%08X", gs.OurRandom32())
-						if _, existed = c.server.clientSessions[sessionIDStr]; !existed {
+						if _, existed = c.server.getClientSession(sessionIDStr); !existed {
 							break
 						}
 					}
 					clientSession = c.newClientSession(sessionIDStr)
-					c.server.clientSessions[sessionIDStr] = clientSession
+					c.server.addClientSession(sessionIDStr, clientSession)
 				} else {
-					if clientSession, existed = c.server.clientSessions[sessionIDStr]; !existed {
+					if clientSession, existed = c.server.getClientSession(sessionIDStr); !existed {
 						c.handleCommandSessionNotFound()
 					}
 				}
@@ -114,7 +118,7 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) err
 			}
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
 			{
-				if clientSession, existed = c.server.clientSessions[sessionIDStr]; existed {
+				if clientSession, existed = c.server.getClientSession(sessionIDStr); existed {
 					clientSession.handleCommandWithinSession(requestString.CmdName,
 						requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 				} else {
@@ -198,21 +202,21 @@ func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fu
 		return
 	}
 
-	var session *livemedia.ServerMediaSession
-	session = c.server.lookupServerMediaSession(urlTotalSuffix)
-	if session == nil {
+	var sms *livemedia.ServerMediaSession
+	sms = c.server.lookupServerMediaSession(urlTotalSuffix)
+	if sms == nil {
 		c.handleCommandNotFound()
 		return
 	}
 
-	sdpDescription := session.GenerateSDPDescription()
+	sdpDescription := sms.GenerateSDPDescription()
 	sdpDescriptionSize := len(sdpDescription)
 	if sdpDescriptionSize <= 0 {
 		c.setRTSPResponse("404 File Not Found, Or In Incorrect Format")
 		return
 	}
 
-	streamName := session.StreamName()
+	streamName := sms.StreamName()
 	rtspURL := c.server.RtspURL(streamName)
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 		"CSeq: %s\r\n"+

@@ -3,6 +3,6 @@ package rtspserver
 import "github.com/djwackey/dorsvr/livemedia"
 
 type StreamServerState struct {
-	subsession  livemedia.IServerMediaSubSession
+	subsession  livemedia.IServerMediaSubsession
 	streamToken *livemedia.StreamState
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/djwackey/dorsvr/auth"
@@ -28,17 +29,27 @@ type RTSPServer struct {
 	serverMediaSessions    map[string]*livemedia.ServerMediaSession
 	reclamationTestSeconds time.Duration
 	authDatabase           *auth.Database
+	smsMutex               sync.Mutex
+	sessionMutex           sync.Mutex
+	httpConnectionMutex    sync.Mutex
+	rtspConnectionMutex    sync.Mutex
 }
 
-func New() *RTSPServer {
+func New(authDatabase *auth.Database) *RTSPServer {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	return &RTSPServer{
+		authDatabase:           authDatabase,
 		reclamationTestSeconds: 65,
 		clientSessions:         make(map[string]*RTSPClientSession),
 		clientHttpConnections:  make(map[string]*RTSPClientConnection),
 		serverMediaSessions:    make(map[string]*livemedia.ServerMediaSession),
 	}
+}
+
+func (s *RTSPServer) Destroy() {
+	s.rtspListen.Close()
+	s.httpListen.Close()
 }
 
 func (s *RTSPServer) Listen(portNum int) error {
@@ -99,9 +110,9 @@ func (s *RTSPServer) RtspURLPrefix() string {
 	return fmt.Sprintf("rtsp://%s:%d/", s.urlPrefix, s.rtspPort)
 }
 
-func (s *RTSPServer) incomingConnectionHandler(serverListen *net.TCPListener) {
+func (s *RTSPServer) incomingConnectionHandler(l *net.TCPListener) {
 	for {
-		tcpConn, err := s.rtspListen.AcceptTCP()
+		tcpConn, err := l.AcceptTCP()
 		if err != nil {
 			lg.Error(0, "failed to accept client.%s", err.Error())
 			continue
@@ -115,26 +126,33 @@ func (s *RTSPServer) incomingConnectionHandler(serverListen *net.TCPListener) {
 }
 
 func (s *RTSPServer) newClientConnection(conn net.Conn) {
-	connection := newRTSPClientConnection(s, conn)
-	if connection != nil {
-		connection.incomingRequestHandler()
+	c := newRTSPClientConnection(s, conn)
+	if c != nil {
+		c.incomingRequestHandler()
 	}
+}
+
+func (s *RTSPServer) getServerMediaSession(streamName string) (sms *livemedia.ServerMediaSession, existed bool) {
+	s.smsMutex.Lock()
+	defer s.smsMutex.Unlock()
+	sms, existed = s.serverMediaSessions[streamName]
+	return
 }
 
 func (s *RTSPServer) lookupServerMediaSession(streamName string) *livemedia.ServerMediaSession {
 	// Next, check whether we already have a "ServerMediaSession" for server file:
-	sms, exists := s.serverMediaSessions[streamName]
+	sms, existed := s.getServerMediaSession(streamName)
 
 	fid, err := os.Open(streamName)
 	if err != nil {
-		if exists {
-			s.removeServerMediaSession(sms)
+		if existed {
+			s.removeServerMediaSession(streamName)
 		}
 		return nil
 	}
 	defer fid.Close()
 
-	if !exists {
+	if !existed {
 		sms = s.createNewSMS(streamName)
 		s.addServerMediaSession(sms)
 	}
@@ -142,46 +160,59 @@ func (s *RTSPServer) lookupServerMediaSession(streamName string) *livemedia.Serv
 	return sms
 }
 
-func (s *RTSPServer) addServerMediaSession(serverMediaSession *livemedia.ServerMediaSession) {
-	sessionName := serverMediaSession.StreamName()
+func (s *RTSPServer) addServerMediaSession(sms *livemedia.ServerMediaSession) {
+	sessionName := sms.StreamName()
 
-	// in case an existing "ServerMediaSession" with server name already exists
-	session, _ := s.serverMediaSessions[sessionName]
-	s.removeServerMediaSession(session)
-
-	s.serverMediaSessions[sessionName] = serverMediaSession
+	s.smsMutex.Lock()
+	defer s.smsMutex.Unlock()
+	s.serverMediaSessions[sessionName] = sms
 }
 
-func (s *RTSPServer) removeServerMediaSession(serverMediaSession *livemedia.ServerMediaSession) {
-	if serverMediaSession != nil {
-		sessionName := serverMediaSession.StreamName()
-		delete(s.serverMediaSessions, sessionName)
-	}
+func (s *RTSPServer) removeServerMediaSession(sessionName string) {
+	s.smsMutex.Lock()
+	defer s.smsMutex.Unlock()
+	delete(s.serverMediaSessions, sessionName)
 }
 
-func (s *RTSPServer) createNewSMS(fileName string) *livemedia.ServerMediaSession {
-	var serverMediaSession *livemedia.ServerMediaSession
+func (s *RTSPServer) getClientSession(sessionID string) (clientSession *RTSPClientSession, existed bool) {
+	s.sessionMutex.Lock()
+	defer s.sessionMutex.Unlock()
+	clientSession, existed = s.clientSessions[sessionID]
+	return
+}
 
+func (s *RTSPServer) addClientSession(sessionID string, clientSession *RTSPClientSession) {
+	s.sessionMutex.Lock()
+	defer s.sessionMutex.Unlock()
+	s.clientSessions[sessionID] = clientSession
+}
+
+func (s *RTSPServer) removeClientSession(sessionID string) {
+	s.sessionMutex.Lock()
+	defer s.sessionMutex.Unlock()
+	delete(s.clientSessions, sessionID)
+}
+
+func (s *RTSPServer) createNewSMS(fileName string) (sms *livemedia.ServerMediaSession) {
 	array := strings.Split(fileName, ".")
 	if len(array) < 2 {
-		return nil
+		return
 	}
 
 	extension := array[1]
-
 	switch extension {
 	case "264":
 		// Assumed to be a H.264 Video Elementary Stream file:
 		livemedia.OutPacketBufferMaxSize = 100000
-		serverMediaSession = livemedia.NewServerMediaSession("H.264 Video", fileName)
-		serverMediaSession.AddSubSession(livemedia.NewH264FileMediaSubSession(fileName))
+		sms = livemedia.NewServerMediaSession("H.264 Video", fileName)
+		sms.AddSubsession(livemedia.NewH264FileMediaSubsession(fileName))
 	case "ts":
 		//indexFileName := fmt.Sprintf("%sx", fileName)
-		serverMediaSession = livemedia.NewServerMediaSession("MPEG Transport Stream", fileName)
-		serverMediaSession.AddSubSession(livemedia.NewM2TSFileMediaSubSession(fileName))
+		sms = livemedia.NewServerMediaSession("MPEG Transport Stream", fileName)
+		sms.AddSubsession(livemedia.NewM2TSFileMediaSubsession(fileName))
 	default:
 	}
-	return serverMediaSession
+	return
 }
 
 func (s *RTSPServer) specialClientAccessCheck(clientSocket net.Conn, clientAddr, urlSuffix string) bool {

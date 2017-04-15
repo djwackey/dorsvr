@@ -1,12 +1,12 @@
 package livemedia
 
-type FileServerMediaSubSession struct {
-	OnDemandServerMediaSubSession
+type FileServerMediaSubsession struct {
+	OnDemandServerMediaSubsession
 	fileName string
 	fileSize int64
 }
 
-func (s *FileServerMediaSubSession) InitFileServerMediaSubSession(isubsession IServerMediaSubSession, fileName string) {
+func (s *FileServerMediaSubsession) initFileServerMediaSubsession(isubsession IServerMediaSubsession, fileName string) {
 	s.fileName = fileName
-	s.InitOnDemandServerMediaSubSession(isubsession)
+	s.initOnDemandServerMediaSubsession(isubsession)
 }

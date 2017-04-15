@@ -5,18 +5,18 @@ import gs "github.com/djwackey/dorsvr/groupsock"
 var TRANSPORT_PACKET_SIZE uint = 188
 var TRANSPORT_PACKETS_PER_NETWORK_PACKET uint = 7
 
-type M2TSFileMediaSubSession struct {
-	FileServerMediaSubSession
+type M2TSFileMediaSubsession struct {
+	FileServerMediaSubsession
 	duration float32
 }
 
-func NewM2TSFileMediaSubSession(fileName string) *M2TSFileMediaSubSession {
-	subsession := new(M2TSFileMediaSubSession)
-	subsession.InitFileServerMediaSubSession(subsession, fileName)
+func NewM2TSFileMediaSubsession(fileName string) *M2TSFileMediaSubsession {
+	subsession := new(M2TSFileMediaSubsession)
+	subsession.initFileServerMediaSubsession(subsession, fileName)
 	return subsession
 }
 
-func (s *M2TSFileMediaSubSession) createNewStreamSource() IFramedSource {
+func (s *M2TSFileMediaSubsession) createNewStreamSource() IFramedSource {
 	//inputDataChunkSize := TRANSPORT_PACKETS_PER_NETWORK_PACKET * TRANSPORT_PACKET_SIZE
 
 	// Create the video source:
@@ -37,10 +37,10 @@ func (s *M2TSFileMediaSubSession) createNewStreamSource() IFramedSource {
 	return framer
 }
 
-func (s *M2TSFileMediaSubSession) createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IMediaSink {
+func (s *M2TSFileMediaSubsession) createNewRTPSink(rtpGroupSock *gs.GroupSock, rtpPayloadType uint) IMediaSink {
 	return newSimpleRTPSink(rtpGroupSock, 33, 90000, 1, "video", "MP2T", true, false)
 }
 
-func (s *M2TSFileMediaSubSession) Duration() float32 {
+func (s *M2TSFileMediaSubsession) Duration() float32 {
 	return s.duration
 }

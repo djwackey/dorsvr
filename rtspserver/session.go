@@ -36,7 +36,15 @@ func (s *RTSPClientSession) server() *RTSPServer {
 }
 
 func (s *RTSPClientSession) destroy() {
-	delete(s.server().clientSessions, s.sessionID)
+	// turn off any liveness check:
+	s.livenessTimeoutTimer.Stop()
+
+	s.server().removeClientSession(s.sessionID)
+
+	if s.serverMediaSession != nil {
+		streamName := s.serverMediaSession.StreamName()
+		s.server().removeServerMediaSession(streamName)
+	}
 }
 
 func (s *RTSPClientSession) handleCommandSetup(urlPreSuffix, urlSuffix, reqStr string) {
@@ -64,12 +72,12 @@ func (s *RTSPClientSession) handleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 
 		s.streamStates = new(StreamServerState)
 		for i := 0; i < s.numStreamStates; i++ {
-			s.streamStates.subsession = s.serverMediaSession.SubSessions[i]
+			s.streamStates.subsession = s.serverMediaSession.Subsessions[i]
 		}
 	}
 
 	// Look up information for the specified subsession (track):
-	var subsession livemedia.IServerMediaSubSession
+	var subsession livemedia.IServerMediaSubsession
 	if trackID != "" {
 		for streamNum := 0; streamNum < s.numStreamStates; streamNum++ {
 			subsession = s.streamStates.subsession
@@ -212,7 +220,7 @@ func (s *RTSPClientSession) handleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 func (s *RTSPClientSession) handleCommandWithinSession(cmdName, urlPreSuffix, urlSuffix, fullRequestStr string) {
 	s.noteLiveness()
 
-	var subsession livemedia.IServerMediaSubSession
+	var subsession livemedia.IServerMediaSubsession
 	if s.serverMediaSession == nil { // There wasn't a previous SETUP!
 		s.connection.handleCommandNotSupported()
 		return
@@ -220,7 +228,7 @@ func (s *RTSPClientSession) handleCommandWithinSession(cmdName, urlPreSuffix, ur
 		// Non-aggregated operation.
 		// Look up the media subsession whose track id is "urlSuffix":
 		for i := 0; i < s.serverMediaSession.SubsessionCounter; i++ {
-			subsession = s.serverMediaSession.SubSessions[i]
+			subsession = s.serverMediaSession.Subsessions[i]
 
 			if strings.EqualFold(subsession.TrackID(), urlSuffix) {
 				break
@@ -264,7 +272,7 @@ func (s *RTSPClientSession) handleCommandWithinSession(cmdName, urlPreSuffix, ur
 	}
 }
 
-func (s *RTSPClientSession) handleCommandPlay(subsession livemedia.IServerMediaSubSession, fullRequestStr string) {
+func (s *RTSPClientSession) handleCommandPlay(subsession livemedia.IServerMediaSubsession, fullRequestStr string) {
 	rtspURL := s.server().RtspURL(s.serverMediaSession.StreamName())
 
 	// Parse the client's "Scale:" header, if any:
@@ -419,6 +427,9 @@ func (s *RTSPClientSession) handleCommandTearDown() {
 	//for i := 0; i < s.numStreamStates; i++ {
 	//	s.streamStates[i].subsession.DeleteStream()
 	//}
+
+	s.connection.setRTSPResponse("200 OK")
+	s.destroy()
 }
 
 func (s *RTSPClientSession) noteLiveness() {
@@ -438,6 +449,7 @@ func (s *RTSPClientSession) livenessTimeoutTask(d time.Duration) {
 		select {
 		case <-s.livenessTimeoutTimer.C:
 			fmt.Println("livenessTimeoutTask")
+			s.destroy()
 		}
 	}
 }
