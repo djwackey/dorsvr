@@ -22,23 +22,23 @@ var sdpDesc = "v=0\r\n" +
 	"a=rtpmap:96 H264/90000\r\n" +
 	"a=control:track1\r\n\r\n"
 
-func Test_InitWithSDP(t *testing.T) {
-	mediaSession := NewMediaSession(sdpDesc)
-	if mediaSession != nil {
+func TestInitWithSDP(t *testing.T) {
+	session := NewMediaSession(sdpDesc)
+	if session != nil {
 		t.Log("success")
 	} else {
 		t.Error("failed")
 	}
 }
 
-func Test_ConnectionEndpointName(t *testing.T) {
-	mediaSession := NewMediaSession(sdpDesc)
-	if mediaSession == nil {
+func TestConnectionEndpointName(t *testing.T) {
+	session := NewMediaSession(sdpDesc)
+	if session == nil {
 		fmt.Println("Unable to create new MediaSession")
 		t.Error("failed")
 	}
 
-	subsession := NewMediaSubSession(mediaSession)
+	subsession := NewMediaSubsession(session)
 	if subsession == nil {
 		fmt.Println("Unable to create new MediaSubsession")
 		t.Error("failed")

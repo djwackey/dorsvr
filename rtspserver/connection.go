@@ -1,6 +1,7 @@
 package rtspserver
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -14,38 +15,38 @@ import (
 const rtspBufferSize = 10000
 
 type RTSPClientConnection struct {
-	clientSocket   net.Conn
+	socket         net.Conn
 	localPort      string
 	remotePort     string
 	localAddr      string
 	remoteAddr     string
 	currentCSeq    string
 	responseBuffer string
-	rtspServer     *RTSPServer
+	server         *RTSPServer
 	digest         *auth.Digest
 }
 
-func newRTSPClientConnection(s *RTSPServer, socket net.Conn) *RTSPClientConnection {
+func newRTSPClientConnection(server *RTSPServer, socket net.Conn) *RTSPClientConnection {
 	localAddr := strings.Split(socket.LocalAddr().String(), ":")
 	remoteAddr := strings.Split(socket.RemoteAddr().String(), ":")
 	return &RTSPClientConnection{
-		rtspServer:   s,
-		localAddr:    localAddr[0],
-		localPort:    localAddr[1],
-		remoteAddr:   remoteAddr[0],
-		remotePort:   remoteAddr[1],
-		clientSocket: socket,
-		digest:       auth.NewDigest(),
+		server:     server,
+		socket:     socket,
+		localAddr:  localAddr[0],
+		localPort:  localAddr[1],
+		remoteAddr: remoteAddr[0],
+		remotePort: remoteAddr[1],
+		digest:     auth.NewDigest(),
 	}
 }
 
 func (c *RTSPClientConnection) incomingRequestHandler() {
-	defer c.clientSocket.Close()
+	defer c.socket.Close()
 
 	var isclose bool
 	buffer := make([]byte, rtspBufferSize)
 	for {
-		length, err := c.clientSocket.Read(buffer)
+		length, err := c.socket.Read(buffer)
 
 		switch err {
 		case nil:
@@ -69,6 +70,10 @@ func (c *RTSPClientConnection) incomingRequestHandler() {
 }
 
 func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) error {
+	if length < 0 {
+		return errors.New("EOF")
+	}
+
 	reqStr := string(buffer[:length])
 
 	log.Info("Received %d new bytes of request data.", length)
@@ -91,14 +96,14 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) err
 				if sessionIDStr == "" {
 					for {
 						sessionIDStr = fmt.Sprintf("%08X", gs.OurRandom32())
-						if _, existed = c.rtspServer.clientSessions[sessionIDStr]; !existed {
+						if _, existed = c.server.clientSessions[sessionIDStr]; !existed {
 							break
 						}
 					}
 					clientSession = c.newClientSession(sessionIDStr)
-					c.rtspServer.clientSessions[sessionIDStr] = clientSession
+					c.server.clientSessions[sessionIDStr] = clientSession
 				} else {
-					if clientSession, existed = c.rtspServer.clientSessions[sessionIDStr]; !existed {
+					if clientSession, existed = c.server.clientSessions[sessionIDStr]; !existed {
 						c.handleCommandSessionNotFound()
 					}
 				}
@@ -109,7 +114,7 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) err
 			}
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
 			{
-				if clientSession, existed = c.rtspServer.clientSessions[sessionIDStr]; existed {
+				if clientSession, existed = c.server.clientSessions[sessionIDStr]; existed {
 					clientSession.handleCommandWithinSession(requestString.CmdName,
 						requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 				} else {
@@ -138,7 +143,7 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) err
 		}
 	}
 
-	sendBytes, err := c.clientSocket.Write([]byte(c.responseBuffer))
+	sendBytes, err := c.socket.Write([]byte(c.responseBuffer))
 	if err != nil {
 		log.Error(0, "failed to send response buffer.", sendBytes)
 		return err
@@ -194,7 +199,7 @@ func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fu
 	}
 
 	var session *livemedia.ServerMediaSession
-	session = c.rtspServer.lookupServerMediaSession(urlTotalSuffix)
+	session = c.server.lookupServerMediaSession(urlTotalSuffix)
 	if session == nil {
 		c.handleCommandNotFound()
 		return
@@ -208,7 +213,7 @@ func (c *RTSPClientConnection) handleCommandDescribe(urlPreSuffix, urlSuffix, fu
 	}
 
 	streamName := session.StreamName()
-	rtspURL := c.rtspServer.RtspURL(streamName)
+	rtspURL := c.server.RtspURL(streamName)
 	c.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 		"CSeq: %s\r\n"+
 		"%s"+
@@ -241,8 +246,8 @@ func (c *RTSPClientConnection) handleHTTPCommandNotFound() {
 }
 
 func (c *RTSPClientConnection) handleHTTPCommandTunnelingGET(sessionCookie string) {
-	if _, existed := c.rtspServer.clientHttpConnections[sessionCookie]; !existed {
-		c.rtspServer.clientHttpConnections[sessionCookie] = c
+	if _, existed := c.server.clientHttpConnections[sessionCookie]; !existed {
+		c.server.clientHttpConnections[sessionCookie] = c
 	}
 
 	// Construct our response:
@@ -276,12 +281,12 @@ func (c *RTSPClientConnection) setRTSPResponseWithSessionID(responseStr string, 
 }
 
 func (c *RTSPClientConnection) authenticationOK(cmdName, urlSuffix, fullRequestStr string) bool {
-	if !c.rtspServer.specialClientAccessCheck(c.clientSocket, c.remoteAddr, urlSuffix) {
+	if !c.server.specialClientAccessCheck(c.socket, c.remoteAddr, urlSuffix) {
 		c.setRTSPResponse("401 Unauthorized")
 		return false
 	}
 
-	authDatabase := c.rtspServer.authDatabase
+	authDatabase := c.server.authDatabase
 	// dont enable authentication control, pass it
 	if authDatabase == nil {
 		return true

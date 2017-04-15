@@ -2,7 +2,6 @@ package livemedia
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -662,25 +661,10 @@ func (s *MediaSubsession) RtcpInstance() *RTCPInstance {
 func (s *MediaSubsession) SetDestinations(destAddress string) {
 }
 
-func (s *MediaSubsession) ConnectionEndpointName() string {
-	connectionEndpointName := s.connectionEndpointName
-
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		fmt.Println(err)
-		return connectionEndpointName
-	}
-
-	for _, address := range addrs {
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				connectionEndpointName = ipnet.IP.String()
-				break
-			}
-		}
-	}
-
-	return connectionEndpointName
+func (s *MediaSubsession) ConnectionEndpointName() (name string) {
+	name = s.connectionEndpointName
+	name, _ = gs.OurIPAddress()
+	return
 }
 
 func (s *MediaSubsession) createSourceObject() bool {

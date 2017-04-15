@@ -48,7 +48,7 @@ func OurIPAddress() (string, error) {
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				ip, err = ipnet.IP.String(), nil
-				break
+				//break
 			}
 		}
 	}
