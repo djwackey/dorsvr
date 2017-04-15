@@ -7,7 +7,7 @@ type Database struct {
 	records  map[string]string
 }
 
-func newAuthDB(realm string) *Database {
+func NewAuthDatabase(realm string) *Database {
 	if realm == "" {
 		realm = "dorsvr streaming server"
 	}
@@ -16,21 +16,21 @@ func newAuthDB(realm string) *Database {
 	}
 }
 
-func (a *Database) InsertUserRecord(username, password string) {
+func (d *Database) InsertUserRecord(username, password string) {
 	if username == "" || password == "" {
 		return
 	}
 
-	_, existed := a.records[username]
+	_, existed := d.records[username]
 	if !existed {
-		a.records[username] = password
+		d.records[username] = password
 	}
 }
 
-func (a *Database) RemoveUserRecord(username string) {
-	_, existed := a.records[username]
+func (d *Database) RemoveUserRecord(username string) {
+	_, existed := d.records[username]
 	if existed {
-		delete(a.records, username)
+		delete(d.records, username)
 	}
 }
 
