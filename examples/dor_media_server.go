@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	//"github.com/djwackey/dorsvr/auth"
 	"github.com/djwackey/dorsvr/rtspserver"
 	"github.com/djwackey/gitea/log"
 )
@@ -10,11 +11,18 @@ import (
 func main() {
 	// open a logger writer of console or file mode.
 	mode := "console"
-	config := `{"level":3,"filename":"test.log"}`
+	config := `{"level":2,"filename":"test.log"}`
 	log.NewLogger(0, mode, config)
 
+	// to implement client access control to the RTSP server, do the following:
+	// var realm string
+	// authdb = auth.NewAuthDatabase(realm)
+	// authdb.InsertUserRecord("username1", "password1")
+	// repeat the above with each <username>, <password> that you wish to allow
+	// access to the server.
+
 	// create a rtsp server
-	server := rtspserver.New()
+	server := rtspserver.New(nil)
 
 	portNum := 8554
 	err := server.Listen(portNum)
@@ -23,6 +31,9 @@ func main() {
 		return
 	}
 
+	// also, attempt to create a HTTP server for RTSP-over-HTTP tunneling.
+	// Try first with the default HTTP port (80), and then with the alternative HTTP
+	// port numbers (8000 and 8080).
 	if !server.SetupTunnelingOverHTTP(80) ||
 		!server.SetupTunnelingOverHTTP(8000) ||
 		!server.SetupTunnelingOverHTTP(8080) {
