@@ -28,13 +28,5 @@ func main() {
 	// send the options/describe request
 	client.SendRequest()
 
-	//go TimeCloser(client)
 	select {}
-
-	fmt.Println("exit")
-}
-
-func TimeCloser(client *rtspclient.RTSPClient) {
-	time.Sleep(3 * time.Second)
-	client.Close()
 }
