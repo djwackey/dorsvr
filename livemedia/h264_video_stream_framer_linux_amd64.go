@@ -556,7 +556,6 @@ func (p *H264VideoStreamParser) analyzeVUIParameters(bv *BitVector) *seqParamete
 //////// H264VideoStreamFramer ////////
 type H264VideoStreamFramer struct {
 	MPEGVideoStreamFramer
-	frameRate            float64
 	lastSeenSPS          []byte
 	lastSeenPPS          []byte
 	lastSeenSPSSize      uint

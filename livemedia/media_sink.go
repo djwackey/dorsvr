@@ -221,7 +221,7 @@ type MediaSink struct {
 	afterFunc interface{}
 }
 
-func (s *MediaSink) initMediaSink(rtpSink IMediaSink) {
+func (s *MediaSink) InitMediaSink(rtpSink IMediaSink) {
 	s.rtpSink = rtpSink
 }
 

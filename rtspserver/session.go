@@ -353,7 +353,7 @@ func (s *RTSPClientSession) handleCommandPlay(subsession livemedia.IServerMediaS
 				// Special case handling for seeking by 'absolute' time:
 				if absStartTime != "" {
 					if s.streamStates.subsession != nil {
-						//s.streamStates.subsession.seekStream(s.ourSessionID, s.streamStates.streamToken, absStartTime, absEndTime)
+						s.streamStates.subsession.SeekStream(s.sessionID, s.streamStates.streamToken, 0)
 					}
 				} else { // Seeking by relative (NPT) time:
 					var streamDuration float32 = 0.0                   // by default; means: stream until the end of the media
@@ -365,8 +365,7 @@ func (s *RTSPClientSession) handleCommandPlay(subsession livemedia.IServerMediaS
 						}
 					}
 					if s.streamStates.subsession != nil {
-						//var numBytes int
-						//s.streamStates.subsession.seekStream(s.ourSessionID, s.streamStates.streamToken, rangeStart, streamDuration, numBytes)
+						s.streamStates.subsession.SeekStream(s.sessionID, s.streamStates.streamToken, streamDuration)
 					}
 				}
 			}

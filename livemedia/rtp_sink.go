@@ -29,7 +29,7 @@ type RTPSink struct {
 
 func (s *RTPSink) InitRTPSink(rtpSink IMediaSink, g *gs.GroupSock, rtpPayloadType,
 	rtpTimestampFrequency uint32, rtpPayloadFormatName string) {
-	s.initMediaSink(rtpSink)
+	s.InitMediaSink(rtpSink)
 	s.rtpInterface = newRTPInterface(s, g)
 	s.rtpPayloadType = rtpPayloadType
 	s.rtpTimestampFrequency = rtpTimestampFrequency

@@ -24,7 +24,7 @@ type IServerMediaSubsession interface {
 		rtcpRRHandler, serverRequestAlternativeByteHandler interface{}) (uint32, uint32)
 	PauseStream(streamState *StreamState)
 	DeleteStream(sessionID string, streamState *StreamState)
-	SeekStream()
+	SeekStream(sessionID string, streamState *StreamState, streamDuration float32)
 }
 
 type ServerMediaSubsession struct {
@@ -58,8 +58,8 @@ func (s *ServerMediaSubsession) IncrTrackNumber() {
 }
 
 func (s *ServerMediaSubsession) getAbsoluteTimeRange(absStartTime, absEndTime *string) {
-	absStartTime = nil
-	absEndTime = nil
+	//absStartTime = nil
+	//absEndTime = nil
 }
 
 func (s *ServerMediaSubsession) rangeSDPLine() string {

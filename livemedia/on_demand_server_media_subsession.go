@@ -188,7 +188,7 @@ func (s *OnDemandServerMediaSubsession) StartStream(clientSessionID string, stre
 	return
 }
 
-func (s *OnDemandServerMediaSubsession) SeekStream() {
+func (s *OnDemandServerMediaSubsession) SeekStream(sessionID string, streamState *StreamState, streamDuration float32) {
 	if s.reuseFirstSource {
 		return
 	}

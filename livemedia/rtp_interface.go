@@ -4,15 +4,18 @@ import (
 	"net"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
+	"github.com/djwackey/gitea/log"
 )
 
 type RTPInterface struct {
 	gs                         *gs.GroupSock
 	owner                      interface{}
 	auxReadHandlerFunc         interface{}
-	nextTCPReadStreamSocketNum int
+	nextTCPReadStreamSocketNum net.Conn
 	socketDescriptors          map[net.Conn]*SocketDescriptor
 	tcpStreams                 *tcpStreamRecord
+	nextTCPReadSize            uint
+	nextTCPReadStreamChannelID uint
 }
 
 func newRTPInterface(owner interface{}, gs *gs.GroupSock) *RTPInterface {
@@ -159,42 +162,53 @@ func sendRTPOverTCP(socketNum net.Conn, packet []byte, packetSize, streamChannel
 }
 
 const (
-	AWAITING_DOLLAR = iota
-	AWAITING_STREAM_CHANNEL_ID
-	AWAITING_SIZE1
-	AWAITING_SIZE2
-	AWAITING_PACKET_DATA
+	awaitingDollar = iota
+	awaitingStreamChannelID
+	awaitingSize1
+	awaitingSize2
+	awaitingPacketData
 )
 
 type SocketDescriptor struct {
 	tcpReadingState                     int
+	streamChannelID                     uint
+	sizeByte1                           uint
 	socketNum                           net.Conn
 	serverRequestAlternativeByteHandler interface{}
+	subChannels                         map[uint]*RTPInterface
 }
 
 func newSocketDescriptor(socketNum net.Conn) *SocketDescriptor {
 	return &SocketDescriptor{
 		socketNum:       socketNum,
-		tcpReadingState: AWAITING_DOLLAR,
+		tcpReadingState: awaitingDollar,
+		subChannels:     make(map[uint]*RTPInterface),
 	}
 }
 
 func (s *SocketDescriptor) registerRTPInterface(streamChannelID uint, rtpInterface *RTPInterface) {
+	s.subChannels[streamChannelID] = rtpInterface
 	go s.tcpReadHandler(rtpInterface)
 }
 
+func (s *SocketDescriptor) lookupRTPInterface(streamChannelID uint) (rtpInterface *RTPInterface, existed bool) {
+	rtpInterface, existed = s.subChannels[streamChannelID]
+	return
+}
+
 func (s *SocketDescriptor) deregisterRTPInterface(streamChannelID uint) {
-	s.socketNum.Close()
+	defer s.socketNum.Close()
 	if s.serverRequestAlternativeByteHandler != nil {
 		s.serverRequestAlternativeByteHandler.(func(requestByte uint))(0xFE)
 	}
+	delete(s.subChannels, streamChannelID)
 }
 
 func (s *SocketDescriptor) tcpReadHandler(rtpInterface *RTPInterface) {
 	defer s.socketNum.Close()
+	buffer := make([]byte, 1)
 	for {
-		buffer := make([]byte, 1)
-		if s.tcpReadingState != AWAITING_PACKET_DATA {
+		if s.tcpReadingState != awaitingPacketData {
 			_, err := gs.ReadSocket(s.socketNum, buffer)
 			if err != nil {
 				if s.serverRequestAlternativeByteHandler != nil {
@@ -204,6 +218,45 @@ func (s *SocketDescriptor) tcpReadHandler(rtpInterface *RTPInterface) {
 				break
 			}
 		}
+	}
+
+	switch s.tcpReadingState {
+	case awaitingDollar:
+		if buffer[0] == '$' {
+			log.Debug("[SocketDescriptor::tcpReadHandler] Saw '$'")
+			s.tcpReadingState = awaitingStreamChannelID
+		} else {
+			// This character is part of a RTSP request or command, which is handled separately:
+			if s.serverRequestAlternativeByteHandler != nil && buffer[0] != 0xFF && buffer[0] != 0xFE {
+				s.serverRequestAlternativeByteHandler.(func(requestByte uint))(uint(buffer[0]))
+			}
+		}
+	case awaitingStreamChannelID:
+		// The byte that we read is the stream channel id.
+		if _, existed := s.lookupRTPInterface(uint(buffer[0])); existed {
+			s.streamChannelID = uint(buffer[0])
+			s.tcpReadingState = awaitingSize1
+		} else {
+			s.tcpReadingState = awaitingDollar
+		}
+	case awaitingSize1:
+		// The byte that we read is the first (high) byte of the 16-bit RTP or RTCP packet 'size'.
+		s.sizeByte1 = uint(buffer[0])
+		s.tcpReadingState = awaitingSize2
+	case awaitingSize2:
+		// The byte that we read is the second (low) byte of the 16-bit RTP or RTCP packet 'size'.
+		size := (s.sizeByte1 << 8) | uint(buffer[0])
+
+		// Record the information about the packet data that will be read next:
+		rtpInterface, existed := s.lookupRTPInterface(s.streamChannelID)
+		if existed {
+			rtpInterface.nextTCPReadSize = size
+			rtpInterface.nextTCPReadStreamSocketNum = s.socketNum
+			rtpInterface.nextTCPReadStreamChannelID = s.streamChannelID
+		}
+		s.tcpReadingState = awaitingPacketData
+	case awaitingPacketData:
+		s.tcpReadingState = awaitingDollar
 	}
 }
 
