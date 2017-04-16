@@ -180,7 +180,8 @@ func (p *H264VideoStreamParser) parse() (uint, error) {
 	}
 
 	p.UsingSource().setPresentationTime()
-	log.Trace("\tPresentation Time: %d.%06d", p.UsingSource().presentationTime.Sec, p.UsingSource().presentationTime.Usec)
+	log.Trace("\tPresentation Time: %d.%06d", p.UsingSource().presentationTime.Sec,
+		p.UsingSource().presentationTime.Usec)
 
 	thisNALUnitEndsAccessUnit := false // until we learn otherwise
 	if p.haveSeenEOF {

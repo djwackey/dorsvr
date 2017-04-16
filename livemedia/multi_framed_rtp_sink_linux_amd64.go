@@ -7,7 +7,7 @@ import (
 	gs "github.com/djwackey/dorsvr/groupsock"
 )
 
-var rtpHeaderSize uint = 12
+const rtpHeaderSize uint = 12
 
 type MultiFramedRTPSink struct {
 	RTPSink

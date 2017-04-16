@@ -131,11 +131,6 @@ func (b *OutPacketBuffer) insert(from []byte, numBytes, toPosition uint) {
 	if toPosition+numBytes > b.curOffset {
 		b.curOffset = toPosition + numBytes
 	}
-
-	//var i uint
-	//for i = 0; i < 30; i++ {
-	//	log.Debug("[OutPacketBuffer::insert] %d", b.buff[realToPosition:][i])
-	//}
 }
 
 func (b *OutPacketBuffer) insertWord(word uint32, toPosition uint) {
@@ -226,7 +221,7 @@ type MediaSink struct {
 	afterFunc interface{}
 }
 
-func (s *MediaSink) InitMediaSink(rtpSink IMediaSink) {
+func (s *MediaSink) initMediaSink(rtpSink IMediaSink) {
 	s.rtpSink = rtpSink
 }
 

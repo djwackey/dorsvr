@@ -83,7 +83,6 @@ func (f *MPEGVideoStreamFramer) doGetNextFrame() error {
 
 func (f *MPEGVideoStreamFramer) continueReadProcessing() {
 	acquiredFrameSize, err := f.parser.parse()
-	//log.Info("MPEGVideoStreamFramer::continueReadProcessing->%d", acquiredFrameSize)
 	if err == nil {
 		// We were able to acquire a frame from the input.
 		// It has already been copied to the reader's space.

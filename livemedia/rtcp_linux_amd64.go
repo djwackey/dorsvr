@@ -40,8 +40,10 @@ type SDESItem struct {
 }
 
 // bytes, (1500, minus some allowance for IP, UDP, UMTP headers)
-var maxRTCPPacketSize uint = 1450
-var preferredPacketSize uint = 1000 // bytes
+const (
+	maxRTCPPacketSize   uint = 1450
+	preferredPacketSize uint = 1000 // bytes
+)
 
 type RTCPInstance struct {
 	typeOfEvent          uint
@@ -143,8 +145,7 @@ func (r *RTCPInstance) incomingReportHandler() {
 			break
 		}
 
-		packet := r.inBuf[:readBytes]
-		packetSize := uint(readBytes)
+		packet, packetSize := r.inBuf[:readBytes], uint(readBytes)
 
 		totPacketSize := IP_UDP_HDR_SIZE + packetSize
 
