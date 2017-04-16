@@ -1,7 +1,9 @@
 Dorsvr Streaming Server
 =======================
 
-[![Build Status](https://travis-ci.org/djwackey/dorsvr.svg?branch=master)](https://travis-ci.org/djwackey/dorsvr) [![GitHub issues](https://img.shields.io/github/issues/djwackey/dorsvr.svg)](https://github.com/djwackey/dorsvr/issues)
+[![Build Status](https://travis-ci.org/djwackey/dorsvr.svg?branch=master)](https://travis-ci.org/djwackey/dorsvr) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/djwackey/dorsvr)](https://goreportcard.com/report/github.com/djwackey/dorsvr)
+[![GitHub issues](https://img.shields.io/github/issues/djwackey/dorsvr.svg)](https://github.com/djwackey/dorsvr/issues)
 ## Modules
  * rtspserver - rtsp server
  * rtspclient - rtsp client
