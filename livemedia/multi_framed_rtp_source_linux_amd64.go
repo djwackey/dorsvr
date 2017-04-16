@@ -91,9 +91,9 @@ func (s *MultiFramedRTPSource) doGetNextFrame1() {
 		packetInfo := nextPacket.use(s.buffTo, uint32(s.maxSize))
 		s.presentationTime = packetInfo.presentationTime
 		s.numTruncatedBytes = uint(packetInfo.bytesTruncated)
+		s.curPacketRTPTimestamp = packetInfo.rtpTimestamp
 		s.curPacketMarkerBit = packetInfo.rtpMarkerBit
 		s.curPacketRTPSeqNum = packetInfo.rtpSeqNo
-		s.curPacketRTPTimestamp = packetInfo.rtpTimestamp
 		s.curPacketSyncUsingRTCP = packetInfo.hasBeenSyncedUsingRTCP
 
 		s.frameSize += uint(packetInfo.bytesUsed)

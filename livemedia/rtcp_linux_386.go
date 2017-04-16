@@ -1,10 +1,10 @@
 package livemedia
 
 import (
-	"fmt"
 	sys "syscall"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
+	"github.com/djwackey/gitea/log"
 )
 
 const (
@@ -40,8 +40,10 @@ type SDESItem struct {
 }
 
 // bytes, (1500, minus some allowance for IP, UDP, UMTP headers)
-var maxRTCPPacketSize uint = 1450
-var preferredPacketSize uint = 1000 // bytes
+const (
+	maxRTCPPacketSize   uint = 1450
+	preferredPacketSize uint = 1000 // bytes
+)
 
 type RTCPInstance struct {
 	typeOfEvent          uint
@@ -56,7 +58,7 @@ type RTCPInstance struct {
 	Sink                 *RTPSink
 	Source               *RTPSource
 	outBuf               *OutPacketBuffer
-	rtcpInterface        *RTPInterface
+	netInterface         *RTPInterface
 	byeHandlerTask       interface{}
 	SRHandlerTask        interface{}
 	RRHandlerTask        interface{}
@@ -64,15 +66,14 @@ type RTCPInstance struct {
 }
 
 func newSDESItem(tag int, value string) *SDESItem {
-	item := new(SDESItem)
-
 	length := len(value)
 	if length > 0xFF {
 		length = 0xFF // maximum data length for a SDES item
 	}
 
-	item.data = []byte{byte(tag), byte(length)}
-	return item
+	return &SDESItem{
+		data: []byte{byte(tag), byte(length)},
+	}
 }
 
 func dTimeNow() int32 {
@@ -86,19 +87,30 @@ func (s *SDESItem) totalSize() uint {
 }
 
 func newRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string) *RTCPInstance {
-	rtcp := new(RTCPInstance)
-	rtcp.typeOfEvent = EVENT_REPORT
-	rtcp.totSessionBW = totSessionBW
-	rtcp.CNAME = newSDESItem(RTCP_SDES_CNAME, cname)
+	// saved OutPacketBuffer's max size temporarily
+	savedMaxSize := OutPacketBufferMaxSize
+	OutPacketBufferMaxSize = maxRTCPPacketSize
 
-	rtcp.prevReportTime = dTimeNow()
-	rtcp.nextReportTime = rtcp.prevReportTime
+	reportTime := dTimeNow()
+	rtcp := &RTCPInstance{
+		typeOfEvent:    EVENT_REPORT,
+		totSessionBW:   totSessionBW,
+		prevReportTime: reportTime,
+		nextReportTime: reportTime,
+		CNAME:          newSDESItem(RTCP_SDES_CNAME, cname),
+		outBuf:         newOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize),
+		inBuf:          make([]byte, maxRTCPPacketSize),
+	}
+	// resume common OutPacketBuffer's max size
+	OutPacketBufferMaxSize = savedMaxSize
 
-	rtcp.inBuf = make([]byte, maxRTCPPacketSize)
-	rtcp.outBuf = newOutPacketBuffer(preferredPacketSize, maxRTCPPacketSize)
+	if rtcp.totSessionBW == 0 {
+		log.Warn("[newRTCPInstance] totSessionBW can't be zero!")
+		rtcp.totSessionBW = 1
+	}
 
-	rtcp.rtcpInterface = newRTPInterface(rtcp, rtcpGS)
-	rtcp.rtcpInterface.startNetworkReading(rtcp.incomingReportHandler)
+	rtcp.netInterface = newRTPInterface(rtcp, rtcpGS)
+	rtcp.netInterface.startNetworkReading(rtcp.incomingReportHandler)
 
 	rtcp.onExpire()
 	return rtcp
@@ -127,27 +139,26 @@ func (r *RTCPInstance) setRRHandler(handlerTask interface{}, clientData interfac
 func (r *RTCPInstance) incomingReportHandler() {
 	var callByeHandler bool
 	for {
-		readBytes, err := r.rtcpInterface.handleRead(r.inBuf)
+		readBytes, err := r.netInterface.handleRead(r.inBuf)
 		if err != nil {
-			fmt.Println("RTCP Interface failed to handle read.", err.Error())
+			log.Warn("RTCP Interface failed to handle read.%s", err.Error())
 			break
 		}
 
-		packet := r.inBuf[:readBytes]
-		packetSize := uint(readBytes)
-
-		var rtcpHdr uint32
-		rtcpHdr, _ = gs.Ntohl(packet)
+		packet, packetSize := r.inBuf[:readBytes], uint(readBytes)
 
 		totPacketSize := IP_UDP_HDR_SIZE + packetSize
 
 		if packetSize < 4 {
-			fmt.Println("RTCP Interface packet Size less than 4.")
+			log.Warn("RTCP Interface packet Size less than 4.")
 			continue
 		}
 
+		var rtcpHdr uint32
+		rtcpHdr, _ = gs.Ntohl(packet)
+
 		if (rtcpHdr & 0xE0FE0000) != (0x80000000 | (RTCP_PT_SR << 16)) {
-			fmt.Printf("rejected bad RTCP packet: header 0x%08x\n", rtcpHdr)
+			log.Warn("rejected bad RTCP packet: header 0x%08x", rtcpHdr)
 			continue
 		}
 
@@ -200,7 +211,7 @@ func (r *RTCPInstance) incomingReportHandler() {
 
 					// If a 'SR handler' was set, call it now:
 					if r.SRHandlerTask != nil {
-						//r.SRHandlerTask()
+						r.SRHandlerTask.(func())()
 					}
 				}
 
@@ -216,9 +227,9 @@ func (r *RTCPInstance) incomingReportHandler() {
 					}
 
 					if pt == RTCP_PT_RR {
-						fmt.Println("RTCP_PT_RR")
+						log.Info("RTCP_PT_RR")
 						if r.RRHandlerTask != nil {
-							//r.RRHandlerTask()
+							r.RRHandlerTask.(func())()
 						}
 					}
 
@@ -227,7 +238,7 @@ func (r *RTCPInstance) incomingReportHandler() {
 				}
 
 			case RTCP_PT_BYE:
-				fmt.Println("RTCP_PT_BYE")
+				log.Info("RTCP_PT_BYE")
 				callByeHandler = true
 
 				subPacketOk = true
@@ -246,32 +257,32 @@ func (r *RTCPInstance) incomingReportHandler() {
 				packetOk = true
 				break
 			} else if packetSize < 4 {
-				fmt.Printf("extraneous %d bytes at end of RTCP packet!\n", packetSize)
+				log.Error(1, "extraneous %d bytes at end of RTCP packet!", packetSize)
 				break
 			}
 
 			rtcpHdr, _ = gs.Ntohl(packet)
 
 			if (rtcpHdr & 0xC0000000) != 0x80000000 {
-				fmt.Printf("bad RTCP subpacket: header 0x%08x\n", rtcpHdr)
+				log.Error(1, "bad RTCP subpacket: header 0x%08x", rtcpHdr)
 				break
 			}
 		}
 
 		if !packetOk {
-			fmt.Printf("rejected bad RTCP subpacket: header 0x%08x\n", rtcpHdr)
+			log.Warn("rejected bad RTCP subpacket: header 0x%08x", rtcpHdr)
 			continue
 		} else {
-			fmt.Println("validated entire RTCP packet")
+			log.Info("validated entire RTCP packet")
 		}
 
 		r.onReceive(typeOfPacket, totPacketSize, uint(reportSenderSSRC))
 
 		if callByeHandler && r.byeHandlerTask != nil {
-			r.byeHandlerTask.(func(subsession *MediaSubSession))(r.byeHandlerClientData.(*MediaSubSession))
+			r.byeHandlerTask.(func(subsession *MediaSubsession))(r.byeHandlerClientData.(*MediaSubsession))
 		}
 	}
-	fmt.Println("incomingReportHandler ending.")
+	log.Info("incomingReportHandler ending.")
 }
 
 func (r *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
@@ -298,7 +309,7 @@ func (r *RTCPInstance) sendBye() {
 
 func (r *RTCPInstance) sendBuiltPacket() {
 	reportSize := r.outBuf.curPacketSize()
-	r.rtcpInterface.sendPacket(r.outBuf.packet(), reportSize)
+	r.netInterface.sendPacket(r.outBuf.packet(), reportSize)
 	r.outBuf.resetOffset()
 
 	r.lastSentSize = uint(IP_UDP_HDR_SIZE) + reportSize
@@ -329,22 +340,22 @@ func (r *RTCPInstance) addSDES() {
 
 	num4ByteWords := (numBytes + 3) / 4
 
-	var rtcpHdr int64 = 0x81000000 // version 2, no padding, 1 SSRC chunk
+	var rtcpHdr uint32 = 0x81000000 // version 2, no padding, 1 SSRC chunk
 	rtcpHdr |= (RTCP_PT_SDES << 16)
-	rtcpHdr |= int64(num4ByteWords)
-	r.outBuf.enqueueWord(uint(rtcpHdr))
+	rtcpHdr |= uint32(num4ByteWords)
+	r.outBuf.enqueueWord(rtcpHdr)
 }
 
 func (r *RTCPInstance) addBYE() {
-	var rtcpHdr uint = 0x81000000
+	var rtcpHdr uint32 = 0x81000000
 	rtcpHdr |= RTCP_PT_BYE << 16
 	rtcpHdr |= 1
 	r.outBuf.enqueueWord(rtcpHdr)
 
 	if r.Source != nil {
-		r.outBuf.enqueueWord(r.Source.ssrc)
+		r.outBuf.enqueueWord(uint32(r.Source.ssrc))
 	} else if r.Sink != nil {
-		r.outBuf.enqueueWord(r.Sink.ssrc)
+		r.outBuf.enqueueWord(uint32(r.Sink.ssrc))
 	}
 }
 
@@ -373,14 +384,14 @@ func (r *RTCPInstance) onExpire() {
 func (r *RTCPInstance) unsetSpecificRRHandler() {
 }
 
-func (r *RTCPInstance) enqueueCommonReportPrefix(packetType, SSRC, numExtraWords uint) {
+func (r *RTCPInstance) enqueueCommonReportPrefix(packetType, ssrc, numExtraWords uint32) {
 }
 
 func (r *RTCPInstance) enqueueCommonReportSuffix() {
 }
 
 func (r *RTCPInstance) destroy() {
-	r.rtcpInterface.stopNetworkReading()
+	r.netInterface.stopNetworkReading()
 
 	r.sendBye()
 }

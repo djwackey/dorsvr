@@ -20,54 +20,54 @@ type MultiFramedRTPSource struct {
 	videoRTPSource              interface{}
 }
 
-func (source *MultiFramedRTPSource) InitMultiFramedRTPSource(isource IFramedSource,
-	RTPgs *gs.GroupSock, rtpPayloadFormat, rtpTimestampFrequency uint,
+func (s *MultiFramedRTPSource) initMultiFramedRTPSource(source IFramedSource,
+	RTPgs *gs.GroupSock, rtpPayloadFormat, rtpTimestampFrequency uint32,
 	packetFactory IBufferedPacketFactory) {
 
-	source.reset()
+	s.reset()
 
-	source.videoRTPSource = isource
-	source.reOrderingBuffer = NewReorderingPacketBuffer(packetFactory)
-	source.InitRTPSouce(isource, RTPgs, rtpPayloadFormat, rtpTimestampFrequency)
+	s.videoRTPSource = source
+	s.reOrderingBuffer = newReorderingPacketBuffer(packetFactory)
+	s.initRTPSouce(source, RTPgs, rtpPayloadFormat, rtpTimestampFrequency)
 }
 
-func (source *MultiFramedRTPSource) reset() {
-	source.packetLossInFragmentedFrame = false
-	source.currentPacketCompletesFrame = true
-	source.currentPacketBeginsFrame = true
-	source.areDoingNetworkReads = false
-	source.needDelivery = false
+func (s *MultiFramedRTPSource) reset() {
+	s.packetLossInFragmentedFrame = false
+	s.currentPacketCompletesFrame = true
+	s.currentPacketBeginsFrame = true
+	s.areDoingNetworkReads = false
+	s.needDelivery = false
 }
 
-func (source *MultiFramedRTPSource) doGetNextFrame() bool {
-	source.rtpInterface.startNetworkReading(source.networkReadHandler)
+func (s *MultiFramedRTPSource) doGetNextFrame() error {
+	s.rtpInterface.startNetworkReading(s.networkReadHandler)
 
-	source.frameSize = 0
-	return true
+	s.frameSize = 0
+	return nil
 }
 
-func (source *MultiFramedRTPSource) doGetNextFrame1() {
-	source.needDelivery = true
-	for source.needDelivery {
+func (s *MultiFramedRTPSource) doGetNextFrame1() {
+	s.needDelivery = true
+	for s.needDelivery {
 		var packetLossPrecededThis bool
 		var nextPacket IBufferedPacket
 
-		nextPacket, packetLossPrecededThis = source.reOrderingBuffer.getNextCompletedPacket()
+		nextPacket, packetLossPrecededThis = s.reOrderingBuffer.getNextCompletedPacket()
 		if nextPacket == nil {
 			fmt.Println("failed to get next completed packet.")
 			break
 		}
 
-		source.needDelivery = false
+		s.needDelivery = false
 
 		if nextPacket.UseCount() == 0 {
 			// Before using the packet, check whether it has a special header
 			// that needs to be processed:
-			specialHeaderSize, processOK := source.processSpecialHeader(nextPacket)
+			specialHeaderSize, processOK := s.processSpecialHeader(nextPacket)
 			if !processOK {
 				// Something's wrong with the header; reject the packet:
-				source.reOrderingBuffer.releaseUsedPacket(nextPacket)
-				source.needDelivery = true
+				s.reOrderingBuffer.releaseUsedPacket(nextPacket)
+				s.needDelivery = true
 
 				fmt.Println("failed to process special header.")
 				break
@@ -75,66 +75,66 @@ func (source *MultiFramedRTPSource) doGetNextFrame1() {
 			nextPacket.skip(specialHeaderSize)
 		}
 
-		if source.currentPacketBeginsFrame {
-			source.packetLossInFragmentedFrame = false
+		if s.currentPacketBeginsFrame {
+			s.packetLossInFragmentedFrame = false
 		} else if packetLossPrecededThis {
-			source.packetLossInFragmentedFrame = true
+			s.packetLossInFragmentedFrame = true
 		}
 
-		if source.packetLossInFragmentedFrame {
-			source.reOrderingBuffer.releaseUsedPacket(nextPacket)
-			source.needDelivery = true
+		if s.packetLossInFragmentedFrame {
+			s.reOrderingBuffer.releaseUsedPacket(nextPacket)
+			s.needDelivery = true
 			fmt.Println("Packet Loss In Fragmented Frame.")
 			break
 		}
 
-		packetInfo := nextPacket.use(source.buffTo, source.maxSize)
-		source.presentationTime = packetInfo.presentationTime
-		source.numTruncatedBytes = packetInfo.bytesTruncated
-		source.curPacketRTPTimestamp = packetInfo.rtpTimestamp
-		source.curPacketMarkerBit = packetInfo.rtpMarkerBit
-		source.curPacketRTPSeqNum = packetInfo.rtpSeqNo
-		source.curPacketSyncUsingRTCP = packetInfo.hasBeenSyncedUsingRTCP
+		packetInfo := nextPacket.use(s.buffTo, uint32(s.maxSize))
+		s.presentationTime = packetInfo.presentationTime
+		s.numTruncatedBytes = uint(packetInfo.bytesTruncated)
+		s.curPacketRTPTimestamp = packetInfo.rtpTimestamp
+		s.curPacketMarkerBit = packetInfo.rtpMarkerBit
+		s.curPacketRTPSeqNum = packetInfo.rtpSeqNo
+		s.curPacketSyncUsingRTCP = packetInfo.hasBeenSyncedUsingRTCP
 
-		source.frameSize += packetInfo.bytesUsed
+		s.frameSize += uint(packetInfo.bytesUsed)
 
 		if !nextPacket.hasUsableData() {
-			source.reOrderingBuffer.releaseUsedPacket(nextPacket)
+			s.reOrderingBuffer.releaseUsedPacket(nextPacket)
 			fmt.Println("reOrderingBuffer release Used Packet.")
 		}
 
-		if source.currentPacketCompletesFrame {
-			source.afterGetting()
+		if s.currentPacketCompletesFrame {
+			s.afterGetting()
 		} else {
-			source.needDelivery = true
+			s.needDelivery = true
 		}
 	}
 }
 
-func (source *MultiFramedRTPSource) setSpecialHeaderHandler(handler interface{}) {
-	source.specialHeaderHandler = handler
+func (s *MultiFramedRTPSource) setSpecialHeaderHandler(handler interface{}) {
+	s.specialHeaderHandler = handler
 }
 
-func (source *MultiFramedRTPSource) processSpecialHeader(packet IBufferedPacket) (uint, bool) {
-	if source.specialHeaderHandler != nil {
-		return source.specialHeaderHandler.(func(packet IBufferedPacket) (uint, bool))(packet)
+func (s *MultiFramedRTPSource) processSpecialHeader(packet IBufferedPacket) (uint32, bool) {
+	if s.specialHeaderHandler != nil {
+		return s.specialHeaderHandler.(func(packet IBufferedPacket) (uint32, bool))(packet)
 	}
 	return 0, true
 }
 
-func (source *MultiFramedRTPSource) packetIsUsableInJitterCalculation(packet []byte, packetSize uint) bool {
+func (s *MultiFramedRTPSource) packetIsUsableInJitterCalculation(packet []byte, packetSize uint32) bool {
 	return true
 }
 
-func (source *MultiFramedRTPSource) networkReadHandler() {
+func (s *MultiFramedRTPSource) networkReadHandler() {
 	for {
-		var packet IBufferedPacket = source.packetReadInProgress
+		var packet IBufferedPacket = s.packetReadInProgress
 		if packet == nil {
-			packet = source.reOrderingBuffer.getFreePacket(source)
+			packet = s.reOrderingBuffer.getFreePacket(s)
 		}
 
 		for {
-			err := packet.fillInData(source.rtpInterface)
+			err := packet.fillInData(s.rtpInterface)
 			if err != nil {
 				break
 			}
@@ -162,7 +162,7 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 			}
 
 			// Skip over any CSRC identifiers in the header:
-			cc := uint((rtpHdr >> 24) & 0xF)
+			cc := (rtpHdr >> 24) & 0xF
 
 			if packet.dataSize() < cc {
 				fmt.Println("error CSRC identifiers size in the header.")
@@ -179,7 +179,7 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 				extHdr, _ := gs.Ntohl(packet.data())
 				packet.skip(4)
 
-				remExtSize := uint(4 * (extHdr & 0xFFFF))
+				remExtSize := 4 * (extHdr & 0xFFFF)
 
 				if packet.dataSize() < remExtSize {
 					fmt.Println("error RTP header extension size.")
@@ -195,7 +195,7 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 					fmt.Println("The packet size equal zero.")
 					break
 				}
-				numPaddingBytes := uint(packet.data()[packet.dataSize()-1])
+				numPaddingBytes := uint32(packet.data()[packet.dataSize()-1])
 				if packet.dataSize() < numPaddingBytes {
 					fmt.Println("error padding bytes size.")
 					break
@@ -204,24 +204,24 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 			}
 
 			// Check the Payload Type.
-			if uint((rtpHdr&0x007F0000)>>16) != source.rtpPayloadFormat {
+			if (rtpHdr&0x007F0000)>>16 != s.rtpPayloadFormat {
 				fmt.Println("error RTP Payload format.")
 				break
 			}
 
 			// The rest of the packet is the usable data.  Record and save it:
-			if uint(rtpSSRC) != source.lastReceivedSSRC {
-				source.lastReceivedSSRC = uint(rtpSSRC)
-				source.reOrderingBuffer.resetHaveSeenFirstPacket()
+			if rtpSSRC != s.lastReceivedSSRC {
+				s.lastReceivedSSRC = rtpSSRC
+				s.reOrderingBuffer.resetHaveSeenFirstPacket()
 			}
 
 			rtpSeqNo := rtpHdr & 0xFFFF
 
-			usableInJitterCalculation := source.packetIsUsableInJitterCalculation(packet.data(), packet.dataSize())
+			usableInJitterCalculation := s.packetIsUsableInJitterCalculation(packet.data(), packet.dataSize())
 
 			presentationTime, hasBeenSyncedUsingRTCP :=
-				source.receptionStatsDB.noteIncomingPacket(rtpSSRC, rtpSeqNo, rtpTimestamp,
-					uint32(source.timestampFrequency), uint32(packet.dataSize()), usableInJitterCalculation)
+				s.receptionStatsDB.noteIncomingPacket(rtpSSRC, rtpSeqNo, rtpTimestamp,
+					uint32(s.timestampFrequency), uint32(packet.dataSize()), usableInJitterCalculation)
 
 			// Fill in the rest of the packet descriptor, and store it:
 			var timeNow sys.Timeval
@@ -229,7 +229,7 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 			packet.assignMiscParams(rtpSeqNo, rtpTimestamp, presentationTime, timeNow,
 				hasBeenSyncedUsingRTCP, rtpMarkerBit)
 
-			if !source.reOrderingBuffer.storePacket(packet) {
+			if !s.reOrderingBuffer.storePacket(packet) {
 				fmt.Println("failed to store packet.")
 				break
 			}
@@ -237,27 +237,27 @@ func (source *MultiFramedRTPSource) networkReadHandler() {
 			break
 		}
 
-		source.doGetNextFrame1()
+		s.doGetNextFrame1()
 	}
 }
 
 ////////// BufferedPacket definition //////////
 
-const MAX_PACKET_SIZE = 20000
+const maxPacketSize = 20000
 
 type IBufferedPacket interface {
 	data() []byte
-	dataSize() uint
+	dataSize() uint32
 	rtpSeqNo() uint
 	UseCount() uint
-	skip(numBytes uint)
+	skip(numBytes uint32)
 	isFirstPacket() bool
 	hasUsableData() bool
 	markFirstPacket(flag bool)
-	removePadding(numBytes uint)
+	removePadding(numBytes uint32)
 	TimeReceived() sys.Timeval
 	NextPacket() IBufferedPacket
-	use(buff []byte, size uint) *PacketInfo
+	use(buff []byte, size uint32) *PacketInfo
 	setNextPacket(nextPacket IBufferedPacket)
 	fillInData(rtpInterface *RTPInterface) error
 	assignMiscParams(rtpSeqNo, rtpTimestamp uint32,
@@ -267,8 +267,8 @@ type IBufferedPacket interface {
 
 type BufferedPacket struct {
 	buffer                 []byte
-	head                   uint
-	tail                   uint
+	head                   uint32
+	tail                   uint32
 	useCount               uint
 	packetSize             uint
 	RTPSeqNo               uint32
@@ -283,8 +283,8 @@ type BufferedPacket struct {
 }
 
 type PacketInfo struct {
-	bytesUsed              uint
-	bytesTruncated         uint
+	bytesUsed              uint32
+	bytesTruncated         uint32
 	rtpSeqNo               uint32
 	rtpTimestamp           uint32
 	presentationTime       sys.Timeval
@@ -292,24 +292,24 @@ type PacketInfo struct {
 	rtpMarkerBit           bool
 }
 
-func NewBufferedPacket() *BufferedPacket {
-	packet := new(BufferedPacket)
-	packet.InitBufferedPacket()
-	return packet
+func newBufferedPacket() *BufferedPacket {
+	p := new(BufferedPacket)
+	p.initBufferedPacket()
+	return p
 }
 
-func (packet *BufferedPacket) InitBufferedPacket() {
-	packet.packetSize = MAX_PACKET_SIZE
-	packet.buffer = make([]byte, MAX_PACKET_SIZE)
+func (p *BufferedPacket) initBufferedPacket() {
+	p.packetSize = maxPacketSize
+	p.buffer = make([]byte, maxPacketSize)
 }
 
-func (packet *BufferedPacket) use(buff []byte, size uint) *PacketInfo {
-	origFramePtr, dataSize := packet.data(), packet.dataSize()
+func (p *BufferedPacket) use(buff []byte, size uint32) (info *PacketInfo) {
+	origFramePtr, dataSize := p.data(), p.dataSize()
 
-	var frameSize, frameDurationInMicroseconds uint
-	frameSize, frameDurationInMicroseconds = packet.getNextEnclosedFrameParameters(origFramePtr, dataSize)
+	var frameSize, frameDurationInMicroseconds uint32
+	frameSize, frameDurationInMicroseconds = p.getNextEnclosedFrameParameters(origFramePtr, dataSize)
 
-	var bytesUsed, bytesTruncated uint
+	var bytesUsed, bytesTruncated uint32
 	if frameSize > size {
 		bytesTruncated += frameSize - size
 		bytesUsed = size
@@ -318,111 +318,112 @@ func (packet *BufferedPacket) use(buff []byte, size uint) *PacketInfo {
 		bytesUsed = frameSize
 	}
 
-	packet.useCount += 1
+	p.useCount += 1
 
-	packetInfo := new(PacketInfo)
-	packetInfo.bytesUsed = bytesUsed
-	packetInfo.rtpSeqNo = packet.RTPSeqNo
-	packetInfo.rtpTimestamp = packet.RTPTimestamp
-	packetInfo.bytesTruncated = bytesTruncated
-	packetInfo.presentationTime = packet.presentationTime
-	packetInfo.hasBeenSyncedUsingRTCP = packet.hasBeenSyncedUsingRTCP
-	packetInfo.rtpMarkerBit = packet.RTPMarkerBit
+	info = &PacketInfo{
+		bytesUsed:              bytesUsed,
+		rtpSeqNo:               p.RTPSeqNo,
+		rtpTimestamp:           p.RTPTimestamp,
+		rtpMarkerBit:           p.RTPMarkerBit,
+		bytesTruncated:         bytesTruncated,
+		presentationTime:       p.presentationTime,
+		hasBeenSyncedUsingRTCP: p.hasBeenSyncedUsingRTCP,
+	}
 
 	// Update "presentationTime" for the next enclosed frame (if any):
-	packet.presentationTime.Usec += int32(frameDurationInMicroseconds)
-	if packet.presentationTime.Usec >= 1000000 {
-		packet.presentationTime.Sec += packet.presentationTime.Usec / 1000000
-		packet.presentationTime.Usec = packet.presentationTime.Usec % 1000000
+	p.presentationTime.Usec += int32(frameDurationInMicroseconds)
+	if p.presentationTime.Usec >= 1000000 {
+		p.presentationTime.Sec += p.presentationTime.Usec / 1000000
+		p.presentationTime.Usec = p.presentationTime.Usec % 1000000
 	}
 
-	return packetInfo
+	return info
 }
 
-func (packet *BufferedPacket) skip(numBytes uint) {
-	packet.head += numBytes
-	if packet.head > packet.tail {
-		packet.head = packet.tail
+func (p *BufferedPacket) skip(numBytes uint32) {
+	p.head += numBytes
+	if p.head > p.tail {
+		p.head = p.tail
 	}
 }
 
-func (packet *BufferedPacket) rtpSeqNo() uint {
-	return uint(packet.RTPSeqNo)
+func (p *BufferedPacket) rtpSeqNo() uint {
+	return uint(p.RTPSeqNo)
 }
 
-func (packet *BufferedPacket) UseCount() uint {
-	return packet.useCount
+func (p *BufferedPacket) UseCount() uint {
+	return p.useCount
 }
 
-func (packet *BufferedPacket) setNextPacket(nextPacket IBufferedPacket) {
-	packet.nextPacket = nextPacket
+func (p *BufferedPacket) setNextPacket(nextPacket IBufferedPacket) {
+	p.nextPacket = nextPacket
 }
 
-func (packet *BufferedPacket) hasUsableData() bool {
-	return (packet.tail - packet.head) != 0
+func (p *BufferedPacket) hasUsableData() bool {
+	return (p.tail - p.head) != 0
 }
 
-func (packet *BufferedPacket) isFirstPacket() bool {
-	return packet.firstPacketFlag
+func (p *BufferedPacket) isFirstPacket() bool {
+	return p.firstPacketFlag
 }
 
-func (packet *BufferedPacket) markFirstPacket(flag bool) {
-	packet.firstPacketFlag = flag
+func (p *BufferedPacket) markFirstPacket(flag bool) {
+	p.firstPacketFlag = flag
 }
 
-func (packet *BufferedPacket) NextPacket() IBufferedPacket {
-	return packet.nextPacket
+func (p *BufferedPacket) NextPacket() IBufferedPacket {
+	return p.nextPacket
 }
 
-func (packet *BufferedPacket) removePadding(numBytes uint) {
-	if numBytes > packet.tail-packet.head {
-		numBytes = packet.tail - packet.head
+func (p *BufferedPacket) removePadding(numBytes uint32) {
+	if numBytes > p.tail-p.head {
+		numBytes = p.tail - p.head
 	}
 
-	packet.tail -= numBytes
+	p.tail -= numBytes
 }
 
-func (packet *BufferedPacket) TimeReceived() sys.Timeval {
-	return packet.timeReceived
+func (p *BufferedPacket) TimeReceived() sys.Timeval {
+	return p.timeReceived
 }
 
-func (packet *BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint) uint {
-	if packet.nextEnclosedFrameProc != nil {
-		packet.nextEnclosedFrameProc.(func(buff []byte, size uint) uint)(buff, size)
+func (p *BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint32) uint32 {
+	if p.nextEnclosedFrameProc != nil {
+		p.nextEnclosedFrameProc.(func(buff []byte, size uint32) uint32)(buff, size)
 	}
 	return size
 }
 
-func (packet *BufferedPacket) getNextEnclosedFrameParameters(framePtr []byte, dataSize uint) (frameSize,
-	frameDurationInMicroseconds uint) {
-	frameSize = packet.nextEnclosedFrameSize(framePtr, dataSize)
+func (p *BufferedPacket) getNextEnclosedFrameParameters(framePtr []byte, dataSize uint32) (frameSize,
+	frameDurationInMicroseconds uint32) {
+	frameSize = p.nextEnclosedFrameSize(framePtr, dataSize)
 	frameDurationInMicroseconds = 0
 	return
 }
 
-func (packet *BufferedPacket) assignMiscParams(rtpSeqNo, rtpTimestamp uint32,
+func (p *BufferedPacket) assignMiscParams(rtpSeqNo, rtpTimestamp uint32,
 	presentationTime, timeReceived sys.Timeval, hasBeenSyncedUsingRTCP, rtpMarkerBit bool) {
-	packet.RTPSeqNo = rtpSeqNo
-	packet.timeReceived = timeReceived
-	packet.RTPMarkerBit = rtpMarkerBit
-	packet.RTPTimestamp = rtpTimestamp
-	packet.presentationTime = presentationTime
-	packet.hasBeenSyncedUsingRTCP = hasBeenSyncedUsingRTCP
+	p.RTPSeqNo = rtpSeqNo
+	p.timeReceived = timeReceived
+	p.RTPMarkerBit = rtpMarkerBit
+	p.RTPTimestamp = rtpTimestamp
+	p.presentationTime = presentationTime
+	p.hasBeenSyncedUsingRTCP = hasBeenSyncedUsingRTCP
 }
 
-func (packet *BufferedPacket) fillInData(rtpInterface *RTPInterface) error {
-	readBytes, err := rtpInterface.handleRead(packet.buffer[packet.tail:])
+func (p *BufferedPacket) fillInData(i *RTPInterface) error {
+	readBytes, err := i.handleRead(p.buffer[p.tail:])
 
-	packet.tail += uint(readBytes)
+	p.tail += uint32(readBytes)
 	return err
 }
 
-func (packet *BufferedPacket) dataSize() uint {
-	return packet.tail - packet.head
+func (p *BufferedPacket) dataSize() uint32 {
+	return p.tail - p.head
 }
 
-func (packet *BufferedPacket) data() []byte {
-	return packet.buffer[packet.head:]
+func (p *BufferedPacket) data() []byte {
+	return p.buffer[p.head:]
 }
 
 ////////// BufferedPacketFactory definition //////////
@@ -434,12 +435,12 @@ type IBufferedPacketFactory interface {
 type BufferedPacketFactory struct {
 }
 
-func NewBufferedPacketFactory() IBufferedPacketFactory {
+func newBufferedPacketFactory() IBufferedPacketFactory {
 	return new(BufferedPacketFactory)
 }
 
-func (factory *BufferedPacketFactory) createNewPacket(source interface{}) IBufferedPacket {
-	return NewBufferedPacket()
+func (f *BufferedPacketFactory) createNewPacket(source interface{}) IBufferedPacket {
+	return newBufferedPacket()
 }
 
 ////////// ReorderingPacketBuffer definition //////////
@@ -455,109 +456,109 @@ type ReorderingPacketBuffer struct {
 	nextExpectedSeqNo   uint
 }
 
-func NewReorderingPacketBuffer(packetFactory IBufferedPacketFactory) *ReorderingPacketBuffer {
+func newReorderingPacketBuffer(packetFactory IBufferedPacketFactory) *ReorderingPacketBuffer {
 	packetBuffer := new(ReorderingPacketBuffer)
 	packetBuffer.thresholdTime = 100000 /* default reordering threshold: 100 ms */
 	if packetFactory == nil {
-		packetBuffer.packetFactory = NewBufferedPacketFactory()
+		packetBuffer.packetFactory = newBufferedPacketFactory()
 	} else {
 		packetBuffer.packetFactory = packetFactory
 	}
 	return packetBuffer
 }
 
-func (buffer *ReorderingPacketBuffer) getFreePacket(source *MultiFramedRTPSource) IBufferedPacket {
-	if buffer.savePacket == nil {
-		buffer.savePacket = buffer.packetFactory.createNewPacket(source.videoRTPSource)
-		buffer.savedPacketFree = true
+func (b *ReorderingPacketBuffer) getFreePacket(s *MultiFramedRTPSource) IBufferedPacket {
+	if b.savePacket == nil {
+		b.savePacket = b.packetFactory.createNewPacket(s.videoRTPSource)
+		b.savedPacketFree = true
 	}
 
-	if buffer.savedPacketFree {
-		buffer.savedPacketFree = false
-		return buffer.savePacket
+	if b.savedPacketFree {
+		b.savedPacketFree = false
+		return b.savePacket
 	} else {
-		return buffer.packetFactory.createNewPacket(source.videoRTPSource)
+		return b.packetFactory.createNewPacket(s.videoRTPSource)
 	}
 }
 
-func (buffer *ReorderingPacketBuffer) getNextCompletedPacket() (IBufferedPacket, bool) {
+func (b *ReorderingPacketBuffer) getNextCompletedPacket() (IBufferedPacket, bool) {
 	var packetLossPreceded bool
 
-	if buffer.headPacket == nil {
+	if b.headPacket == nil {
 		fmt.Println("ReorderingPacketBuffer::getNextCompletedPacket: buffer head packet equal nil")
 		return nil, packetLossPreceded
 	}
 
-	if buffer.headPacket.rtpSeqNo() == buffer.nextExpectedSeqNo {
-		packetLossPreceded = buffer.headPacket.isFirstPacket()
-		return buffer.headPacket, packetLossPreceded
+	if b.headPacket.rtpSeqNo() == b.nextExpectedSeqNo {
+		packetLossPreceded = b.headPacket.isFirstPacket()
+		return b.headPacket, packetLossPreceded
 	}
 
 	var timeThresholdHasBeenExceeded bool
-	if buffer.thresholdTime == 0 {
+	if b.thresholdTime == 0 {
 		timeThresholdHasBeenExceeded = true
 	} else {
 		var timeNow sys.Timeval
 		sys.Gettimeofday(&timeNow)
 
-		timeReceived := buffer.headPacket.TimeReceived()
+		timeReceived := b.headPacket.TimeReceived()
 		uSecondsSinceReceived := (timeNow.Sec-timeReceived.Sec)*1000000 +
 			(timeNow.Usec - timeReceived.Usec)
-		timeThresholdHasBeenExceeded = uSecondsSinceReceived > buffer.thresholdTime
+		timeThresholdHasBeenExceeded = uSecondsSinceReceived > b.thresholdTime
 	}
 
 	if timeThresholdHasBeenExceeded {
-		buffer.nextExpectedSeqNo = buffer.headPacket.rtpSeqNo()
+		b.nextExpectedSeqNo = b.headPacket.rtpSeqNo()
 		// we've given up on earlier packets now
 		packetLossPreceded = true
-		return buffer.headPacket, packetLossPreceded
+		return b.headPacket, packetLossPreceded
 	}
 
 	return nil, packetLossPreceded
 }
 
-func (buffer *ReorderingPacketBuffer) releaseUsedPacket(packet IBufferedPacket) {
-	buffer.nextExpectedSeqNo++
+func (b *ReorderingPacketBuffer) releaseUsedPacket(packet IBufferedPacket) {
+	b.nextExpectedSeqNo++
 
-	buffer.headPacket = buffer.headPacket.NextPacket()
-	if buffer.headPacket != nil {
-		buffer.tailPacket = nil
+	b.headPacket = b.headPacket.NextPacket()
+	if b.headPacket != nil {
+		b.tailPacket = nil
 	}
 	packet.setNextPacket(nil)
 }
 
-func (buffer *ReorderingPacketBuffer) resetHaveSeenFirstPacket() {
-	buffer.haveSeenFirstPacket = false
+func (b *ReorderingPacketBuffer) resetHaveSeenFirstPacket() {
+	b.haveSeenFirstPacket = false
 }
 
-func (buffer *ReorderingPacketBuffer) storePacket(packet IBufferedPacket) bool {
+func (b *ReorderingPacketBuffer) storePacket(packet IBufferedPacket) bool {
 	rtpSeqNo := packet.rtpSeqNo()
 
-	if !buffer.haveSeenFirstPacket {
-		buffer.nextExpectedSeqNo = rtpSeqNo
+	if !b.haveSeenFirstPacket {
+		b.nextExpectedSeqNo = rtpSeqNo
 		packet.markFirstPacket(true)
-		buffer.haveSeenFirstPacket = true
+		b.haveSeenFirstPacket = true
 		fmt.Println("IsFirstPacket")
 	}
 
-	if seqNumLT(int(rtpSeqNo), int(buffer.nextExpectedSeqNo)) {
+	if seqNumLT(int(rtpSeqNo), int(b.nextExpectedSeqNo)) {
 		fmt.Println("seqNumLT")
 		return false
 	}
 
-	if buffer.tailPacket == nil {
+	if b.tailPacket == nil {
 		packet.setNextPacket(nil)
-		buffer.headPacket = packet
-		buffer.tailPacket = packet
+		b.headPacket = packet
+		b.tailPacket = packet
 		return true
 	}
 
-	tailPacketRTPSeqNo := int(buffer.tailPacket.rtpSeqNo())
+	tailPacketRTPSeqNo := int(b.tailPacket.rtpSeqNo())
 
 	if seqNumLT(tailPacketRTPSeqNo, int(rtpSeqNo)) {
 		packet.setNextPacket(nil)
-		buffer.tailPacket.setNextPacket(packet)
-		buffer.tailPacket = packet
+		b.tailPacket.setNextPacket(packet)
+		b.tailPacket = packet
 		return true
 	}
 
@@ -567,7 +568,7 @@ func (buffer *ReorderingPacketBuffer) storePacket(packet IBufferedPacket) bool {
 	}
 
 	var beforePtr IBufferedPacket
-	var afterPtr IBufferedPacket = buffer.headPacket
+	var afterPtr IBufferedPacket = b.headPacket
 
 	for afterPtr != nil {
 		if seqNumLT(int(rtpSeqNo), int(afterPtr.rtpSeqNo())) {
@@ -586,7 +587,7 @@ func (buffer *ReorderingPacketBuffer) storePacket(packet IBufferedPacket) bool {
 
 	packet.setNextPacket(afterPtr)
 	if beforePtr == nil {
-		buffer.headPacket = packet
+		b.headPacket = packet
 	} else {
 		beforePtr.setNextPacket(packet)
 	}

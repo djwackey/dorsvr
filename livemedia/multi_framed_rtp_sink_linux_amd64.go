@@ -244,6 +244,7 @@ func (s *MultiFramedRTPSink) sendNext() {
 
 func (s *MultiFramedRTPSink) ourHandlerClosure() {
 	s.noFramesLeft = true
+	s.sendPacketIfNecessary()
 }
 
 func (s *MultiFramedRTPSink) isFirstFrameInPacket() bool {

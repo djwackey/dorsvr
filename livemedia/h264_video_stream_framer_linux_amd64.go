@@ -56,15 +56,16 @@ func (p *H264VideoStreamParser) parse() (uint, error) {
 				return 0, err
 			}
 
-			if first4Bytes != 0x00000001 {
-				if _, err = p.get1Byte(); err != nil {
-					log.Debug("failed to check first 4 bytes: %s", err.Error())
-					return 0, err
-				}
-
-				p.setParseState()
+			if first4Bytes == 0x00000001 {
+				break
 			}
-			break
+
+			if _, err = p.get1Byte(); err != nil {
+				log.Debug("failed to check first 4 bytes: %s", err.Error())
+				return 0, err
+			}
+
+			p.setParseState()
 		}
 
 		// skip this initial code
@@ -480,9 +481,10 @@ func (p *H264VideoStreamParser) analyzeSEIData() {
 	// skip the initial byte (forbidden_zero_bit; nal_ref_idc; nal_unit_type); we've already seen it
 	var j uint = 1
 	for j < seiSize {
-		var payloadType, payloadSize uint
+		var payloadSize uint
+		//var payloadType uint
 		for {
-			payloadType += uint(sei[j])
+			//payloadType += uint(sei[j])
 			if sei[j] == 255 && j < seiSize {
 				j++
 			} else {
@@ -554,6 +556,7 @@ func (p *H264VideoStreamParser) analyzeVUIParameters(bv *BitVector) *seqParamete
 //////// H264VideoStreamFramer ////////
 type H264VideoStreamFramer struct {
 	MPEGVideoStreamFramer
+	frameRate            float64
 	lastSeenSPS          []byte
 	lastSeenPPS          []byte
 	lastSeenSPSSize      uint

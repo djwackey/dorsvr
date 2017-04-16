@@ -1,21 +1,21 @@
 package livemedia
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	sys "syscall"
+
+	"github.com/djwackey/gitea/log"
 )
 
 type ByteStreamFileSource struct {
 	FramedFileSource
-	presentationTime      sys.Timeval
-	fileSize              int64
-	numBytesToStream      int64
-	lastPlayTime          uint
-	playTimePerFrame      uint
-	preferredFrameSize    uint
-	haveStartedReading    bool
-	limitNumBytesToStream bool
+	presentationTime   sys.Timeval
+	fileSize           int64
+	lastPlayTime       uint
+	playTimePerFrame   uint
+	preferredFrameSize uint
 }
 
 func newByteStreamFileSource(fileName string) *ByteStreamFileSource {
@@ -24,42 +24,42 @@ func newByteStreamFileSource(fileName string) *ByteStreamFileSource {
 		fmt.Println(err, fileName)
 		return nil
 	}
+	stat, _ := fid.Stat()
 
 	fileSource := new(ByteStreamFileSource)
 	fileSource.fid = fid
-
-	stat, _ := fid.Stat()
 	fileSource.fileSize = stat.Size()
-	fileSource.InitFramedFileSource(fileSource)
+	fileSource.initFramedFileSource(fileSource)
 	return fileSource
 }
 
-func (s *ByteStreamFileSource) doGetNextFrame() bool {
-	if s.limitNumBytesToStream && s.numBytesToStream == 0 {
-		s.handleClosure()
-		return false
-	}
+func (s *ByteStreamFileSource) destroy() {
+	s.stopGettingFrames()
+}
 
+func (s *ByteStreamFileSource) doGetNextFrame() error {
 	if !s.source.isAwaitingData() {
 		s.doStopGettingFrames()
-		return false
+		return errors.New("file source is not awaiting data.")
 	}
 
-	return s.doReadFromFile()
+	if err := s.doReadFromFile(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (s *ByteStreamFileSource) doStopGettingFrames() {
-	fmt.Println("ByteStreamFileSource::doStopGettingFrames")
-	defer s.fid.Close()
-	s.haveStartedReading = false
+func (s *ByteStreamFileSource) doStopGettingFrames() error {
+	return s.fid.Close()
 }
 
-func (s *ByteStreamFileSource) doReadFromFile() bool {
+func (s *ByteStreamFileSource) doReadFromFile() error {
 	frameSize, err := s.fid.Read(s.buffTo)
 	if err != nil {
-		fmt.Println(err)
+		log.Trace("[ByteStreamFileSource::doReadFromFile] Failed to read bytes from file.%s", err.Error())
 		s.handleClosure()
-		return false
+		return err
 	}
 	s.frameSize = uint(frameSize)
 
@@ -85,7 +85,7 @@ func (s *ByteStreamFileSource) doReadFromFile() bool {
 	}
 
 	s.afterGetting()
-	return true
+	return nil
 }
 
 func (s *ByteStreamFileSource) FileSize() int64 {

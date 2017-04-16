@@ -1,6 +1,7 @@
 package livemedia
 
 import (
+	//"github.com/djwackey/dorsvr/log"
 	sys "syscall"
 )
 
@@ -39,9 +40,9 @@ func (f *MPEGVideoStreamFramer) reset() {
 	sys.Gettimeofday(&f.presentationTimeBase)
 }
 
+// Computes "presentationTime" from the most recent GOP's
+// time_code, along with the "numAdditionalPictures" parameter:
 func (f *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures uint) {
-	// Computes "fPresentationTime" from the most recent GOP's
-	// time_code, along with the "numAdditionalPictures" parameter:
 	tc := f.curGOPTimeCode
 
 	var pictureTime uint
@@ -74,15 +75,15 @@ func (f *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures ui
 	}
 }
 
-func (f *MPEGVideoStreamFramer) doGetNextFrame() bool {
+func (f *MPEGVideoStreamFramer) doGetNextFrame() error {
 	f.parser.registerReadInterest(f.buffTo, f.maxSize)
 	f.continueReadProcessing()
-	return true
+	return nil
 }
 
 func (f *MPEGVideoStreamFramer) continueReadProcessing() {
-	acquiredFrameSize := f.parser.parse()
-	if acquiredFrameSize > 0 {
+	acquiredFrameSize, err := f.parser.parse()
+	if err == nil {
 		// We were able to acquire a frame from the input.
 		// It has already been copied to the reader's space.
 		f.frameSize = acquiredFrameSize
@@ -102,8 +103,12 @@ func (f *MPEGVideoStreamFramer) continueReadProcessing() {
 		// source, we can call this directly, without risking infinite recursion.
 		f.afterGetting()
 	} else {
-		// We were unable to parse a complete frame from the input, because:
-		// - we had to read more data from the source stream, or
-		// - the source stream has ended.
+		if err.Error() == "EOF" {
+			// We were unable to parse a complete frame from the input, because:
+			// - we had to read more data from the source stream, or
+			// - the source stream has ended.
+		} else {
+			f.continueReadProcessing()
+		}
 	}
 }
