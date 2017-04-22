@@ -34,7 +34,7 @@ func (d *Database) RemoveUserRecord(username string) {
 	}
 }
 
-func (a *Database) LookupPassword(username string) (password string) {
-	password, _ = a.records[username]
+func (d *Database) LookupPassword(username string) (password string) {
+	password, _ = d.records[username]
 	return
 }

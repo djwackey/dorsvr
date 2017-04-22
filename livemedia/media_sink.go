@@ -9,7 +9,8 @@ import (
 	"github.com/djwackey/gitea/log"
 )
 
-var OutPacketBufferMaxSize uint = 60000 // default
+// default
+var OutPacketBufferMaxSize uint = 60000
 
 //////// OutPacketBuffer ////////
 type OutPacketBuffer struct {
