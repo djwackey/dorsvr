@@ -28,7 +28,7 @@ func (s *RTPSource) initRTPSouce(isource IFramedSource, RTPgs *gs.GroupSock,
 	s.timestampFrequency = rtpTimestampFrequency
 	s.ssrc = gs.OurRandom32()
 	s.curPacketSyncUsingRTCP = false
-	s.receptionStatsDB = NewRTPReceptionStatsDB()
+	s.receptionStatsDB = newRTPReceptionStatsDB()
 	s.initFramedSource(isource)
 }
 

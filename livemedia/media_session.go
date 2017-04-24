@@ -579,7 +579,7 @@ func (s *MediaSubsession) Initiate() bool {
 		totSessionBandwidth = 500
 	}
 
-	s.rtcpInstance = newRTCPInstance(s.rtcpSocket, totSessionBandwidth, s.parent.cname)
+	s.rtcpInstance = newRTCPInstance(s.rtcpSocket, totSessionBandwidth, s.parent.cname, nil, s.RTPSource)
 	return true
 }
 

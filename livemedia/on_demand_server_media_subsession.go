@@ -140,9 +140,9 @@ func (s *OnDemandServerMediaSubsession) setSDPLinesFromRTPSink(rtpSink IMediaSin
 		return
 	}
 
-	mediaType := rtpSink.SdpMediaType()
-	rtpmapLine := rtpSink.RtpmapLine()
-	rtpPayloadType := rtpSink.RtpPayloadType()
+	mediaType := rtpSink.sdpMediaType()
+	rtpmapLine := rtpSink.rtpmapLine()
+	rtpPayloadType := rtpSink.rtpPayloadType()
 
 	rangeLine := s.rangeSDPLine()
 	auxSDPLine := s.isubsession.getAuxSDPLine(rtpSink, inputSource)
@@ -151,7 +151,6 @@ func (s *OnDemandServerMediaSubsession) setSDPLinesFromRTPSink(rtpSink IMediaSin
 	}
 
 	ipAddr := "0.0.0.0"
-
 	sdpFmt := "m=%s %d RTP/AVP %d\r\n" +
 		"c=IN IP4 %s\r\n" +
 		"b=AS:%d\r\n" +

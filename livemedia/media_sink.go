@@ -198,18 +198,25 @@ func (b *OutPacketBuffer) resetOverflowData() {
 
 //////// MediaSink ////////
 type IMediaSink interface {
-	RtpPayloadType() uint32
 	AuxSDPLine() string
-	RtpmapLine() string
-	SdpMediaType() string
-	currentSeqNo() uint32
+	rtpmapLine() string
+	sdpMediaType() string
+	enableRTCPReports() bool
+	nextTimestampHasBeenPreset() bool
 	StartPlaying(source IFramedSource, afterFunc interface{}) bool
 	StopPlaying()
 	ContinuePlaying()
 	destroy()
+	ssrc() uint32
+	octetCount() uint
+	packetCount() uint
+	currentSeqNo() uint32
+	rtpPayloadType() uint32
+	presetNextTimestamp() uint32
+	convertToRTPTimestamp(tv sys.Timeval) uint32
+	transmissionStatsDB() *RTPTransmissionStatsDB
 	addStreamSocket(socketNum net.Conn, streamChannelID uint)
 	delStreamSocket(socketNum net.Conn, streamChannelID uint)
-	presetNextTimestamp() uint32
 	setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{})
 	frameCanAppearAfterPacketStart(frameStart []byte, numBytesInFrame uint) bool
 	doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint,
@@ -253,6 +260,12 @@ func (s *MediaSink) StopPlaying() {
 	s.afterFunc = nil
 }
 
+func (s *MediaSink) OnSourceClosure() {
+	if s.afterFunc != nil {
+		s.afterFunc.(func())()
+	}
+}
+
 func (s *MediaSink) addStreamSocket(socketNum net.Conn, streamChannelID uint) {}
 func (s *MediaSink) delStreamSocket(socketNum net.Conn, streamChannelID uint) {}
 func (s *MediaSink) frameCanAppearAfterPacketStart(frameStart []byte, numBytesInFrame uint) bool {
@@ -262,16 +275,17 @@ func (s *MediaSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame,
 }
 func (s *MediaSink) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {}
 
-func (s *MediaSink) AuxSDPLine() string          { return "" }
-func (s *MediaSink) RtpmapLine() string          { return "" }
-func (s *MediaSink) SdpMediaType() string        { return "" }
-func (s *MediaSink) presetNextTimestamp() uint32 { return 0 }
-func (s *MediaSink) RtpPayloadType() uint32      { return 0 }
-func (s *MediaSink) currentSeqNo() uint32        { return 0 }
-func (s *MediaSink) destroy()                    {}
-
-func (s *MediaSink) OnSourceClosure() {
-	if s.afterFunc != nil {
-		s.afterFunc.(func())()
-	}
-}
+func (s *MediaSink) nextTimestampHasBeenPreset() bool             { return true }
+func (s *MediaSink) enableRTCPReports() bool                      { return true }
+func (s *MediaSink) AuxSDPLine() string                           { return "" }
+func (s *MediaSink) rtpmapLine() string                           { return "" }
+func (s *MediaSink) sdpMediaType() string                         { return "" }
+func (s *MediaSink) presetNextTimestamp() uint32                  { return 0 }
+func (s *MediaSink) convertToRTPTimestamp(tv sys.Timeval) uint32  { return 0 }
+func (s *MediaSink) transmissionStatsDB() *RTPTransmissionStatsDB { return nil }
+func (s *MediaSink) rtpPayloadType() uint32                       { return 0 }
+func (s *MediaSink) currentSeqNo() uint32                         { return 0 }
+func (s *MediaSink) packetCount() uint                            { return 0 }
+func (s *MediaSink) octetCount() uint                             { return 0 }
+func (s *MediaSink) ssrc() uint32                                 { return 0 }
+func (s *MediaSink) destroy()                                     {}

@@ -12,31 +12,33 @@ import (
 //////// RTPSink ////////
 type RTPSink struct {
 	MediaSink
-	ssrc                       uint32
-	seqNo                      uint32
-	octetCount                 uint
-	packetCount                uint // incl RTP hdr
-	totalOctetCount            uint
-	timestampBase              uint32
-	rtpPayloadType             uint32
-	rtpTimestampFrequency      uint32
-	rtpPayloadFormatName       string
-	enableRTCPReports          bool
-	nextTimestampHasBeenPreset bool
-	rtpInterface               *RTPInterface
-	transmissionStatsDB        *RTPTransmissionStatsDB
+	seqNo                       uint32
+	_ssrc                       uint32
+	_octetCount                 uint
+	_packetCount                uint // incl RTP hdr
+	totalOctetCount             uint
+	timestampBase               uint32
+	_rtpPayloadType             uint32
+	rtpTimestampFrequency       uint32
+	rtpPayloadFormatName        string
+	_enableRTCPReports          bool
+	_nextTimestampHasBeenPreset bool
+	_transmissionStatsDB        *RTPTransmissionStatsDB
+	rtpInterface                *RTPInterface
 }
 
 func (s *RTPSink) InitRTPSink(rtpSink IMediaSink, g *gs.GroupSock, rtpPayloadType,
 	rtpTimestampFrequency uint32, rtpPayloadFormatName string) {
 	s.InitMediaSink(rtpSink)
 	s.rtpInterface = newRTPInterface(s, g)
-	s.rtpPayloadType = rtpPayloadType
-	s.rtpTimestampFrequency = rtpTimestampFrequency
 	s.rtpPayloadFormatName = rtpPayloadFormatName
+	s.rtpTimestampFrequency = rtpTimestampFrequency
+	s._rtpPayloadType = rtpPayloadType
+	s._nextTimestampHasBeenPreset = true
+	s._transmissionStatsDB = newRTPTransmissionStatsDB(s)
 
 	s.seqNo = gs.OurRandom16()
-	s.ssrc = gs.OurRandom32()
+	s._ssrc = gs.OurRandom32()
 	s.timestampBase = gs.OurRandom32()
 }
 
@@ -52,24 +54,47 @@ func (s *RTPSink) currentSeqNo() uint32 {
 	return s.seqNo
 }
 
-func (s *RTPSink) SdpMediaType() string {
+func (s *RTPSink) sdpMediaType() string {
 	return "data"
 }
 
-func (s *RTPSink) RtpPayloadType() uint32 {
-	return s.rtpPayloadType
+func (s *RTPSink) rtpPayloadType() uint32 {
+	return s._rtpPayloadType
 }
 
-func (s *RTPSink) RtpmapLine() string {
-	var rtpmapLine, encodingParamsPart string
-	if s.rtpPayloadType >= 96 {
-		rtpmapLine = fmt.Sprintf("a=rtpmap:%d %s/%d%s\r\n",
-			s.rtpPayloadType,
+func (s *RTPSink) rtpmapLine() (line string) {
+	var encodingParamsPart string
+	if s._rtpPayloadType >= 96 {
+		line = fmt.Sprintf("a=rtpmap:%d %s/%d%s\r\n",
+			s._rtpPayloadType,
 			s.rtpPayloadFormatName,
 			s.rtpTimestampFrequency, encodingParamsPart)
 	}
+	return
+}
 
-	return rtpmapLine
+func (s *RTPSink) ssrc() uint32 {
+	return s._ssrc
+}
+
+func (s *RTPSink) octetCount() uint {
+	return s._octetCount
+}
+
+func (s *RTPSink) packetCount() uint {
+	return s._packetCount
+}
+
+func (s *RTPSink) enableRTCPReports() bool {
+	return s._enableRTCPReports
+}
+
+func (s *RTPSink) nextTimestampHasBeenPreset() bool {
+	return s._nextTimestampHasBeenPreset
+}
+
+func (s *RTPSink) transmissionStatsDB() *RTPTransmissionStatsDB {
+	return s._transmissionStatsDB
 }
 
 func (s *RTPSink) presetNextTimestamp() uint32 {
@@ -78,7 +103,7 @@ func (s *RTPSink) presetNextTimestamp() uint32 {
 
 	tsNow := s.convertToRTPTimestamp(timeNow)
 	s.timestampBase = tsNow
-	s.nextTimestampHasBeenPreset = true
+	s._nextTimestampHasBeenPreset = true
 
 	return tsNow
 }
@@ -89,11 +114,11 @@ func (s *RTPSink) convertToRTPTimestamp(tv sys.Timeval) uint32 {
 	timestampIncrement += (2.0*s.rtpTimestampFrequency*uint32(tv.Usec) + 1000000.0) / 2000000
 
 	// Then add this to our 'timestamp base':
-	if s.nextTimestampHasBeenPreset {
+	if s._nextTimestampHasBeenPreset {
 		// Make the returned timestamp the same as the current "fTimestampBase",
 		// so that timestamps begin with the value that was previously preset:
 		s.timestampBase -= timestampIncrement
-		s.nextTimestampHasBeenPreset = false
+		s._nextTimestampHasBeenPreset = false
 	}
 
 	// return RTP Timestamp
@@ -102,20 +127,4 @@ func (s *RTPSink) convertToRTPTimestamp(tv sys.Timeval) uint32 {
 
 func (s *RTPSink) setServerRequestAlternativeByteHandler(socketNum net.Conn, handler interface{}) {
 	s.rtpInterface.setServerRequestAlternativeByteHandler(socketNum, handler)
-}
-
-//////// RTPTransmissionStatsDB ////////
-type RTPTransmissionStatsDB struct {
-}
-
-//////// RTPTransmissionStats ////////
-type RTPTransmissionStats struct {
-	isPacket              bool
-	SSRC                  uint
-	jitter                uint
-	packetLossRatio       uint
-	totNumPacketsLost     uint
-	lastPacketNumReceived uint
-	timeCreated           sys.Timeval
-	timeReceived          sys.Timeval
 }

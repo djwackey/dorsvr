@@ -200,10 +200,8 @@ func ParseHTTPRequestString(reqStr string, reqStrSize int) (*HTTPRequestInfo, bo
 	}, true
 }
 
-func lookForHeader(headerName string, source string, sourceLen int) (string, int) {
+func lookForHeader(headerName, source string, sourceLen int) (resultStr string, resultMaxSize int) {
 	headerNameLen := len(headerName)
-	var resultStr string
-	var resultMaxSize int
 	for i := 0; i < (sourceLen - headerNameLen); i++ {
 		if strings.EqualFold(source[i:], headerName) && source[i+headerNameLen] == ':' {
 			for i += headerNameLen + 1; i < sourceLen && (source[i] == ' ' || source[i] == '\t'); i++ {
@@ -221,13 +219,14 @@ func lookForHeader(headerName string, source string, sourceLen int) (string, int
 
 func ParseTransportHeader(reqStr string) *TransportHeader {
 	// Initialize the result parameters to default values:
-	header := new(TransportHeader)
-	header.StreamingMode = RTP_UDP
-	header.DestinationTTL = 255
-	header.ClientRTPPortNum = 0
-	header.ClientRTCPPortNum = 1
-	header.RTPChannelID = 0xFF
-	header.RTCPChannelID = 0xFF
+	header := &TransportHeader{
+		StreamingMode:     RTP_UDP,
+		RTPChannelID:      0xFF,
+		RTCPChannelID:     0xFF,
+		DestinationTTL:    255,
+		ClientRTPPortNum:  0,
+		ClientRTCPPortNum: 1,
+	}
 
 	for {
 		// First, find "Transport:"
@@ -284,29 +283,19 @@ func parseRangeParam(paramStr string) *RangeHeader {
 	rangeHeader := new(RangeHeader)
 
 	var start, end float32
-	numCharsMatched := 0
-	n, err := fmt.Sscanf(paramStr, "npt = %lf - %lf", &start, &end)
-	if err != nil {
-		return nil
-	}
-
-	if n == 2 {
+	var numCharsMatched int
+	if n, _ := fmt.Sscanf(paramStr, "npt = %lf - %lf", &start, &end); n == 2 {
 		rangeHeader.RangeStart = start
 		rangeHeader.RangeEnd = end
 	} else {
-		n, err = fmt.Sscanf(paramStr, "npt = %lf -", &start)
-		if err != nil {
-			return nil
-		}
-
-		if n == 1 {
+		if n, _ = fmt.Sscanf(paramStr, "npt = %lf -", &start); n == 1 {
 			rangeHeader.RangeStart = start
 		} else {
 			if strings.EqualFold(paramStr, "npt = now -") {
 				rangeHeader.RangeStart = 0.0
 				rangeHeader.RangeEnd = 0.0
 			} else {
-				n, err = fmt.Sscanf(paramStr, "clock = %n", &numCharsMatched)
+				_, err := fmt.Sscanf(paramStr, "clock = %n", &numCharsMatched)
 				if err != nil {
 					return nil
 				}
@@ -314,12 +303,7 @@ func parseRangeParam(paramStr string) *RangeHeader {
 				if numCharsMatched > 0 {
 					as, ae := "", ""
 					utcTimes := string(paramStr[numCharsMatched:])
-					n, err = fmt.Sscanf(utcTimes, "%[^-]-%s", &as, &ae)
-					if err != nil {
-						return nil
-					}
-
-					if n == 2 {
+					if n, _ = fmt.Sscanf(utcTimes, "%[^-]-%s", &as, &ae); n == 2 {
 						rangeHeader.AbsStartTime = as
 						rangeHeader.AbsEndTime = ae
 					} else if n == 1 {

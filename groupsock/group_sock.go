@@ -5,8 +5,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-
-	"github.com/djwackey/gitea/log"
 )
 
 type Socket struct {
@@ -28,7 +26,6 @@ func (o *OutputSocket) write(destAddr string, portNum uint, buffer []byte, buffe
 	addr := fmt.Sprintf("%s:%d", destAddr, portNum)
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
-		log.Error(1, "[OutputSocket::write] Failed to resolve UDP address.%s", err.Error())
 		return 0, err
 	}
 	return o.socketNum.(*net.UDPConn).WriteToUDP(buffer[:bufferSize], udpAddr)
@@ -67,7 +64,6 @@ func (g *GroupSock) Output(buffer []byte, bufferSize, ttlToSend uint) bool {
 func (g *GroupSock) HandleRead(buffer []byte) (int, error) {
 	numBytes, err := ReadSocket(g.socketNum, buffer)
 	if err != nil {
-		log.Error(1, "[GroupSock::HandleRead] read failed: %s\n", err.Error())
 		return numBytes, err
 	}
 

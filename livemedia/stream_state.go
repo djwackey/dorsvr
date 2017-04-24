@@ -1,6 +1,8 @@
 package livemedia
 
-import gs "github.com/djwackey/dorsvr/groupsock"
+import (
+	gs "github.com/djwackey/dorsvr/groupsock"
+)
 
 //////// StreamState ////////
 type StreamState struct {
@@ -42,7 +44,7 @@ func (s *StreamState) startPlaying(dests *Destinations,
 	if s.rtcpInstance == nil && s.rtpSink != nil {
 		// Note: This starts RTCP running automatically
 		// Create (and start) a 'RTCP instance' for this RTP sink:
-		s.rtcpInstance = newRTCPInstance(s.rtcpGS, s.totalBW, s.master.CNAME())
+		s.rtcpInstance = newRTCPInstance(s.rtcpGS, s.totalBW, s.master.CNAME(), s.rtpSink, nil)
 	}
 
 	if dests.isTCP {

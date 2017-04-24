@@ -51,14 +51,14 @@ func (s *MultiFramedRTPSink) buildAndSendPacket(isFirstPacket bool) {
 
 	// Set up the RTP header:
 	var rtpHdr uint32 = 0x80000000
-	rtpHdr |= s.rtpPayloadType << 16
+	rtpHdr |= s._rtpPayloadType << 16
 	rtpHdr |= s.seqNo
 	s.outBuf.enqueueWord(rtpHdr)
 
 	s.timestampPosition = s.outBuf.curPacketSize()
 	s.outBuf.skipBytes(4)
 
-	s.outBuf.enqueueWord(s.ssrc)
+	s.outBuf.enqueueWord(s._ssrc)
 
 	// Allow for a special, payload-format-specific header following the RTP header:
 	s.specialHeaderPosition = s.outBuf.curPacketSize()
@@ -193,9 +193,9 @@ func (s *MultiFramedRTPSink) sendPacketIfNecessary() {
 			}
 		}
 
-		s.packetCount++
+		s._packetCount++
 		s.totalOctetCount += s.outBuf.curPacketSize()
-		s.octetCount += s.outBuf.curPacketSize() - rtpHeaderSize - s.specialHeaderSize - s.totalFrameSpecificHeaderSizes
+		s._octetCount += s.outBuf.curPacketSize() - rtpHeaderSize - s.specialHeaderSize - s.totalFrameSpecificHeaderSizes
 
 		s.seqNo++ // for next time
 	}

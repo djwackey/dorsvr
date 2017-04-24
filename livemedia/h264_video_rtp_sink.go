@@ -67,7 +67,7 @@ func (s *H264VideoRTPSink) AuxSDPLine() string {
 	}
 
 	return fmt.Sprintf("a=fmtp:%d packetization-mode=1;profile-level-id=%06X;sprop-parameter-sets=%s,%s\r\n",
-		s.RtpPayloadType(), profileLevelID, spsBase64, ppsBase64)
+		s._rtpPayloadType, profileLevelID, spsBase64, ppsBase64)
 }
 
 func (s *H264VideoRTPSink) doSpecialFrameHandling(fragmentationOffset, numBytesInFrame, numRemainingBytes uint,

@@ -7,7 +7,7 @@ import (
 	"github.com/djwackey/gitea/log"
 )
 
-var bankSize uint = 150000
+const bankSize uint = 150000
 
 type StreamParser struct {
 	curBankNum                 uint
@@ -129,12 +129,16 @@ func (p *StreamParser) ensureValidBytes1(numBytesNeeded uint) error {
 		numBytesNeeded = maxInputFrameSize
 	}
 
+	// First, check whether these new bytes would overflow the current
+	// bank.  If so, start using a new bank now.
 	if p.curParserIndex+numBytesNeeded > bankSize {
-		numBytesToSave := p.totNumValidBytes + p.savedParserIndex
+		numBytesToSave := p.totNumValidBytes - p.savedParserIndex
+		from := p.curBank[p.saveParserIndex:]
 
 		p.curBankNum = (p.curBankNum + 1) % 2
 		p.curBank = p.bank[p.curBankNum]
-		p.curBank = p.curBank[p.saveParserIndex : p.saveParserIndex+numBytesToSave]
+		copy(p.curBank, from[:numBytesToSave])
+		//p.curBank = p.curBank[p.saveParserIndex : p.saveParserIndex+numBytesToSave]
 
 		p.curParserIndex -= p.savedParserIndex
 		p.savedParserIndex = 0
@@ -174,7 +178,7 @@ func (p *StreamParser) afterGettingBytes(numBytesRead, numTruncatedBytes uint, p
 
 func (p *StreamParser) onInputClosure() {
 	if !p.haveSeenEOF {
-		//log.Debug("[StreamParser::onInputClosure] haveSeenEOF: true")
+		log.Debug("[StreamParser::onInputClosure] haveSeenEOF: true")
 		p.haveSeenEOF = true
 		//p.afterGettingBytes(0, 0, p.lastSeenPresentationTime)
 	} else {
