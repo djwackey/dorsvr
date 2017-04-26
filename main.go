@@ -11,7 +11,7 @@ import (
 func main() {
 	// open a logger writer of console or file mode.
 	mode := "console"
-	config := `{"level":2,"filename":"test.log"}`
+	config := `{"level":1,"filename":"test.log"}`
 	log.NewLogger(0, mode, config)
 
 	// to implement client access control to the RTSP server, do the following:
