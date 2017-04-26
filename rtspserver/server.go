@@ -203,8 +203,9 @@ func (s *RTSPServer) createNewSMS(fileName string) (sms *livemedia.ServerMediaSe
 	switch extension {
 	case "264":
 		// Assumed to be a H.264 Video Elementary Stream file:
-		livemedia.OutPacketBufferMaxSize = 100000
 		sms = livemedia.NewServerMediaSession("H.264 Video", fileName)
+		// allow for some possibly large H.264 frames
+		livemedia.OutPacketBufferMaxSize = 2000000
 		sms.AddSubsession(livemedia.NewH264FileMediaSubsession(fileName))
 	case "ts":
 		//indexFileName := fmt.Sprintf("%sx", fileName)

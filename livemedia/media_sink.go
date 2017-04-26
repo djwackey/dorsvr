@@ -10,7 +10,7 @@ import (
 )
 
 // default
-var OutPacketBufferMaxSize uint = 60000
+var OutPacketBufferMaxSize uint = 2000000
 
 //////// OutPacketBuffer ////////
 type OutPacketBuffer struct {
