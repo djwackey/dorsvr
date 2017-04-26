@@ -12,6 +12,6 @@ func (s *VideoRTPSink) initVideoRTPSink(rtpSink IMediaSink, rtpGroupSock *gs.Gro
 		rtpTimestampFrequency, rtpPayloadFormatName)
 }
 
-func (s *VideoRTPSink) SdpMediaType() string {
+func (s *VideoRTPSink) sdpMediaType() string {
 	return "video"
 }
