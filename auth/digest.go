@@ -10,6 +10,10 @@ import (
 
 var counter = 0
 
+// Digest is a struct used for digest authentication.
+// The "realm", and "nonce" fields are supplied by the server
+// (in a "401 Unauthorized" response).
+// The "username" and "password" fields are supplied by the client.
 type Digest struct {
 	Realm    string
 	Nonce    string
@@ -17,10 +21,12 @@ type Digest struct {
 	Password string
 }
 
+// NewDigest returns a pointer to a new instance of authorization digest
 func NewDigest() *Digest {
 	return &Digest{}
 }
 
+// RandomNonce randoms a nonce
 func (d *Digest) RandomNonce() {
 	var timeNow sys.Timeval
 	sys.Gettimeofday(&timeNow)
@@ -34,6 +40,7 @@ func (d *Digest) RandomNonce() {
 	d.Nonce = string(h.Sum(nil))
 }
 
+// ComputeResponse represents generating the response using cmd and url value
 func (d *Digest) ComputeResponse(cmd, url string) string {
 	ha1Data := fmt.Sprintf("%s:%s:%s", d.Username, d.Realm, d.Password)
 	ha2Data := fmt.Sprintf("%s:%s", cmd, url)
@@ -51,14 +58,17 @@ func (d *Digest) ComputeResponse(cmd, url string) string {
 	return string(h3.Sum(nil))
 }
 
+// AuthorizationHeader is a struct stored the infomation of parsing "Authorization:" line
 type AuthorizationHeader struct {
-	Uri      string
+	URI      string
 	Realm    string
 	Nonce    string
 	Username string
 	Response string
 }
 
+// ParseAuthorizationHeader represents the parsing of "Authorization:" line,
+// Authorization Header contains uri, realm, nonce, Username, response fields
 func ParseAuthorizationHeader(buf string) *AuthorizationHeader {
 	// First, find "Authorization:"
 	for {
@@ -103,7 +113,7 @@ func ParseAuthorizationHeader(buf string) *AuthorizationHeader {
 	}
 
 	return &AuthorizationHeader{
-		Uri:      uri,
+		URI:      uri,
 		Realm:    realm,
 		Nonce:    nonce,
 		Username: username,

@@ -1,5 +1,6 @@
 package auth
 
+// Database stores username and password to implement access control
 type Database struct {
 	Realm    string
 	username string
@@ -7,6 +8,7 @@ type Database struct {
 	records  map[string]string
 }
 
+// NewAuthDatabase returns a pointer to a new instance of authorization database
 func NewAuthDatabase(realm string) *Database {
 	if realm == "" {
 		realm = "dorsvr streaming server"
@@ -16,6 +18,7 @@ func NewAuthDatabase(realm string) *Database {
 	}
 }
 
+// InsertUserRecord inserts user record, it contains username and password fields
 func (d *Database) InsertUserRecord(username, password string) {
 	if username == "" || password == "" {
 		return
@@ -27,6 +30,7 @@ func (d *Database) InsertUserRecord(username, password string) {
 	}
 }
 
+// RemoveUserRecord removes user record
 func (d *Database) RemoveUserRecord(username string) {
 	_, existed := d.records[username]
 	if existed {
@@ -34,6 +38,7 @@ func (d *Database) RemoveUserRecord(username string) {
 	}
 }
 
+// LookupPassword lookups the password by username
 func (d *Database) LookupPassword(username string) (password string) {
 	password, _ = d.records[username]
 	return
