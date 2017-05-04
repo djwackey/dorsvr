@@ -5,6 +5,7 @@ import (
 	"net"
 )
 
+// SetupDatagramSocket returns a udp connection of Listening to the specified port.
 func SetupDatagramSocket(address string, port uint) *net.UDPConn {
 	addr := fmt.Sprintf("%s:%d", address, port)
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
@@ -19,10 +20,23 @@ func SetupDatagramSocket(address string, port uint) *net.UDPConn {
 		return nil
 	}
 
+	//go func() {
+	//	data := make([]byte, 32)
+	//	for {
+	//		n, remoteAddr, err := socketNum.ReadFromUDP(data)
+	//		if err != nil {
+	//			fmt.Printf("error during read: %v\n", err)
+	//			break
+	//		}
+
+	//		fmt.Printf("<%s> %s\n", remoteAddr, data[:n])
+	//	}
+	//}()
+
 	return udpConn
 }
 
-func SetupStreamSocket(address string, port uint) *net.TCPConn {
+func setupStreamSocket(address string, port uint) *net.TCPConn {
 	addr := fmt.Sprintf("%s:%d", address, port)
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
@@ -37,6 +51,7 @@ func SetupStreamSocket(address string, port uint) *net.TCPConn {
 	return tcpConn
 }
 
+// ReadSocket reads data from the connection.
 func ReadSocket(conn net.Conn, buffer []byte) (int, error) {
 	return conn.Read(buffer)
 }

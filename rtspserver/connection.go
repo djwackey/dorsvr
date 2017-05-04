@@ -56,10 +56,11 @@ func (c *RTSPClientConnection) incomingRequestHandler() {
 		case nil:
 			err = c.handleRequestBytes(buffer, length)
 			if err != nil {
+				log.Error(4, "Failed to handle Request Bytes: %v", err)
 				isclose = true
 			}
 		default:
-			log.Info("default: %s", err.Error())
+			log.Info("default: %v", err)
 			if err.Error() == "EOF" {
 				isclose = true
 			}
@@ -149,7 +150,7 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) err
 
 	sendBytes, err := c.socket.Write([]byte(c.responseBuffer))
 	if err != nil {
-		log.Error(0, "failed to send response buffer.", sendBytes)
+		log.Error(4, "failed to send response buffer.%d", sendBytes)
 		return err
 	}
 	log.Info("send response:\n%s", c.responseBuffer)
@@ -250,8 +251,8 @@ func (c *RTSPClientConnection) handleHTTPCommandNotFound() {
 }
 
 func (c *RTSPClientConnection) handleHTTPCommandTunnelingGET(sessionCookie string) {
-	if _, existed := c.server.clientHttpConnections[sessionCookie]; !existed {
-		c.server.clientHttpConnections[sessionCookie] = c
+	if _, existed := c.server.clientHTTPConnections[sessionCookie]; !existed {
+		c.server.clientHTTPConnections[sessionCookie] = c
 	}
 
 	// Construct our response:
@@ -320,7 +321,7 @@ func (c *RTSPClientConnection) authenticationOK(cmdName, urlSuffix, fullRequestS
 
 		// Finally, compute a digest response from the information that we have,
 		// and compare it to the one that we were given:
-		response := c.digest.ComputeResponse(cmdName, header.Uri)
+		response := c.digest.ComputeResponse(cmdName, header.URI)
 		if response == header.Response {
 			return true
 		}

@@ -26,7 +26,7 @@ func NewDigest() *Digest {
 	return &Digest{}
 }
 
-// RandomNonce randoms a nonce
+// RandomNonce returns a random nonce
 func (d *Digest) RandomNonce() {
 	var timeNow sys.Timeval
 	sys.Gettimeofday(&timeNow)
@@ -70,22 +70,20 @@ type AuthorizationHeader struct {
 // ParseAuthorizationHeader represents the parsing of "Authorization:" line,
 // Authorization Header contains uri, realm, nonce, Username, response fields
 func ParseAuthorizationHeader(buf string) *AuthorizationHeader {
-	// First, find "Authorization:"
-	for {
-		if buf == "" {
-			return nil
-		}
+	if buf == "" {
+		return nil
+	}
 
-		if strings.EqualFold(buf[:22], "Authorization: Digest ") {
-			break
-		}
-		buf = buf[1:]
+	// First, find "Authorization:"
+	index := strings.Index(buf, "Authorization: Digest ")
+	if -1 == index {
+		return nil
 	}
 
 	// Then, run through each of the fields, looking for ones we handle:
 	var n1, n2 int
 	var parameter, value, username, realm, nonce, uri, response string
-	fields := buf[22:]
+	fields := buf[index+22:]
 	for {
 		n1, _ = fmt.Sscanf(fields, "%[^=]=\"%[^\"]\"", &parameter, &value)
 		n2, _ = fmt.Sscanf(fields, "%[^=]=\"\"", &parameter)

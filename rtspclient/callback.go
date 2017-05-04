@@ -8,7 +8,7 @@ import (
 func continueAfterDESCRIBE(c *RTSPClient, resultCode int, resultStr string) {
 	for {
 		if resultCode != 0 {
-			log.Error(1, "Failed to get a SDP description: %s", resultStr)
+			log.Error(4, "Failed to get a SDP description: %s", resultStr)
 			break
 		}
 
@@ -18,10 +18,10 @@ func continueAfterDESCRIBE(c *RTSPClient, resultCode int, resultStr string) {
 		// Create a media session object from this SDP description
 		scs.Session = livemedia.NewMediaSession(sdpDesc)
 		if scs.Session == nil {
-			log.Error(1, "Failed to create a MediaSession object from the sdp Description.")
+			log.Error(4, "Failed to create a MediaSession object from the sdp Description.")
 			break
 		} else if !scs.Session.HasSubsessions() {
-			log.Error(1, "This session has no media subsessions (i.e., no \"-m\" lines)")
+			log.Error(4, "This session has no media subsessions (i.e., no \"-m\" lines)")
 			break
 		}
 
@@ -37,14 +37,14 @@ func continueAfterDESCRIBE(c *RTSPClient, resultCode int, resultStr string) {
 func continueAfterSETUP(c *RTSPClient, resultCode int, resultStr string) {
 	for {
 		if resultCode != 0 {
-			log.Error(1, "Failed to set up the subsession")
+			log.Error(4, "Failed to set up the subsession")
 			break
 		}
 
 		scs := c.scs
 		scs.Subsession.Sink = NewDummySink(scs.Subsession, c.baseURL)
 		if scs.Subsession.Sink == nil {
-			log.Error(1, "Failed to create a data sink for the subsession.")
+			log.Error(4, "Failed to create a data sink for the subsession.")
 			break
 		}
 
@@ -66,7 +66,7 @@ func continueAfterSETUP(c *RTSPClient, resultCode int, resultStr string) {
 func continueAfterPLAY(c *RTSPClient, resultCode int, resultStr string) {
 	for {
 		if resultCode != 0 {
-			log.Error(1, "Failed to start playing session: %s", resultStr)
+			log.Error(4, "Failed to start playing session: %s", resultStr)
 			break
 		}
 
@@ -103,7 +103,7 @@ func setupNextSubSession(c *RTSPClient) {
 	scs.Subsession = scs.Next()
 	if scs.Subsession != nil {
 		if !scs.Subsession.Initiate() {
-			log.Error(1, "Failed to initiate the subsession.")
+			log.Error(4, "Failed to initiate the subsession.")
 			setupNextSubSession(c)
 		} else {
 			log.Info("Initiated the \"%s/%s\" subsession (client ports %d-%d)",

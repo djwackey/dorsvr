@@ -25,7 +25,7 @@ type RTSPServer struct {
 	rtspListen             *net.TCPListener
 	httpListen             *net.TCPListener
 	clientSessions         map[string]*RTSPClientSession
-	clientHttpConnections  map[string]*RTSPClientConnection
+	clientHTTPConnections  map[string]*RTSPClientConnection
 	serverMediaSessions    map[string]*livemedia.ServerMediaSession
 	reclamationTestSeconds time.Duration
 	authDatabase           *auth.Database
@@ -42,7 +42,7 @@ func New(authDatabase *auth.Database) *RTSPServer {
 		authDatabase:           authDatabase,
 		reclamationTestSeconds: 65,
 		clientSessions:         make(map[string]*RTSPClientSession),
-		clientHttpConnections:  make(map[string]*RTSPClientConnection),
+		clientHTTPConnections:  make(map[string]*RTSPClientConnection),
 		serverMediaSessions:    make(map[string]*livemedia.ServerMediaSession),
 	}
 }
@@ -96,7 +96,7 @@ func (s *RTSPServer) SetupTunnelingOverHTTP(httpPort int) bool {
 	return true
 }
 
-func (s *RTSPServer) HttpServerPortNum() int {
+func (s *RTSPServer) HTTPServerPortNum() int {
 	return s.httpPort
 }
 
