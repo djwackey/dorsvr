@@ -8,7 +8,7 @@ import (
 )
 
 var libNameStr string = "Dor Streaming Media v"
-var libVersionStr string = MEDIA_SERVER_VERSION
+var libVersionStr string = mediaServerVersion
 
 type ServerMediaSession struct {
 	isSSM             bool

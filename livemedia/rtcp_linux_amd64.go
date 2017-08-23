@@ -94,7 +94,7 @@ func newRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string,
 
 	reportTime := dTimeNow()
 	rtcp := &RTCPInstance{
-		typeOfEvent:    EVENT_REPORT,
+		typeOfEvent:    eventReport,
 		totSessionBW:   totSessionBW,
 		prevReportTime: reportTime,
 		nextReportTime: reportTime,
@@ -233,7 +233,7 @@ func (r *RTCPInstance) incomingReportHandler() {
 							senderSSRC, _ := gs.Ntohl(packet)
 							packet, packetSize = ADVANCE(packet, packetSize, 4)
 							// We care only about reports about our own transmission, not others'
-							if senderSSRC == r.Sink.SSRC() {
+							if senderSSRC == r.Sink.ssrc() {
 								lossStats, _ = gs.Ntohl(packet)
 								packet, packetSize = ADVANCE(packet, packetSize, 4)
 								highestReceived, _ = gs.Ntohl(packet)
@@ -383,12 +383,12 @@ func (r *RTCPInstance) addBYE() {
 	if r.Source != nil {
 		r.outBuf.enqueueWord(r.Source.ssrc)
 	} else if r.Sink != nil {
-		r.outBuf.enqueueWord(r.Sink.SSRC())
+		r.outBuf.enqueueWord(r.Sink.ssrc())
 	}
 }
 
 func (r *RTCPInstance) addSR() {
-	r.enqueueCommonReportPrefix(RTCP_PT_SR, r.Sink.SSRC(), 5)
+	r.enqueueCommonReportPrefix(RTCP_PT_SR, r.Sink.ssrc(), 5)
 
 	// Now, add the 'sender info' for our sink
 
