@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
@@ -37,7 +38,7 @@ func (d *Digest) RandomNonce() {
 	// Use MD5 to compute a 'random' nonce from this seed data:
 	h := md5.New()
 	io.WriteString(h, seedData)
-	d.Nonce = string(h.Sum(nil))
+	d.Nonce = hex.EncodeToString(h.Sum(nil))
 }
 
 // ComputeResponse represents generating the response using cmd and url value
@@ -50,12 +51,12 @@ func (d *Digest) ComputeResponse(cmd, url string) string {
 	io.WriteString(h1, ha1Data)
 	io.WriteString(h2, ha2Data)
 
-	digestData := fmt.Sprintf("%s:%s:%s", h1.Sum(nil), d.Nonce, h2.Sum(nil))
+	digestData := fmt.Sprintf("%s:%s:%s", hex.EncodeToString(h1.Sum(nil)), d.Nonce, hex.EncodeToString(h2.Sum(nil)))
 
 	h3 := md5.New()
 	io.WriteString(h3, digestData)
 
-	return string(h3.Sum(nil))
+	return hex.EncodeToString(h3.Sum(nil))
 }
 
 // AuthorizationHeader is a struct stored the infomation of parsing "Authorization:" line
