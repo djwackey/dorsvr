@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -243,11 +244,12 @@ func (c *RTSPClient) parseRTSPURL(url string) (*RTSPURL, bool) {
 			}
 
 			rtspUrl.username, rtspUrl.password = s[0], s[1]
+			index++
 		} else {
 			index = 7
 		}
 
-		parseBufferSize := 100
+		parseBufferSize := 1000
 		if len(url) > parseBufferSize {
 			fmt.Println("URL is too long")
 			break
@@ -370,19 +372,25 @@ func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 			}
 		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Content-Base:", 13); result {
 			c.baseURL = headerParamsStr
-		} else if sessionParamsStr, result = c.checkForHeader(thisLineStart, "Session:", 8); result {
-		} else if transportParamsStr, result = c.checkForHeader(thisLineStart, "Transport:", 10); result {
-		} else if scaleParamsStr, result = c.checkForHeader(thisLineStart, "Scale:", 6); result {
-		} else if rangeParamsStr, result = c.checkForHeader(thisLineStart, "Range:", 6); result {
-		} else if rtpInfoParamsStr, result = c.checkForHeader(thisLineStart, "RTP-Info:", 9); result {
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Session:", 8); result {
+			sessionParamsStr = headerParamsStr
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Transport:", 10); result {
+			transportParamsStr = headerParamsStr
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Scale:", 6); result {
+			scaleParamsStr = headerParamsStr
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Range:", 6); result {
+			rangeParamsStr = headerParamsStr
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "RTP-Info:", 9); result {
+			rtpInfoParamsStr = headerParamsStr
 		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "WWW-Authenticate:", 17); result {
 			// If we've already seen a "WWW-Authenticate:" header, then we replace it with this new one only if
 			// the new one specifies "Digest" authentication:
 			if wwwAuthenticateParamsStr == "" || headerParamsStr[:6] == "Digest" {
 				wwwAuthenticateParamsStr = headerParamsStr
 			}
-		} else if publicParamsStr, result = c.checkForHeader(thisLineStart, "Public:", 7); result {
-		} else if publicParamsStr, result = c.checkForHeader(thisLineStart, "Allow:", 6); result {
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Public:", 7); result {
+			publicParamsStr = headerParamsStr
+		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Allow:", 6); result {
 		} else if headerParamsStr, result = c.checkForHeader(thisLineStart, "Location:", 9); result {
 			c.baseURL = headerParamsStr
 		}
@@ -442,6 +450,7 @@ func (c *RTSPClient) handleResponseBytes(buffer []byte, length int) {
 	}
 
 	if needToResendCommand {
+		c.sendRequest(foundRequest)
 		return
 	}
 
@@ -864,16 +873,19 @@ func (c *RTSPClient) handleAuthenticationFailure(paramsStr string) bool {
 		return false
 	}
 
+	digest_regex := regexp.MustCompile(`Digest realm="([^"]+)", nonce="([^"]+)"`)
+	basic_regex := regexp.MustCompile(`Basic realm="([^"]+)"`)
+
 	// Fill in "fCurrentAuthenticator" with the information from the "WWW-Authenticate:" header:
-	var n int
-	var realm, nonce string
+	var matches []string
 	success := true
 	alreadyHadRealm := c.digest.Realm != ""
-	if n, _ = fmt.Sscanf(paramsStr, "Digest realm=\"%[^\"]\", nonce=\"%[^\"]\"", &realm, &nonce); n == 2 {
-		c.digest.Realm = realm
-		c.digest.RandomNonce()
-	} else if n, _ = fmt.Sscanf(paramsStr, "Basic realm=\"%[^\"]\"", &realm); n == 1 { // Basic authentication
-		c.digest.Realm = realm
+
+	if matches = digest_regex.FindStringSubmatch(paramsStr); len(matches) == 3 {
+		c.digest.Realm = matches[1]
+		c.digest.Nonce = matches[2]
+	} else if matches = basic_regex.FindStringSubmatch(paramsStr); len(matches) == 2 {
+		c.digest.Realm = matches[1]
 		c.digest.RandomNonce()
 	} else {
 		success = false // bad "WWW-Authenticate:" header
@@ -907,6 +919,8 @@ func (c *RTSPClient) checkForHeader(line, headerName string, headerNameLength in
 	for _, ch := range line[headerNameLength:] {
 		if ch == ' ' || ch == '\t' {
 			index += 1
+		} else {
+			break
 		}
 	}
 
