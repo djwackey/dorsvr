@@ -92,7 +92,7 @@ func newH264BufferedPacket(source *H264VideoRTPSource) *H264BufferedPacket {
 	return packet
 }
 
-func (p *H264BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint) uint32 {
+func (p *H264BufferedPacket) nextEnclosedFrameSize(buff []byte, size uint32) uint32 {
 	framePtr, dataSize := buff[p.head:], p.tail-p.head
 
 	var resultNALUSize, frameSize uint32
