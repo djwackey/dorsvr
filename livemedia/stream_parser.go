@@ -59,7 +59,7 @@ func (p *StreamParser) get2Bytes() (n uint, err error) {
 	}
 
 	ptr := p.nextToParse()
-	n = uint((ptr[0] << 8) | ptr[1])
+	n = uint(ptr[0])<<8 | uint(ptr[1])
 
 	p.curParserIndex += 2
 	p.remainingUnparsedBits = 0

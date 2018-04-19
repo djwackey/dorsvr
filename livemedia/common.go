@@ -76,7 +76,7 @@ func ParseRTSPRequestString(reqStr string, reqStrSize int) (*RTSPRequestInfo, bo
 
 	// skip over any additional white space
 	j := i + 1
-	for ; j < reqStrSize && reqStr[j] == ' ' && reqStr[j] == '\t'; j++ {
+	for ; j < reqStrSize && (reqStr[j] == ' ' || reqStr[j] == '\t'); j++ {
 	}
 	for ; j < reqStrSize-8; j++ {
 		if (reqStr[j+0] == 'r' || reqStr[j+0] == 'R') &&
@@ -179,7 +179,7 @@ func ParseHTTPRequestString(reqStr string, reqStrSize int) (*HTTPRequestInfo, bo
 	}
 
 	// Look for the string "HTTP/", before the first \r or \n:
-	for ; i < reqStrSize && reqStr[i] == '\r' && reqStr[i] == '\n'; i++ {
+	for ; i < reqStrSize && (reqStr[i] == '\r' || reqStr[i] == '\n'); i++ {
 		if reqStr[i+0] == 'H' &&
 			reqStr[i+1] == 'T' &&
 			reqStr[i+2] == 'T' &&
