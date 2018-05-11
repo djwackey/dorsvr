@@ -94,12 +94,12 @@ func (f *M2TSVideoStreamFramer) updateTSPacketDurationEstimate(pkt []byte, timeN
 
 	// There's a PCR.  Get it, and the PID:
 	f.tsPCRCount++
-	pcrBaseHigh := float32((pkt[6] << 24) | (pkt[7] << 16) | (pkt[8] << 8) | pkt[9])
+	pcrBaseHigh := float32(uint(pkt[6])<<24 | uint(pkt[7])<<16 | uint(pkt[8])<<8 | uint(pkt[9]))
 	clock := pcrBaseHigh / 45000.0
 	if (pkt[10] & 0x80) != 0 {
 		clock += 1 / 90000.0 // add in low-bit (if set)
 	}
-	pcrExt := float32(((pkt[10] & 0x01) << 8) | pkt[11])
+	pcrExt := float32(((uint(pkt[10]) & 0x01) << 8) | uint(pkt[11]))
 	clock += pcrExt / 27000000.0
 	if f.limitTSPacketsToStreamByPCR {
 		if clock > f.pcrLimit {
@@ -108,7 +108,7 @@ func (f *M2TSVideoStreamFramer) updateTSPacketDurationEstimate(pkt []byte, timeN
 		}
 	}
 
-	pid := ((pkt[1] & 0x1F) << 8) | pkt[2]
+	pid := (uint(pkt[1])&0x1F)<<8 | uint(pkt[2])
 	pidStatus := f.pidStatusDict[pid]
 	if pidStatus == nil {
 		pidStatus = NewPIDStatus()
