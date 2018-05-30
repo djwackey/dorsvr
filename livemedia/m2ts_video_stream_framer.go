@@ -109,7 +109,7 @@ func (f *M2TSVideoStreamFramer) updateTSPacketDurationEstimate(pkt []byte, timeN
 	}
 
 	pid := (uint(pkt[1])&0x1F)<<8 | uint(pkt[2])
-	pidStatus := f.pidStatusDict[pid]
+	pidStatus := f.pidStatusDict[byte(pid)]
 	if pidStatus == nil {
 		pidStatus = NewPIDStatus()
 	}
