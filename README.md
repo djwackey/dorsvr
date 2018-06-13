@@ -34,7 +34,7 @@ import (
 )
 
 func main() {
-    server := rtspserver.New()
+    server := rtspserver.New(nil)
 
     portNum := 8554
     err := server.Listen(portNum)
@@ -47,7 +47,7 @@ func main() {
         !server.SetupTunnelingOverHTTP(8000) ||
         !server.SetupTunnelingOverHTTP(8080) {
         fmt.Printf("We use port %d for optional RTSP-over-HTTP tunneling, "+
-                   "or for HTTP live streaming (for indexed Transport Stream files only).\n", server.HttpServerPortNum()))
+                   "or for HTTP live streaming (for indexed Transport Stream files only).\n", server.HTTPServerPortNum())
     } else {
         fmt.Println("(RTSP-over-HTTP tunneling is not available.)")
     }
