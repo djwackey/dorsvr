@@ -2,6 +2,7 @@ package livemedia
 
 import (
 	sys "syscall"
+	"time"
 
 	gs "github.com/djwackey/dorsvr/groupsock"
 	"github.com/djwackey/gitea/log"
@@ -49,7 +50,9 @@ type RTCPInstance struct {
 	typeOfEvent          uint
 	lastSentSize         uint
 	totSessionBW         uint
+	numMembers           uint
 	lastPacketSentSize   uint
+	avgRTCPSize          float64
 	haveJustSentPacket   bool
 	prevReportTime       int64
 	nextReportTime       int64
@@ -119,8 +122,12 @@ func newRTCPInstance(rtcpGS *gs.GroupSock, totSessionBW uint, cname string,
 	return rtcp
 }
 
-func (r *RTCPInstance) numMembers() uint {
-	return 0
+func (r *RTCPInstance) NumMembers() uint {
+	return r.numMembers
+}
+
+func (r *RTCPInstance) sentPacketSize() uint {
+	return r.lastSentSize
 }
 
 func (r *RTCPInstance) setSpecificRRHandler(handlerTask interface{}) {
@@ -140,8 +147,6 @@ func (r *RTCPInstance) setRRHandler(handlerTask interface{}, clientData interfac
 }
 
 func (r *RTCPInstance) incomingReportHandler() {
-	var fromAddress string
-	var callByeHandler bool
 	for {
 		readBytes, err := r.netInterface.handleRead(r.inBuf)
 		if err != nil {
@@ -149,168 +154,178 @@ func (r *RTCPInstance) incomingReportHandler() {
 			break
 		}
 
-		packet, packetSize := r.inBuf[:readBytes], uint(readBytes)
+		packetSize := uint(readBytes)
 
-		totPacketSize := IP_UDP_HDR_SIZE + packetSize
-
-		if packetSize < 4 {
-			log.Warn("RTCP Interface packet Size less than 4.")
-			continue
-		}
-
-		var rtcpHdr uint32
-		rtcpHdr, _ = gs.Ntohl(packet)
-
-		if (rtcpHdr & 0xE0FE0000) != (0x80000000 | (RTCP_PT_SR << 16)) {
-			log.Warn("rejected bad RTCP packet: header 0x%08x", rtcpHdr)
-			continue
-		}
-
-		typeOfPacket := PACKET_UNKNOWN_TYPE
-		var packetOk bool
-		var reportSenderSSRC uint32
-
-		for {
-			rc := (rtcpHdr >> 24) & 0x1F
-			pt := (rtcpHdr >> 16) & 0xFF
-			// doesn't count hdr
-			length := uint(4 * (rtcpHdr & 0xFFFF))
-			// skip over the header
-			packet, packetSize = ADVANCE(packet, packetSize, 4)
-			if length > packetSize {
-				break
-			}
-
-			// Assume that each RTCP subpacket begins with a 4-byte SSRC:
-			if length < 4 {
-				break
-			}
-			length -= 4
-
-			reportSenderSSRC, _ = gs.Ntohl(packet)
-
-			packet, packetSize = ADVANCE(packet, packetSize, 4)
-
-			var subPacketOk bool
-			switch pt {
-			case RTCP_PT_SR:
-				if length >= 20 {
-					length -= 20
-
-					// Extract the NTP timestamp, and note this:
-					ntpMsw, _ := gs.Ntohl(packet)
-					packet, packetSize = ADVANCE(packet, packetSize, 4)
-
-					ntpLsm, _ := gs.Ntohl(packet)
-					packet, packetSize = ADVANCE(packet, packetSize, 4)
-
-					rtpTimestamp, _ := gs.Ntohl(packet)
-					packet, packetSize = ADVANCE(packet, packetSize, 4)
-
-					if r.Source != nil {
-						r.Source.receptionStatsDB.noteIncomingSR(reportSenderSSRC, ntpMsw, ntpLsm, rtpTimestamp)
-					}
-
-					packet, packetSize = ADVANCE(packet, packetSize, 8)
-
-					// If a 'SR handler' was set, call it now:
-					if r.SRHandlerTask != nil {
-						r.SRHandlerTask.(func())()
-					}
-				}
-
-				fallthrough
-			case RTCP_PT_RR:
-				reportBlocksSize := uint(rc * (6 * 4))
-				if length >= reportBlocksSize {
-					length -= reportBlocksSize
-
-					if r.Sink != nil {
-						// Use this information to update stats about our transmissions:
-						transmissionStats := r.Sink.transmissionStatsDB()
-						var i, jitter, lossStats, timeLastSR, timeSinceLastSR, highestReceived uint32
-						for i = 0; i < rc; i++ {
-							senderSSRC, _ := gs.Ntohl(packet)
-							packet, packetSize = ADVANCE(packet, packetSize, 4)
-							// We care only about reports about our own transmission, not others'
-							if senderSSRC == r.Sink.ssrc() {
-								lossStats, _ = gs.Ntohl(packet)
-								packet, packetSize = ADVANCE(packet, packetSize, 4)
-								highestReceived, _ = gs.Ntohl(packet)
-								packet, packetSize = ADVANCE(packet, packetSize, 4)
-								jitter, _ = gs.Ntohl(packet)
-								packet, packetSize = ADVANCE(packet, packetSize, 4)
-								timeLastSR, _ = gs.Ntohl(packet)
-								packet, packetSize = ADVANCE(packet, packetSize, 4)
-								timeSinceLastSR, _ = gs.Ntohl(packet)
-								packet, packetSize = ADVANCE(packet, packetSize, 4)
-								transmissionStats.noteIncomingRR(fromAddress, reportSenderSSRC,
-									lossStats, highestReceived, jitter, timeLastSR, timeSinceLastSR)
-							} else {
-								packet, packetSize = ADVANCE(packet, packetSize, 4*5)
-							}
-						}
-					} else {
-						packet, packetSize = ADVANCE(packet, packetSize, reportBlocksSize)
-					}
-
-					if pt == RTCP_PT_RR {
-						log.Info("RTCP_PT_RR")
-						if r.RRHandlerTask != nil {
-							r.RRHandlerTask.(func())()
-						}
-					}
-
-					subPacketOk = true
-					typeOfPacket = PACKET_RTCP_REPORT
-				}
-
-			case RTCP_PT_BYE:
-				log.Info("RTCP_PT_BYE")
-				callByeHandler = true
-
-				subPacketOk = true
-				typeOfPacket = PACKET_BYE
-			default:
-				subPacketOk = true
-			}
-
-			if !subPacketOk {
-				break
-			}
-
-			packet, packetSize = ADVANCE(packet, packetSize, length)
-
-			if packetSize == 0 {
-				packetOk = true
-				break
-			} else if packetSize < 4 {
-				log.Error(4, "extraneous %d bytes at end of RTCP packet!", packetSize)
-				break
-			}
-
-			rtcpHdr, _ = gs.Ntohl(packet)
-
-			if (rtcpHdr & 0xC0000000) != 0x80000000 {
-				log.Error(4, "bad RTCP subpacket: header 0x%08x", rtcpHdr)
-				break
-			}
-		}
-
-		if !packetOk {
-			log.Warn("rejected bad RTCP subpacket: header 0x%08x", rtcpHdr)
-			continue
-		} else {
-			log.Info("validated entire RTCP packet")
-		}
-
-		r.onReceive(typeOfPacket, totPacketSize, uint(reportSenderSSRC))
-
-		if callByeHandler && r.byeHandlerTask != nil {
-			r.byeHandlerTask.(func(subsession *MediaSubsession))(r.byeHandlerClientData.(*MediaSubsession))
-		}
+		r.processIncomingReport(packetSize)
 	}
 	log.Info("incomingReportHandler ending.")
+}
+
+func (r *RTCPInstance) processIncomingReport(packetSize uint) {
+	var fromAddress string
+	var callByeHandler bool
+
+	packet := r.inBuf[:packetSize]
+
+	totPacketSize := IP_UDP_HDR_SIZE + packetSize
+
+	if packetSize < 4 {
+		log.Warn("RTCP Interface packet Size less than 4.")
+		return
+	}
+
+	var rtcpHdr uint32
+	rtcpHdr, _ = gs.Ntohl(packet)
+
+	if (rtcpHdr & 0xE0FE0000) != (0x80000000 | (RTCP_PT_SR << 16)) {
+		log.Warn("rejected bad RTCP packet: header 0x%08x", rtcpHdr)
+		return
+	}
+
+	typeOfPacket := PACKET_UNKNOWN_TYPE
+	var packetOk bool
+	var reportSenderSSRC uint32
+
+	for {
+		rc := (rtcpHdr >> 24) & 0x1F
+		pt := (rtcpHdr >> 16) & 0xFF
+		log.Warn("pt: %v", pt)
+		// doesn't count hdr
+		length := uint(4 * (rtcpHdr & 0xFFFF))
+		// skip over the header
+		packet, packetSize = ADVANCE(packet, packetSize, 4)
+		if length > packetSize {
+			break
+		}
+
+		// Assume that each RTCP subpacket begins with a 4-byte SSRC:
+		if length < 4 {
+			break
+		}
+		length -= 4
+
+		reportSenderSSRC, _ = gs.Ntohl(packet)
+
+		packet, packetSize = ADVANCE(packet, packetSize, 4)
+
+		var subPacketOk bool
+		switch pt {
+		case RTCP_PT_SR:
+			if length >= 20 {
+				length -= 20
+
+				// Extract the NTP timestamp, and note this:
+				ntpMsw, _ := gs.Ntohl(packet)
+				packet, packetSize = ADVANCE(packet, packetSize, 4)
+
+				ntpLsm, _ := gs.Ntohl(packet)
+				packet, packetSize = ADVANCE(packet, packetSize, 4)
+
+				rtpTimestamp, _ := gs.Ntohl(packet)
+				packet, packetSize = ADVANCE(packet, packetSize, 4)
+
+				if r.Source != nil {
+					r.Source.receptionStatsDB.noteIncomingSR(reportSenderSSRC, ntpMsw, ntpLsm, rtpTimestamp)
+				}
+
+				packet, packetSize = ADVANCE(packet, packetSize, 8)
+
+				// If a 'SR handler' was set, call it now:
+				if r.SRHandlerTask != nil {
+					r.SRHandlerTask.(func())()
+				}
+			}
+
+			fallthrough
+		case RTCP_PT_RR:
+			reportBlocksSize := uint(rc * (6 * 4))
+			if length >= reportBlocksSize {
+				length -= reportBlocksSize
+
+				if r.Sink != nil {
+					// Use this information to update stats about our transmissions:
+					transmissionStats := r.Sink.transmissionStatsDB()
+					var i, jitter, lossStats, timeLastSR, timeSinceLastSR, highestReceived uint32
+					for i = 0; i < rc; i++ {
+						senderSSRC, _ := gs.Ntohl(packet)
+						packet, packetSize = ADVANCE(packet, packetSize, 4)
+						// We care only about reports about our own transmission, not others'
+						if senderSSRC == r.Sink.ssrc() {
+							lossStats, _ = gs.Ntohl(packet)
+							packet, packetSize = ADVANCE(packet, packetSize, 4)
+							highestReceived, _ = gs.Ntohl(packet)
+							packet, packetSize = ADVANCE(packet, packetSize, 4)
+							jitter, _ = gs.Ntohl(packet)
+							packet, packetSize = ADVANCE(packet, packetSize, 4)
+							timeLastSR, _ = gs.Ntohl(packet)
+							packet, packetSize = ADVANCE(packet, packetSize, 4)
+							timeSinceLastSR, _ = gs.Ntohl(packet)
+							packet, packetSize = ADVANCE(packet, packetSize, 4)
+							transmissionStats.noteIncomingRR(fromAddress, reportSenderSSRC,
+								lossStats, highestReceived, jitter, timeLastSR, timeSinceLastSR)
+						} else {
+							packet, packetSize = ADVANCE(packet, packetSize, 4*5)
+						}
+					}
+				} else {
+					packet, packetSize = ADVANCE(packet, packetSize, reportBlocksSize)
+				}
+
+				if pt == RTCP_PT_RR {
+					log.Info("RTCP_PT_RR")
+					if r.RRHandlerTask != nil {
+						r.RRHandlerTask.(func())()
+					}
+				}
+
+				subPacketOk = true
+				typeOfPacket = PACKET_RTCP_REPORT
+			}
+
+		case RTCP_PT_BYE:
+			log.Info("RTCP_PT_BYE")
+			callByeHandler = true
+
+			subPacketOk = true
+			typeOfPacket = PACKET_BYE
+		default:
+			subPacketOk = true
+		}
+
+		if !subPacketOk {
+			break
+		}
+
+		packet, packetSize = ADVANCE(packet, packetSize, length)
+
+		if packetSize == 0 {
+			packetOk = true
+			break
+		} else if packetSize < 4 {
+			log.Error(4, "extraneous %d bytes at end of RTCP packet!", packetSize)
+			break
+		}
+
+		rtcpHdr, _ = gs.Ntohl(packet)
+
+		if (rtcpHdr & 0xC0000000) != 0x80000000 {
+			log.Error(4, "bad RTCP subpacket: header 0x%08x", rtcpHdr)
+			break
+		}
+	}
+
+	if !packetOk {
+		log.Warn("rejected bad RTCP subpacket: header 0x%08x", rtcpHdr)
+		return
+	} else {
+		log.Info("validated entire RTCP packet")
+	}
+
+	r.onReceive(typeOfPacket, totPacketSize, uint(reportSenderSSRC))
+
+	if callByeHandler && r.byeHandlerTask != nil {
+		r.byeHandlerTask.(func(subsession *MediaSubsession))(r.byeHandlerClientData.(*MediaSubsession))
+	}
 }
 
 func (r *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
@@ -318,6 +333,7 @@ func (r *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
 }
 
 func (r *RTCPInstance) sendReport() {
+	log.Info("sendReport")
 	// Begin by including a SR and/or RR report:
 	r.addReport()
 
@@ -345,20 +361,21 @@ func (r *RTCPInstance) sendBuiltPacket() {
 	r.lastPacketSentSize = reportSize
 }
 
-func (r *RTCPInstance) addReport() {
+func (r *RTCPInstance) addReport() bool {
 	if r.Sink != nil {
-		if r.Sink.enableRTCPReports() {
-			return
+		if !r.Sink.enableRTCPReports() {
+			return false
 		}
 
 		if r.Sink.nextTimestampHasBeenPreset() {
-			return
+			return false
 		}
 
 		r.addSR()
 	} else if r.Source != nil {
 		r.addRR()
 	}
+	return true
 }
 
 func (r *RTCPInstance) addSDES() {
@@ -368,10 +385,23 @@ func (r *RTCPInstance) addSDES() {
 
 	num4ByteWords := (numBytes + 3) / 4
 
-	var rtcpHdr uint32 = 0x81000000 // version 2, no padding, 1 SSRC chunk
+	// version 2, no padding, 1 SSRC chunk
+	var rtcpHdr uint32 = 0x81000000
 	rtcpHdr |= (RTCP_PT_SDES << 16)
 	rtcpHdr |= uint32(num4ByteWords)
 	r.outBuf.enqueueWord(rtcpHdr)
+
+	if r.Source != nil {
+		r.outBuf.enqueueWord(r.Source.ssrc)
+	} else if r.Sink != nil {
+		r.outBuf.enqueueWord(r.Sink.ssrc())
+	}
+
+	// Add the CNAME:
+	r.outBuf.enqueue(r.CNAME.data, r.CNAME.totalSize())
+
+	// Add the 'END' item (i.e., a zero byte), plus any more needed to pad:
+	_ = r.outBuf.curPacketSize() % 4
 }
 
 func (r *RTCPInstance) addBYE() {
@@ -411,20 +441,32 @@ func (r *RTCPInstance) addSR() {
 }
 
 func (r *RTCPInstance) addRR() {
+	log.Info("RTCPInstance::addRR")
 	r.enqueueCommonReportPrefix(RTCP_PT_RR, r.Source.ssrc, 0)
 	r.enqueueCommonReportSuffix()
 }
 
+func (r *RTCPInstance) schedule(nextTime int64) {
+	r.nextReportTime = nextTime
+	secondsToDelay := nextTime - dTimeNow()
+	if secondsToDelay < 0 {
+		secondsToDelay = 0
+	}
+	usToGo := secondsToDelay * 1000000000
+	time.Sleep(time.Duration(usToGo) * time.Microsecond)
+	go r.onExpire()
+}
+
 func (r *RTCPInstance) onExpire() {
 	// Note: totsessionbw is kbits per second
-	var rtcpBW float32 = 0.05 * float32(r.totSessionBW) * 1024 / 8
+	rtcpBW := (0.05 * float64(r.totSessionBW) * 1024 / 8)
 
-	var senders uint
+	var senders float64
 	if r.Sink != nil {
 		senders = 1
 	}
 
-	OnExpire(r, r.numMembers(), senders, rtcpBW)
+	OnExpire(r, float64(r.NumMembers()), senders, senders, rtcpBW, r.avgRTCPSize, float64(dTimeNow()), float64(r.prevReportTime))
 }
 
 func (r *RTCPInstance) unsetSpecificRRHandler() {
@@ -455,6 +497,7 @@ func (r *RTCPInstance) enqueueCommonReportSuffix() {
 		for _, stats := range r.Source.receptionStatsDB.table {
 			r.enqueueReportBlock(stats)
 		}
+		// because we have just generated a report
 		//r.Source.receptionStatsDB.reset()
 	}
 }

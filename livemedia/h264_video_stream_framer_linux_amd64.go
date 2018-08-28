@@ -28,11 +28,11 @@ type H264VideoStreamParser struct {
 }
 
 func newH264VideoStreamParser(usingSource, inputSource IFramedSource,
-	clientOnInputCloseFunc interface{}) *H264VideoStreamParser {
+	clientOnInputCloseFunc, clientContinueFunc interface{}) *H264VideoStreamParser {
 	parser := new(H264VideoStreamParser)
 	parser.log2MaxFrameNum = 5
 	parser.frameMbsOnlyFlag = true
-	parser.initMPEGVideoStreamParser(usingSource, inputSource, clientOnInputCloseFunc)
+	parser.initMPEGVideoStreamParser(usingSource, inputSource, clientOnInputCloseFunc, clientContinueFunc)
 	if parser.includeStartCodeInOutput {
 		parser.outputStartCodeSize = 4
 	}
@@ -567,7 +567,7 @@ func newH264VideoStreamFramer(inputSource IFramedSource) *H264VideoStreamFramer 
 	framer := new(H264VideoStreamFramer)
 	framer.inputSource = inputSource
 	framer.frameRate = 25.0
-	framer.initMPEGVideoStreamFramer(newH264VideoStreamParser(framer, inputSource, framer.handleClosure))
+	framer.initMPEGVideoStreamFramer(newH264VideoStreamParser(framer, inputSource, framer.handleClosure, framer.continueReadProcessing))
 	framer.initFramedSource(framer)
 	framer.nextPresentationTime = framer.presentationTimeBase
 	return framer

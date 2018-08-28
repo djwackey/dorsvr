@@ -21,7 +21,9 @@ type RTSPClientConnection struct {
 	localAddr      string
 	remoteAddr     string
 	currentCSeq    string
+	sessionIDStr   string
 	responseBuffer string
+	clientSession  *RTSPClientSession
 	server         *RTSPServer
 	digest         *auth.Digest
 }
@@ -71,7 +73,10 @@ func (c *RTSPClientConnection) incomingRequestHandler() {
 		}
 	}
 
-	log.Info("end connection[%s:%s].", c.remoteAddr, c.remotePort)
+	log.Info("disconnected the connection[%s:%s].", c.remoteAddr, c.remotePort)
+	if c.clientSession != nil {
+		c.clientSession.destroy()
+	}
 }
 
 func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) error {
@@ -84,13 +89,13 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) err
 	log.Info("Received %d new bytes of request data.", length)
 
 	var existed bool
-	var clientSession *RTSPClientSession
+	//var clientSession *RTSPClientSession
 	requestString, parseSucceeded := livemedia.ParseRTSPRequestString(reqStr, length)
 	if parseSucceeded {
 		log.Info("Received a complete %s request:\n%s", requestString.CmdName, reqStr)
 
 		c.currentCSeq = requestString.Cseq
-		sessionIDStr := requestString.SessionIDStr
+		c.sessionIDStr = requestString.SessionIDStr
 		switch requestString.CmdName {
 		case "OPTIONS":
 			c.handleCommandOptions()
@@ -98,29 +103,29 @@ func (c *RTSPClientConnection) handleRequestBytes(buffer []byte, length int) err
 			c.handleCommandDescribe(requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 		case "SETUP":
 			{
-				if sessionIDStr == "" {
+				if c.sessionIDStr == "" {
 					for {
-						sessionIDStr = fmt.Sprintf("%08X", gs.OurRandom32())
-						if _, existed = c.server.getClientSession(sessionIDStr); !existed {
+						c.sessionIDStr = fmt.Sprintf("%08X", gs.OurRandom32())
+						if _, existed = c.server.getClientSession(c.sessionIDStr); !existed {
 							break
 						}
 					}
-					clientSession = c.newClientSession(sessionIDStr)
-					c.server.addClientSession(sessionIDStr, clientSession)
+					c.clientSession = c.newClientSession(c.sessionIDStr)
+					c.server.addClientSession(c.sessionIDStr, c.clientSession)
 				} else {
-					if clientSession, existed = c.server.getClientSession(sessionIDStr); !existed {
+					if c.clientSession, existed = c.server.getClientSession(c.sessionIDStr); !existed {
 						c.handleCommandSessionNotFound()
 					}
 				}
 
-				if clientSession != nil {
-					clientSession.handleCommandSetup(requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
+				if c.clientSession != nil {
+					c.clientSession.handleCommandSetup(requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 				}
 			}
 		case "PLAY", "PAUSE", "TEARDOWN", "GET_PARAMETER", "SET_PARAMETER":
 			{
-				if clientSession, existed = c.server.getClientSession(sessionIDStr); existed {
-					clientSession.handleCommandWithinSession(requestString.CmdName,
+				if c.clientSession, existed = c.server.getClientSession(c.sessionIDStr); existed {
+					c.clientSession.handleCommandWithinSession(requestString.CmdName,
 						requestString.UrlPreSuffix, requestString.UrlSuffix, reqStr)
 				} else {
 					c.handleCommandSessionNotFound()

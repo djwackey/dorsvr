@@ -34,8 +34,9 @@ func (s *RTPSink) InitRTPSink(rtpSink IMediaSink, g *gs.GroupSock, rtpPayloadTyp
 	s.rtpPayloadFormatName = rtpPayloadFormatName
 	s.rtpTimestampFrequency = rtpTimestampFrequency
 	s._rtpPayloadType = rtpPayloadType
-	s._nextTimestampHasBeenPreset = true
+	s._nextTimestampHasBeenPreset = false
 	s._transmissionStatsDB = newRTPTransmissionStatsDB(s)
+	s._enableRTCPReports = true
 
 	s.seqNo = gs.OurRandom16()
 	s._ssrc = gs.OurRandom32()

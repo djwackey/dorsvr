@@ -103,9 +103,11 @@ func (b *OutPacketBuffer) enqueue(from []byte, numBytes uint) {
 		numBytes = b.totalBytesAvailable()
 	}
 
-	if !bytes.Equal(b.curPtr()[:numBytes], from[:numBytes]) {
-		copy(b.curPtr(), from[:numBytes])
-	}
+	//log.Warn("OutPacketBuffer::enqueue()  %v", from)
+	copy(b.curPtr(), from)
+	//if !bytes.Equal(b.curPtr(), from) {
+	//	copy(b.curPtr(), from)
+	//}
 	b.increment(numBytes)
 }
 

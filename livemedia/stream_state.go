@@ -69,6 +69,12 @@ func (s *StreamState) startPlaying(dests *Destinations,
 		}
 	}
 
+	if s.rtcpInstance != nil {
+		// Hack: Send an initial RTCP "SR" packet, before the initial RTP packet, so that receivers will (likely) be able to
+		// get RTCP-synchronized presentation times immediately:
+		s.rtcpInstance.sendReport()
+	}
+
 	if !s.areCurrentlyPlaying && s.mediaSource != nil {
 		if s.rtpSink != nil {
 			s.rtpSink.StartPlaying(s.mediaSource, s.afterPlayingStreamState)

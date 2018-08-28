@@ -21,14 +21,16 @@ type StreamParser struct {
 	inputSource                IFramedSource
 	bank                       [2][]byte
 	curBank                    []byte
+	clientContinueFunc         interface{}
 	clientOnInputCloseFunc     interface{}
 	restoreParserStateFunc     interface{}
 	lastSeenPresentationTime   sys.Timeval
 }
 
 func (p *StreamParser) initStreamParser(inputSource IFramedSource,
-	clientOnInputCloseFunc, restoreParserStateFunc interface{}) {
+	clientOnInputCloseFunc, clientContinueFunc, restoreParserStateFunc interface{}) {
 	p.inputSource = inputSource
+	p.clientContinueFunc = clientContinueFunc
 	p.clientOnInputCloseFunc = clientOnInputCloseFunc
 	p.restoreParserStateFunc = restoreParserStateFunc
 
@@ -174,13 +176,13 @@ func (p *StreamParser) afterGettingBytes(numBytesRead, numTruncatedBytes uint, p
 
 	// Continue our original calling source where it left off:
 	p.restoreParserStateFunc.(func())()
+	p.clientContinueFunc.(func())()
 }
 
 func (p *StreamParser) onInputClosure() {
 	if !p.haveSeenEOF {
-		log.Debug("[StreamParser::onInputClosure] haveSeenEOF: true")
 		p.haveSeenEOF = true
-		//p.afterGettingBytes(0, 0, p.lastSeenPresentationTime)
+		p.afterGettingBytes(0, 0, p.lastSeenPresentationTime)
 	} else {
 		// We're hitting EOF for the second time.  Now, we handle the source input closure:
 		if p.clientOnInputCloseFunc != nil {

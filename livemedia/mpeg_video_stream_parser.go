@@ -14,10 +14,10 @@ type MPEGVideoStreamParser struct {
 }
 
 func (p *MPEGVideoStreamParser) initMPEGVideoStreamParser(usingSource, inputSource IFramedSource,
-	clientOnInputCloseFunc interface{}) {
+	clientOnInputCloseFunc, clientContinueFunc interface{}) {
 	p.usingSource = usingSource
 
-	p.initStreamParser(inputSource, clientOnInputCloseFunc, p.restoreSavedParserState)
+	p.initStreamParser(inputSource, clientOnInputCloseFunc, clientContinueFunc, p.restoreSavedParserState)
 }
 
 func (p *MPEGVideoStreamParser) restoreSavedParserState() {
