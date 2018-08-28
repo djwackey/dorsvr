@@ -161,7 +161,7 @@ func (s *RTSPClientSession) handleCommandSetup(urlPreSuffix, urlSuffix, reqStr s
 			s.connection.responseBuffer = fmt.Sprintf("RTSP/1.0 200 OK\r\n"+
 				"CSeq: %s\r\n"+
 				"%s"+
-				"Transport: %s;multicast;destination=%s;source=%s;port=%d;ttl=%d\r\n"+
+				"Transport: %s;multicast;destination=%s;source=%d;port=%d;ttl=%d\r\n"+
 				"Session: %s\r\n\r\n", s.connection.currentCSeq,
 				livemedia.DateHeader(),
 				destAddrStr,
