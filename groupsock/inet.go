@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+func OurRandom() int32 {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return r.Int31()
+}
+
 func OurRandom32() uint32 {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	random16_1 := r.Int31() & 0x00FFFF00
