@@ -69,7 +69,7 @@ func (g *GroupSock) HandleRead(buffer []byte) (int, error) {
 func (g *GroupSock) GetSourcePort() uint {
 	if g.udpConn != nil {
 		localAddr := strings.Split(g.udpConn.LocalAddr().String(), ":")
-		sourcePort, err := strconv.Atoi(localAddr[len(localAddr) - 1])
+		sourcePort, err := strconv.Atoi(localAddr[len(localAddr)-1])
 		if err == nil {
 			return uint(sourcePort)
 		}

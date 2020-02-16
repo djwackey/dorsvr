@@ -32,7 +32,7 @@ func (s *DummySink) AfterGettingFrame(frameSize, durationInMicroseconds uint,
 	//return
 	fmt.Printf("Stream \"%s\"; %s/%s:\tReceived %d bytes.\tPresentation Time: %f\n",
 		s.streamID, s.subsession.MediumName(), s.subsession.CodecName(), frameSize,
-		float32(presentationTime.Sec/1000/1000+presentationTime.Usec))
+		float32(presentationTime.Sec/1000/1000+int64(presentationTime.Usec)))
 }
 
 func (s *DummySink) ContinuePlaying() {
